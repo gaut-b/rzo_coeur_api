@@ -9,6 +9,7 @@ from .models import Centre_social
 from .models import Beneficiaire
 from .models import Client
 from .models import Utilisateur
+from .models import Panier
 # Register your models here.
 
 admin.site.register(Magasin)
