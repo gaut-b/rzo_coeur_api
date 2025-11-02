@@ -2,7 +2,6 @@ from django.db import models
 
 
 class User(models.Model):
-    id_utilisateur = models.BigIntegerField(primary_key=True)
     role = models.CharField(max_length=100)
 
     def __str__(self):
@@ -10,7 +9,6 @@ class User(models.Model):
 
 
 class Client(models.Model):
-    id_client = models.BigIntegerField(primary_key=True)
     name = models.CharField(max_length=50)
     email = models.EmailField(max_length=50)
 
@@ -19,7 +17,6 @@ class Client(models.Model):
 
 
 class SocialCenter(models.Model):
-    id_centre_social = models.BigIntegerField(primary_key=True)
     name = models.CharField(max_length=50)
     address = models.CharField(max_length=200)
     mail = models.CharField(max_length=200)
@@ -93,7 +90,6 @@ class AssignedArticle(models.Model):
 
 
 class Cart(models.Model):
-    id_panier = models.BigIntegerField(primary_key=True)
     article_assigne = models.ForeignKey(
         AssignedArticle, on_delete=models.CASCADE)
     magasin = models.ForeignKey(Shop, on_delete=models.CASCADE)
