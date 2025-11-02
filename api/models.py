@@ -1,7 +1,7 @@
 from django.db import models
 
 
-class Utilisateur(models.Model):
+class User(models.Model):
     id_utilisateur = models.BigIntegerField(primary_key=True)
     role = models.CharField(max_length=100)
 
@@ -18,7 +18,7 @@ class Client(models.Model):
         return self.name
 
 
-class Centre_social(models.Model):
+class SocialCenter(models.Model):
     id_centre_social = models.BigIntegerField(primary_key=True)
     name = models.CharField(max_length=50)
     address = models.CharField(max_length=200)
@@ -41,11 +41,10 @@ class Centre_social(models.Model):
         return self.name
 
 
-class Magasin(models.Model):
-    id_magasin = models.BigIntegerField(primary_key=True)
+class Shop(models.Model):
     name = models.CharField(max_length=100)
     address = models.CharField(max_length=200)
-    centre_social = models.ForeignKey(Centre_social, on_delete=models.CASCADE)
+    centre_social = models.ForeignKey(SocialCenter, on_delete=models.CASCADE)
     # Methods proposal
     # - create article list
     # - notify list suspendus
@@ -60,12 +59,11 @@ class Magasin(models.Model):
         return self.name
 
 
-class Beneficiaire(models.Model):
+class Recipient(models.Model):
     # TODO: id must be generated
-    id_beneficiaire = models.BigIntegerField(primary_key=True)
     name = models.CharField(max_length=50)
     email = models.EmailField(max_length=50)
-    centre_social = models.ForeignKey(Centre_social, on_delete=models.CASCADE)
+    centre_social = models.ForeignKey(SocialCenter, on_delete=models.CASCADE)
     # Methods proposal
     # - register panier
 
@@ -73,12 +71,12 @@ class Beneficiaire(models.Model):
         return self.name
 
 
-class Article_scanned(models.Model):
+class ScannedArticle(models.Model):
     name = models.CharField(max_length=50)
     code_barre = models.BigIntegerField(primary_key=True)
     qte_suspendus = models.IntegerField()
     client_origine = models.ForeignKey(Client, on_delete=models.CASCADE)
-    magasin_origine = models.ForeignKey(Magasin, on_delete=models.CASCADE)
+    magasin_origine = models.ForeignKey(Shop, on_delete=models.CASCADE)
     # Methods proposal
     # - save changes the quantity ? fait un get client & magasin : save est fait par le magasin
     #
@@ -87,18 +85,18 @@ class Article_scanned(models.Model):
         return self.name
 
 
-class ArticleAssigne(models.Model):
-    article = models.ForeignKey(Article_scanned, on_delete=models.CASCADE)
-    centre_social = models.ForeignKey(Centre_social, on_delete=models.CASCADE)
+class AssignedArticle(models.Model):
+    article = models.ForeignKey(ScannedArticle, on_delete=models.CASCADE)
+    centre_social = models.ForeignKey(SocialCenter, on_delete=models.CASCADE)
     # Methods proposal
     # -
 
 
-class Panier(models.Model):
+class Cart(models.Model):
     id_panier = models.BigIntegerField(primary_key=True)
     article_assigne = models.ForeignKey(
-        ArticleAssigne, on_delete=models.CASCADE)
-    magasin = models.ForeignKey(Magasin, on_delete=models.CASCADE)
+        AssignedArticle, on_delete=models.CASCADE)
+    magasin = models.ForeignKey(Shop, on_delete=models.CASCADE)
 
     # Methods proposal
     # -
