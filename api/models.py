@@ -4,6 +4,27 @@ from django.db import models
 class User(models.Model):
     role = models.CharField(max_length=100)
 
+    ROLES = [
+        ('SUPER_ADMIN', 'super admin'),
+        ('DONOR', 'Donor'),
+        ('RECIPIENT', 'Recipient'),
+        ('CASHIER', 'Cashier'),
+        ('STORE_OWNER', 'Store owner')
+        ('SOCIAL_DIRECTOR', 'Social Director'),
+        ('SOCIAL_WORKER', 'Social Worker'),
+    ]
+
+    class Meta:
+        permissions = [
+            ("can_create_shop", "Can create a shop in DB"),
+            ("can_create_cashier", "Can create a cashier in DB")
+            ("can_create_social_center", "Can create a social center in DB")
+            ("can_create_social_worker", "Can create a social worker in DB")
+            ("can_create_recipient", "Can create a recipient in DB")
+            ("can_create_article", "Can create a article in DB")
+            ("can_create_cart", "Can create cart in DB")
+        ]
+
     def __str__(self):
         return self.name
 
@@ -21,14 +42,6 @@ class SocialCenter(models.Model):
     address = models.CharField(max_length=200)
     mail = models.CharField(max_length=200)
 
-    class Meta:
-        permissions = [
-            ("can_create_magasin", "Can create a magasin object"),
-            ("can_create_beneficiaire", "Can create a beneficiaire object"),
-            ("can_create_panier", "Can create a panier object"),
-            ("can_create_assign_article",
-             "Can switch an article from scanned to assigned"),
-        ]
     # def switch from scanned to assigned
     # register list article to magasin
     # create_panier : get from article_scanned list to article_assigned, create a panier
