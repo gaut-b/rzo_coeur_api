@@ -10,7 +10,7 @@ class Client(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
 
     def __str__(self):
-        return self.name
+        return self.user.get_full_name()
 
 
 class SocialCenter(models.Model):
@@ -29,27 +29,28 @@ class SocialCenter(models.Model):
 
 class SocialWorker(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    social_center = models.OneToOneField(
-        SocialCenter, on_delete=models.CASCADE, related_name="worker")
+    social_center = models.ForeignKey(
+        SocialCenter, on_delete=models.CASCADE, related_name="social_workers")
 
     def __str__(self):
-        return self.name
+        return self.user.get_full_name()
 
 
 class Recipient(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    social_center = models.ForeignKey(SocialCenter, on_delete=models.CASCADE)
+    social_center = models.ForeignKey(SocialCenter, on_delete=models.CASCADE, related_name="recipients")
     # Methods proposal
     # - register panier
 
     def __str__(self):
-        return self.name
+        return self.user.get_full_name()
+
 
 
 class Shop(models.Model):
     name = models.CharField(max_length=100)
     address = models.CharField(max_length=200)
-    social_center = models.ForeignKey(SocialCenter, on_delete=models.CASCADE)
+    social_center = models.ForeignKey(SocialCenter, on_delete=models.CASCADE, related_name="shops")
     # Methods proposal
     # - create article list
     # - notify list suspendus
@@ -64,13 +65,14 @@ class Cashier(models.Model):
         Shop, on_delete=models.CASCADE, related_name="cashier")
 
     def __str__(self):
-        return self.name
+        return self.user.first_name + " " + self.user.last_name
+
 
 
 class Cart(models.Model):
-    magasin = models.ForeignKey(Shop, on_delete=models.CASCADE)
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name="carts")
     recipient = models.ForeignKey(
-        Client, on_delete=models.CASCADE, related_name="carts")
+        Recipient, on_delete=models.CASCADE, related_name="carts")
     status = models.CharField(
         max_length=20,
         choices=[
@@ -80,12 +82,6 @@ class Cart(models.Model):
         ],
         default='PENDING'
     )
-
-    # Methods proposal
-    # -
-
-    def __str__(self):
-        return self.id_panier
 
 
 class Article(models.Model):
