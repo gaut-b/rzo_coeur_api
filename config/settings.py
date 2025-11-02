@@ -16,6 +16,8 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+AUTH_USER_MODEL = 'api.User'
+
 GRAPH_MODELS = {
     'all_applications': True,
     'group_models': True,
