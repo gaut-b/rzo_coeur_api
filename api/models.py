@@ -1,7 +1,8 @@
 from django.db import models
+from django.contrib.auth.models import AbstractUser
 
 
-class User(models.Model):
+class User(AbstractUser):
     role = models.CharField(max_length=100)
 
     ROLES = [
@@ -30,8 +31,35 @@ class User(models.Model):
 
 
 class Client(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
     name = models.CharField(max_length=50)
     email = models.EmailField(max_length=50)
+
+    def __str__(self):
+        return self.name
+
+
+class SocialWorker(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.name
+
+
+class Cashier(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.name
+
+
+class Recipient(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    name = models.CharField(max_length=50)
+    email = models.EmailField(max_length=50)
+    centre_social = models.ForeignKey(SocialCenter, on_delete=models.CASCADE)
+    # Methods proposal
+    # - register panier
 
     def __str__(self):
         return self.name
@@ -69,37 +97,19 @@ class Shop(models.Model):
         return self.name
 
 
-class Recipient(models.Model):
-    # TODO: id must be generated
-    name = models.CharField(max_length=50)
-    email = models.EmailField(max_length=50)
-    centre_social = models.ForeignKey(SocialCenter, on_delete=models.CASCADE)
-    # Methods proposal
-    # - register panier
-
-    def __str__(self):
-        return self.name
-
-
-class ScannedArticle(models.Model):
+class Article(models.Model):
     name = models.CharField(max_length=50)
     code_barre = models.BigIntegerField(primary_key=True)
     qte_suspendus = models.IntegerField()
     client_origine = models.ForeignKey(Client, on_delete=models.CASCADE)
     magasin_origine = models.ForeignKey(Shop, on_delete=models.CASCADE)
+    panier = models.ForeignKey(Cart, on_delete=models.CASCADE)
     # Methods proposal
     # - save changes the quantity ? fait un get client & magasin : save est fait par le magasin
     #
 
     def __str__(self):
         return self.name
-
-
-class AssignedArticle(models.Model):
-    article = models.ForeignKey(ScannedArticle, on_delete=models.CASCADE)
-    centre_social = models.ForeignKey(SocialCenter, on_delete=models.CASCADE)
-    # Methods proposal
-    # -
 
 
 class Cart(models.Model):
