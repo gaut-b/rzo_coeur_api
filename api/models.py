@@ -3,17 +3,18 @@ from django.contrib.auth.models import AbstractUser
 
 
 class User(AbstractUser):
-    role = models.CharField(max_length=100)
-
-    ROLES = [
-        ('SUPER_ADMIN', 'super admin'),
-        ('DONOR', 'Donor'),
-        ('RECIPIENT', 'Recipient'),
-        ('CASHIER', 'Cashier'),
-        ('STORE_OWNER', 'Store owner')
-        ('SOCIAL_DIRECTOR', 'Social Director'),
-        ('SOCIAL_WORKER', 'Social Worker'),
-    ]
+    role = models.CharField(
+        max_length=100
+        roles=[
+            ('SUPER_ADMIN', 'super admin'),
+            ('DONOR', 'Donor'),
+            ('RECIPIENT', 'Recipient'),
+            ('CASHIER', 'Cashier'),
+            ('STORE_OWNER', 'Store owner')
+            ('SOCIAL_DIRECTOR', 'Social Director'),
+            ('SOCIAL_WORKER', 'Social Worker'),
+        ]
+    ),
 
     class Meta:
         permissions = [
@@ -103,7 +104,7 @@ class Article(models.Model):
     qte_suspendus = models.IntegerField()
     client_origine = models.ForeignKey(Client, on_delete=models.CASCADE)
     magasin_origine = models.ForeignKey(Shop, on_delete=models.CASCADE)
-    panier = models.ForeignKey(Cart, on_delete=models.CASCADE)
+    panier = models.ForeignKey(Cart, on_delete=models.CASCADE, "articles")
     # Methods proposal
     # - save changes the quantity ? fait un get client & magasin : save est fait par le magasin
     #
@@ -116,8 +117,19 @@ class Cart(models.Model):
     article_assigne = models.ForeignKey(
         AssignedArticle, on_delete=models.CASCADE)
     magasin = models.ForeignKey(Shop, on_delete=models.CASCADE)
+    recipient = models.ForeignKey(Client, on_delete=models.CASCADE, "carts")
+    status = models.Charfield(
+        max_length=20
+        states=[
+            ('PENDING', 'Pending assignment'),
+            ('ASSIGNED', 'Assigned to beneficiary'),
+            ('COLLECTED', 'Collected'),
+        ],
+        default='PENDING'
+    )
 
     # Methods proposal
     # -
+
     def __str__(self):
         return self.id_panier
