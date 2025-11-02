@@ -33,8 +33,6 @@ class User(AbstractUser):
 
 class Client(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    name = models.CharField(max_length=50)
-    email = models.EmailField(max_length=50)
 
     def __str__(self):
         return self.name
@@ -42,6 +40,7 @@ class Client(models.Model):
 
 class SocialWorker(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
+    social_center = models.OneToOneField(SocialCenter, on_delete=models.CASCADE, "worker")
 
     def __str__(self):
         return self.name
@@ -49,6 +48,7 @@ class SocialWorker(models.Model):
 
 class Cashier(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
+    shop = models.OneToOneField(Shop, on_delete=models.CASCADE, "cashier")
 
     def __str__(self):
         return self.name
@@ -56,9 +56,7 @@ class Cashier(models.Model):
 
 class Recipient(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    name = models.CharField(max_length=50)
-    email = models.EmailField(max_length=50)
-    centre_social = models.ForeignKey(SocialCenter, on_delete=models.CASCADE)
+    social_center = models.ForeignKey(SocialCenter, on_delete=models.CASCADE)
     # Methods proposal
     # - register panier
 
@@ -83,31 +81,25 @@ class SocialCenter(models.Model):
 class Shop(models.Model):
     name = models.CharField(max_length=100)
     address = models.CharField(max_length=200)
-    centre_social = models.ForeignKey(SocialCenter, on_delete=models.CASCADE)
+    social_center = models.ForeignKey(SocialCenter, on_delete=models.CASCADE)
     # Methods proposal
     # - create article list
     # - notify list suspendus
 
-    class Meta:
-        permissions = [
-            ("can_create_client", "Can create a client object"),
-            ("can_create_article_scanned", "Can create a list of scanned articles"),
-        ]
-
-    def __str__(self):
-        return self.name
+    return self.name
 
 
 class Article(models.Model):
     name = models.CharField(max_length=50)
-    code_barre = models.BigIntegerField(primary_key=True)
-    qte_suspendus = models.IntegerField()
-    client_origine = models.ForeignKey(Client, on_delete=models.CASCADE)
-    magasin_origine = models.ForeignKey(Shop, on_delete=models.CASCADE)
-    panier = models.ForeignKey(Cart, on_delete=models.CASCADE, "articles")
-    # Methods proposal
-    # - save changes the quantity ? fait un get client & magasin : save est fait par le magasin
-    #
+    barcode = models.BigIntegerField()
+    client = models.ForeignKey(Client, on_delete=models.CASCADE, "articles")
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, "articles")
+    cart = models.ForeignKey(Cart, on_delete=models.CASCADE, "articles")
+
+    class Meta:
+        indexes = [
+            Models.Index(fields=['barcode'])
+        ]
 
     def __str__(self):
         return self.name

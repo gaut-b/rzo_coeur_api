@@ -4,17 +4,17 @@ from django.contrib.auth.admin import GroupAdmin
 
 from django.db import models
 
-from .models import Magasin
-from .models import Centre_social
-from .models import Beneficiaire
+from .models import Shop
+from .models import SocialCenter
+from .models import Recipient
 from .models import Client
-from .models import Utilisateur
-from .models import Panier
+from .models import User
+from .models import Cart
 # Register your models here.
 
-admin.site.register(Magasin)
-admin.site.register(Centre_social)
-admin.site.register(Beneficiaire)
+admin.site.register(Shop)
+admin.site.register(SocialCenter)
+admin.site.register(Recipient)
 admin.site.register(Client)
-admin.site.register(Utilisateur)
-admin.site.register(Panier)
+admin.site.register(User)
+admin.site.register(Cart)
