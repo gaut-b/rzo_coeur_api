@@ -24,6 +24,12 @@ To launch the development server:
 docker compose up --watch --build
 ```
 
+To launch only the database:
+
+```sh
+docker compose up db
+```
+
 ## Contributors
 
 - [Clement Viel](https://github.com/ClementViel)
