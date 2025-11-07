@@ -14,4 +14,11 @@ fi
 python manage.py flush --no-input
 python manage.py migrate
 
-exec "$@"
+# Set default workers if GUNICORN_WORKERS is not set
+WORKERS=${GUNICORN_WORKERS:-3}
+
+if [ "$#" -eq 0 ]; then
+    exec gunicorn --bind 0.0.0.0:8000 --workers "$WORKERS" --timeout 60 --graceful-timeout 60 config.wsgi:application
+else
+    exec "$@"
+fi

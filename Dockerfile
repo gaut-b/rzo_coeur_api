@@ -1,24 +1,64 @@
-FROM python:3.13.0-alpine3.20
+# Stage 1: Base build stage
+FROM python:3.13-slim AS builder
 
-ENV PYTHONUNBUFFERED 1
+# Install build dependencies for psycopg
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY ./requirements.txt /requirements.txt
+# Create the app directory
+RUN mkdir /app
 
-ENV PATH="/py/bin:$PATH"
-RUN python -m venv /py && \
-    pip install --upgrade pip && \
-    apk add --update --upgrade --no-cache postgresql-client && \
-    apk add --update --upgrade --no-cache --virtual .tmp \
-        build-base postgresql-dev
+# Set the working directory
+WORKDIR /app
 
-RUN pip install -r /requirements.txt && apk del .tmp
+# Set environment variables to optimize Python
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1 
 
-# copy entrypoint.sh
+# Upgrade pip and install dependencies
+RUN pip install --upgrade pip
 
-COPY . /api
-WORKDIR /api
-RUN chmod +x /api/entrypoint.sh
+# Copy the requirements file first (better caching)
+COPY requirements.txt /app/
 
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
-# run entrypoint.sh
-ENTRYPOINT ["/api/entrypoint.sh"]
+# Stage 2: Production stage
+FROM python:3.13-slim
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    netcat-openbsd \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN useradd -m -r appuser && \
+   mkdir /app && \
+   chown -R appuser /app
+
+# Copy the Python dependencies from the builder stage
+COPY --from=builder /usr/local/lib/python3.13/site-packages/ /usr/local/lib/python3.13/site-packages/
+COPY --from=builder /usr/local/bin/ /usr/local/bin/
+
+# Set the working directory
+WORKDIR /app
+
+# Copy application code
+COPY --chown=appuser:appuser . .
+
+# Set environment variables to optimize Python
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Switch to non-root user
+USER appuser
+RUN chmod +x /app/entrypoint.sh
+
+# Expose the application port
+EXPOSE 8000
+
+# Set entrypoint and default command
+ENTRYPOINT ["/app/entrypoint.sh"]
