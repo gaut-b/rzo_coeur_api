@@ -9,3 +9,5 @@ psycopg==3.2.3
 python-dotenv==1.2.1
 sqlparse==0.5.3
 typing_extensions==4.15.0
+drf-auth-kit==0.3.10
+drf-spectacular==0.28.0
