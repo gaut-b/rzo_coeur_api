@@ -15,7 +15,7 @@ WORKDIR /app
 
 # Set environment variables to optimize Python
 ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1 
+ENV PYTHONUNBUFFERED=1
 
 # Upgrade pip and install dependencies
 RUN pip install --upgrade pip

@@ -1,20 +1,56 @@
 from django.contrib import admin
-from django.contrib.auth.models import Group
-from django.contrib.auth.admin import GroupAdmin
+from django.contrib.auth.admin import UserAdmin
 
-from django.db import models
+from .models import Cart, Client, CustomUser, Recipient, Shop, SocialCenter
 
-from .models import Shop
-from .models import SocialCenter
-from .models import Recipient
-from .models import Client
-from .models import User
-from .models import Cart
 # Register your models here.
+
+
+class CustomUserAdmin(UserAdmin):
+    model = CustomUser
+    list_display = ["email", "first_name", "last_name", "is_staff", "is_active"]
+    list_filter = ["is_staff", "is_active"]
+    fieldsets = (
+        (None, {"fields": ("email", "password")}),
+        ("Personal info", {"fields": ("first_name", "last_name")}),
+        (
+            "Permissions",
+            {
+                "fields": (
+                    "is_active",
+                    "is_staff",
+                    "is_superuser",
+                    "groups",
+                    "user_permissions",
+                )
+            },
+        ),
+        ("Important dates", {"fields": ("last_login", "date_joined")}),
+    )
+    add_fieldsets = (
+        (
+            None,
+            {
+                "classes": ("wide",),
+                "fields": (
+                    "email",
+                    "password1",
+                    "password2",
+                    "first_name",
+                    "last_name",
+                    "is_staff",
+                    "is_active",
+                ),
+            },
+        ),
+    )
+    search_fields = ["email", "first_name", "last_name"]
+    ordering = ["email"]
+
 
 admin.site.register(Shop)
 admin.site.register(SocialCenter)
 admin.site.register(Recipient)
 admin.site.register(Client)
-admin.site.register(User)
+admin.site.register(CustomUser, CustomUserAdmin)
 admin.site.register(Cart)

@@ -2,46 +2,63 @@
 
 rzo_coeur_api is a backend application built with Django. This project is the backend part of a project called "Les réseaux du coeur" (Heart Networks), whose principle is similar to the "pending coffee" but for food products.
 
-The principle of this application is that "Donor" users can purchase products in partner stores using the mobile application and leave them on the shelf. When these items are paid for, they appear in the list of available products for the partner social center to which the store is linked. "Social Center" users can then create baskets grouping several items from the same store and assign this basket to a "Beneficiary" user. The latter can then collect the items from the store and check out without paying for the products by showing the mobile application at the checkout.
+The principle of this application is that "Client" users can purchase products in partner stores using the mobile application and leave them on the shelf. When these items are paid for, they appear in the list of available products for the partner social center to which the store is linked. "Social Center" users can then create baskets grouping several items from the same store and assign this basket to a "Recipient" user. The latter can then collect the items from the store and check out without paying for the products by showing the mobile application at the checkout.
 
 This codebase is the backend part of the project, coded in Python using the Django framework. It exposes a REST API allowing the web application to retrieve information stored in the database, as well as a back office based on Django's admin interface to manage users and products scanned by the application (pending products, baskets...). PostgreSQL was chosen for its robustness, reliability and advanced features that suit well with Django's ORM.
 
+## Data Models
+
+The application uses the following Django models:
+
+- **CustomUser**: Email-based authentication user model (replaces Django's default User)
+- **Client**: Donor users who purchase products
+- **Recipient**: Beneficiary users who receive baskets
+- **Cashier**: Store cashiers who validate transactions
+- **SocialWorker**: Social center staff who manage recipients and baskets
+- **SocialCenter**: Social organizations managing recipients and linked to shops
+- **Shop**: Partner stores where products are purchased and collected
+- **Cart**: Baskets of articles assigned to recipients
+- **Article**: Individual products purchased by clients
+
+## User Roles and Permissions
+
 We distinguish the following different types of users:
 
-- Donor:
+- **Client**:
 
   - Can create an account via the mobile application
-  - Can retrieve the list of stores available in the application
-  - Can purchase items in one of the stores using the application during checkout
+  - Can retrieve the list of shops available in the application
+  - Can purchase articles in one of the shops using the application during checkout
 
-- Beneficiary:
+- **Recipient**:
 
   - Account is created by a social worker
-  - Can retrieve baskets assigned to them in a store
+  - Linked to a social center
+  - Can retrieve carts assigned to them in a shop
 
-- Cashier:
+- **Cashier**:
 
-  - Linked to a store
-  - If store admin, they can:
-    - Create other cashier accounts linked to this store via the admin interface
-  - Has access to the list of all "Cashier" users linked to their store
-  - Has access to the list of "suspended" items in their store
-  - Has access to the list of baskets created by their social center and their status (pending assignment, pending collection, collected)
-  - Validates item purchases when a "Donor" user checks out
-  - Validates basket withdrawal when a "Beneficiary" user checks out
+  - Linked to a shop
+  - If shop admin, they can:
+    - Create other cashier accounts linked to this shop via the admin interface
+  - Has access to the list of all cashier users linked to their shop
+  - Has access to the list of "suspended" articles in their shop
+  - Has access to the list of carts created by their social center and their status (pending assignment, assigned to beneficiary, collected)
+  - Validates article purchases when a client checks out
+  - Validates cart withdrawal when a recipient checks out
 
-- Social Worker:
+- **SocialWorker**:
   - Linked to a social center
   - If social center admin, they can:
-    - Create new stores and admin "Cashier" users for it
-    - Create "Social Worker" users linked to their social center
-    - Create "Beneficiary" users linked to their social center
-  - Has access to the list of all beneficiaries linked to their social center
+    - Create new shops and admin cashier users for it
+    - Create social worker users linked to their social center
+    - Create recipient users linked to their social center
+  - Has access to the list of all recipients linked to their social center
   - Has access to the list of all social workers linked to their social center
-  - Has access to the list of all stores linked to their social center
-  - Has access to the list of available items for each store linked to their social center
-  - Has access to the list of baskets created by their social center and their status (pending assignment, pending collection, collected)
-  - Can create new baskets from the list of available items in a store linked to their social center and assign them to a "Beneficiary" from their social center
+  - Has access to the list of all shops linked to their social center
+  - Has access to the list of available articles for each shop linked to their social center
+  - Has access to the list of carts created by their social center and their status (pending, assigned, collected)
+  - Can create new carts from the list of available articles in a shop linked to their social center and assign them to a recipient from their social center
 
 # Python Coding Conventions
 
