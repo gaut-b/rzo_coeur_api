@@ -24,6 +24,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, Spec
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/auth/", include("auth_kit.urls")),
+    path("api/", include("api.urls")),
 ]
 
 # Include UI testing view only in DEBUG mode
