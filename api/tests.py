@@ -517,8 +517,8 @@ class CartCollectViewTests(APITestCase):
     def test_collect_cart_success(self):
         """Test successful cart collection."""
         self.api_client.force_authenticate(user=self.cashier_user)
-        url = f"/api/carts/{self.cart_assigned.id}/collect/"
-        data = {"recipient_id": self.recipient.user.pk}
+        url = f"/api/recipients/{self.recipient.user.pk}/carts/{self.cart_assigned.id}/collect/"
+        data = {}
 
         response = self.api_client.patch(url, data, format="json")
 
@@ -535,8 +535,8 @@ class CartCollectViewTests(APITestCase):
 
     def test_collect_cart_unauthenticated(self):
         """Test that unauthenticated users cannot collect carts."""
-        url = f"/api/carts/{self.cart_assigned.id}/collect/"
-        data = {"recipient_id": self.recipient.user.pk}
+        url = f"/api/recipients/{self.recipient.user.pk}/carts/{self.cart_assigned.id}/collect/"
+        data = {}
 
         response = self.api_client.patch(url, data, format="json")
 
@@ -545,8 +545,8 @@ class CartCollectViewTests(APITestCase):
     def test_collect_cart_non_cashier(self):
         """Test that non-cashier users cannot collect carts."""
         self.api_client.force_authenticate(user=self.client_user)
-        url = f"/api/carts/{self.cart_assigned.id}/collect/"
-        data = {"recipient_id": self.recipient.user.pk}
+        url = f"/api/recipients/{self.recipient.user.pk}/carts/{self.cart_assigned.id}/collect/"
+        data = {}
 
         response = self.api_client.patch(url, data, format="json")
 
@@ -555,8 +555,8 @@ class CartCollectViewTests(APITestCase):
     def test_collect_cart_not_found(self):
         """Test collecting a non-existent cart."""
         self.api_client.force_authenticate(user=self.cashier_user)
-        url = "/api/carts/99999/collect/"
-        data = {"recipient_id": self.recipient.user.pk}
+        url = f"/api/recipients/{self.recipient.user.pk}/carts/99999/collect/"
+        data = {}
 
         response = self.api_client.patch(url, data, format="json")
 
@@ -566,8 +566,8 @@ class CartCollectViewTests(APITestCase):
     def test_collect_cart_pending_status(self):
         """Test that carts in PENDING status cannot be collected."""
         self.api_client.force_authenticate(user=self.cashier_user)
-        url = f"/api/carts/{self.cart_pending.id}/collect/"
-        data = {"recipient_id": self.recipient.user.pk}
+        url = f"/api/recipients/{self.recipient.user.pk}/carts/{self.cart_pending.id}/collect/"
+        data = {}
 
         response = self.api_client.patch(url, data, format="json")
 
@@ -577,8 +577,8 @@ class CartCollectViewTests(APITestCase):
     def test_collect_cart_already_collected(self):
         """Test that already collected carts cannot be collected again."""
         self.api_client.force_authenticate(user=self.cashier_user)
-        url = f"/api/carts/{self.cart_collected.id}/collect/"
-        data = {"recipient_id": self.recipient.user.pk}
+        url = f"/api/recipients/{self.recipient.user.pk}/carts/{self.cart_collected.id}/collect/"
+        data = {}
 
         response = self.api_client.patch(url, data, format="json")
 
@@ -588,43 +588,43 @@ class CartCollectViewTests(APITestCase):
     def test_collect_cart_wrong_shop(self):
         """Test that cashiers can only collect carts from their shop."""
         self.api_client.force_authenticate(user=self.cashier_user)
-        url = f"/api/carts/{self.cart_shop2.id}/collect/"
-        data = {"recipient_id": self.recipient.user.pk}
-
-        response = self.api_client.patch(url, data, format="json")
-
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertIn("shop", response.data)
-
-    def test_collect_cart_recipient_mismatch(self):
-        """Test that recipient_id must match the cart's recipient."""
-        self.api_client.force_authenticate(user=self.cashier_user)
-        url = f"/api/carts/{self.cart_assigned.id}/collect/"
-        data = {"recipient_id": self.recipient2.user.pk}  # Wrong recipient
-
-        response = self.api_client.patch(url, data, format="json")
-
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("recipient_id", response.data)
-
-    def test_collect_cart_invalid_recipient_id(self):
-        """Test with non-existent recipient ID."""
-        self.api_client.force_authenticate(user=self.cashier_user)
-        url = f"/api/carts/{self.cart_assigned.id}/collect/"
-        data = {"recipient_id": 99999}
-
-        response = self.api_client.patch(url, data, format="json")
-
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("recipient_id", response.data)
-
-    def test_collect_cart_missing_recipient_id(self):
-        """Test with missing recipient_id in request."""
-        self.api_client.force_authenticate(user=self.cashier_user)
-        url = f"/api/carts/{self.cart_assigned.id}/collect/"
+        url = f"/api/recipients/{self.recipient.user.pk}/carts/{self.cart_shop2.id}/collect/"
         data = {}
 
         response = self.api_client.patch(url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("recipient_id", response.data)
+        self.assertIn("shop", response.data)
+
+    def test_collect_cart_recipient_mismatch(self):
+        """Test that recipient_id must match the cart's recipient."""
+        self.api_client.force_authenticate(user=self.cashier_user)
+        url = f"/api/recipients/{self.recipient2.user.pk}/carts/{self.cart_assigned.id}/collect/"
+        data = {}
+
+        response = self.api_client.patch(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("recipient", response.data)
+
+    def test_collect_cart_invalid_recipient_id(self):
+        """Test with non-existent recipient ID."""
+        self.api_client.force_authenticate(user=self.cashier_user)
+        url = f"/api/recipients/99999/carts/{self.cart_assigned.id}/collect/"
+        data = {}
+
+        response = self.api_client.patch(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertIn("error", response.data)
+
+    def test_collect_cart_missing_recipient_id(self):
+        """Test with missing recipient_id in request (now handled by URL)."""
+        self.api_client.force_authenticate(user=self.cashier_user)
+        url = f"/api/recipients/{self.recipient.user.pk}/carts/{self.cart_assigned.id}/collect/"
+        data = {}
+
+        response = self.api_client.patch(url, data, format="json")
+
+        # Should succeed since recipient_id is now in URL
+        self.assertEqual(response.status_code, status.HTTP_200_OK)

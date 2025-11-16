@@ -176,31 +176,25 @@ class CartSerializer(serializers.ModelSerializer):
 class CartCollectSerializer(serializers.Serializer):
     """
     Serializer for marking a Cart as collected.
-    Only the 'status' field is writable.
+    No input fields required - recipient and cart IDs come from URL.
     """
-
-    recipient_id = serializers.IntegerField(required=True)
-
-    def validate_recipient_id(self, value):
-        """Validate that the recipient exists (by user pk)"""
-        try:
-            recipient = Recipient.objects.get(user__pk=value)
-            self._validated_recipient = recipient
-            return value
-        except Recipient.DoesNotExist:
-            raise serializers.ValidationError(f"Recipient with user id {value} does not exist.")
 
     def validate(self, attrs):
         """
         Validate that:
         - Cart status is ASSIGNED
         - Cashier's shop matches cart's shop
-        - Recipient ID matches cart's recipient
+        - Cart belongs to the specified recipient
         """
         request = self.context.get("request")
         cart = self.context.get("cart")
+        recipient = self.context.get("recipient")
+
         if not cart:
             raise serializers.ValidationError("Cart context is required.")
+        if not recipient:
+            raise serializers.ValidationError("Recipient context is required.")
+
         if cart.status != CartStatus.ASSIGNED.value:
             raise serializers.ValidationError(
                 {
@@ -216,10 +210,9 @@ class CartCollectSerializer(serializers.Serializer):
                 {"shop": "You can only collect carts from your shop."}
             )
 
-        recipient = self._validated_recipient
         if cart.recipient != recipient:
             raise serializers.ValidationError(
-                {"recipient_id": "The recipient ID does not match the cart's recipient."}
+                {"recipient": "The cart does not belong to this recipient."}
             )
 
         return attrs

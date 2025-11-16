@@ -207,16 +207,17 @@ class CartCollectView(APIView):
         **Permission**: CASHIER role only
 
         **Validations**:
+        - Recipient must exist
         - Cart must exist
         - Cart status must be "ASSIGNED"
         - Cashier can only collect carts from their shop
-        - Recipient ID must match the cart's recipient
+        - Cart must belong to the specified recipient
 
         **Actions**:
         - Updates cart status to "COLLECTED"
         - Sets collected_at timestamp
         """,
-        request=CartCollectSerializer,
+        request=None,
         responses={
             200: CartSerializer,
             400: {
@@ -231,9 +232,7 @@ class CartCollectView(APIView):
                         }
                     },
                     "recipient_mismatch": {
-                        "value": {
-                            "recipient_id": "The recipient ID does not match the cart's recipient."
-                        }
+                        "value": {"recipient": "The cart does not belong to this recipient."}
                     },
                 },
             },
@@ -244,17 +243,31 @@ class CartCollectView(APIView):
                 },
             },
             404: {
-                "description": "Cart not found",
-                "examples": {"not_found": {"value": {"error": "Cart not found."}}},
+                "description": "Recipient or Cart not found",
+                "examples": {
+                    "recipient_not_found": {"value": {"error": "Recipient not found."}},
+                    "cart_not_found": {"value": {"error": "Cart not found."}},
+                },
             },
         },
         tags=["Carts"],
     )
-    def patch(self, request, cart_id):
+    def patch(self, request, recipient_id, cart_id):
         """Handle PATCH request to mark cart as collected."""
+        # Get the recipient or return 404
+        try:
+            from .models import Recipient
+
+            recipient = Recipient.objects.select_related("user").get(user__pk=recipient_id)
+        except Recipient.DoesNotExist:
+            return Response(
+                {"error": "Recipient not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
         # Get the cart or return 404
         try:
-            cart = Cart.objects.select_related("shop").get(pk=cart_id)
+            cart = Cart.objects.select_related("shop", "recipient__user").get(pk=cart_id)
         except Cart.DoesNotExist:
             return Response(
                 {"error": "Cart not found."},
@@ -263,8 +276,8 @@ class CartCollectView(APIView):
 
         # Validate and update
         serializer = CartCollectSerializer(
-            data=request.data,
-            context={"request": request, "cart": cart},
+            data={},
+            context={"request": request, "cart": cart, "recipient": recipient},
         )
 
         if serializer.is_valid():
