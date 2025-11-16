@@ -5,12 +5,7 @@ from rest_framework.views import APIView
 
 from .models import Cart
 from .permissions import IsCashier
-from .serializers import (
-    ArticleSerializer,
-    BulkArticleCreateSerializer,
-    CartCollectSerializer,
-    CartSerializer,
-)
+from .serializers import ArticleSerializer, BulkArticleCreateSerializer, CartCollectSerializer
 
 
 class ArticleCreateView(APIView):
@@ -219,7 +214,7 @@ class CartCollectView(APIView):
         """,
         request=None,
         responses={
-            200: CartSerializer,
+            204: {"description": "Cart successfully collected"},
             400: {
                 "description": "Bad Request",
                 "examples": {
@@ -267,7 +262,9 @@ class CartCollectView(APIView):
 
         # Get the cart or return 404
         try:
-            cart = Cart.objects.select_related("shop", "recipient__user").get(pk=cart_id)
+            cart = Cart.objects.select_related("shop", "recipient", "recipient__user").get(
+                pk=cart_id
+            )
         except Cart.DoesNotExist:
             return Response(
                 {"error": "Cart not found."},
@@ -281,13 +278,6 @@ class CartCollectView(APIView):
         )
 
         if serializer.is_valid():
-            updated_cart = serializer.update(cart, serializer.validated_data)
-            response_serializer = CartSerializer(updated_cart)
-            return Response(
-                {
-                    "message": "Cart successfully marked as collected.",
-                    "cart": response_serializer.data,
-                },
-                status=status.HTTP_200_OK,
-            )
+            serializer.update(cart, serializer.validated_data)
+            return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

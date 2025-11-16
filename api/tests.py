@@ -522,11 +522,7 @@ class CartCollectViewTests(APITestCase):
 
         response = self.api_client.patch(url, data, format="json")
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn("message", response.data)
-        self.assertIn("cart", response.data)
-        self.assertEqual(response.data["cart"]["status"], CartStatus.COLLECTED.value)
-        self.assertIsNotNone(response.data["cart"]["collected_at"])
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
         # Verify database update
         self.cart_assigned.refresh_from_db()
@@ -627,4 +623,4 @@ class CartCollectViewTests(APITestCase):
         response = self.api_client.patch(url, data, format="json")
 
         # Should succeed since recipient_id is now in URL
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
