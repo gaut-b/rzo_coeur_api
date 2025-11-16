@@ -82,7 +82,7 @@ class BulkArticleCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError(f"Client with id {value} does not exist.")
 
         # Verify that the user has the CLIENT role
-        if client.user.role != UserRole.CLIENT:
+        if client.user.role != UserRole.CLIENT.value:
             raise serializers.ValidationError(f"User with id {value} is not a Client.")
 
         # Cache the client to avoid duplicate query in create()
@@ -142,3 +142,93 @@ class BulkArticleCreateSerializer(serializers.Serializer):
         created_articles = Article.objects.bulk_create(articles_to_create)
 
         return created_articles
+
+
+class CartSerializer(serializers.ModelSerializer):
+    """
+    Serializer for Cart model output.
+    """
+
+    shop_name = serializers.CharField(source="shop.name", read_only=True)
+    recipient_email = serializers.EmailField(source="recipient.user.email", read_only=True)
+    recipient_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Cart
+        fields = [
+            "id",
+            "shop",
+            "shop_name",
+            "recipient",
+            "recipient_email",
+            "recipient_name",
+            "status",
+            "collected_at",
+        ]
+        read_only_fields = ["id", "collected_at"]
+
+    def get_recipient_name(self, obj):
+        """Return the full name of the recipient."""
+        user = obj.recipient.user
+        return f"{user.first_name} {user.last_name}"
+
+
+class CartCollectSerializer(serializers.Serializer):
+    """
+    Serializer for marking a Cart as collected.
+    Only the 'status' field is writable.
+    """
+
+    recipient_id = serializers.IntegerField(required=True)
+
+    def validate_recipient_id(self, value):
+        """Validate that the recipient exists (by user pk)"""
+        try:
+            recipient = Recipient.objects.get(user__pk=value)
+            self._validated_recipient = recipient
+            return value
+        except Recipient.DoesNotExist:
+            raise serializers.ValidationError(f"Recipient with user id {value} does not exist.")
+
+    def validate(self, attrs):
+        """
+        Validate that:
+        - Cart status is ASSIGNED
+        - Cashier's shop matches cart's shop
+        - Recipient ID matches cart's recipient
+        """
+        request = self.context.get("request")
+        cart = self.context.get("cart")
+        if not cart:
+            raise serializers.ValidationError("Cart context is required.")
+        if cart.status != CartStatus.ASSIGNED.value:
+            raise serializers.ValidationError(
+                {
+                    "status": (
+                        f"Cart must be in ASSIGNED status to be collected. "
+                        f"Current status: {cart.status}"
+                    )
+                }
+            )
+        cashier = getattr(request.user, "cashier", None)
+        if not cashier or cashier.shop != cart.shop:
+            raise serializers.ValidationError(
+                {"shop": "You can only collect carts from your shop."}
+            )
+
+        recipient = self._validated_recipient
+        if cart.recipient != recipient:
+            raise serializers.ValidationError(
+                {"recipient_id": "The recipient ID does not match the cart's recipient."}
+            )
+
+        return attrs
+
+    def update(self, instance, validated_data):
+        """Update the cart status to COLLECTED and set collected_at timestamp."""
+        from django.utils import timezone
+
+        instance.status = CartStatus.COLLECTED.value
+        instance.collected_at = timezone.now()
+        instance.save()
+        return instance

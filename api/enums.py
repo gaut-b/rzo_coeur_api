@@ -11,3 +11,9 @@ class UserRole(str, Enum):
 
     def __str__(self):
         return self.value
+
+
+class CartStatus(str, Enum):
+    PENDING = "PENDING"
+    ASSIGNED = "ASSIGNED"
+    COLLECTED = "COLLECTED"
