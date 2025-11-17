@@ -3,6 +3,7 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
+from .constants import MAX_ARTICLES_PER_REQUEST
 from .enums import UserRole
 from .models import (
     Article,
@@ -330,11 +331,13 @@ class ArticleCreateViewTests(APITestCase):
         self.assertEqual(Article.objects.count(), 0)
 
     def test_create_articles_exceeds_max_limit(self):
-        """Test that exceeding 50 articles limit returns 400 error."""
+        """Test that exceeding the configured MAX_ARTICLES_PER_REQUEST limit returns 400 error."""
         self.api_client.force_authenticate(user=self.cashier_user)
 
-        # Create 51 articles (exceeds limit)
-        articles_list = [{"barcode": 3017620422003 + i} for i in range(51)]
+        # Create MAX_ARTICLES_PER_REQUEST + 1 articles (exceeds limit)
+        articles_list = [
+            {"barcode": 3017620422003 + i} for i in range(MAX_ARTICLES_PER_REQUEST + 1)
+        ]
 
         data = {
             "client_id": self.client.pk,
@@ -348,11 +351,11 @@ class ArticleCreateViewTests(APITestCase):
         self.assertEqual(Article.objects.count(), 0)
 
     def test_create_articles_at_max_limit(self):
-        """Test that creating exactly 50 articles works."""
+        """Test that creating exactly MAX_ARTICLES_PER_REQUEST articles works."""
         self.api_client.force_authenticate(user=self.cashier_user)
 
-        # Create exactly 50 articles
-        articles_list = [{"barcode": 3017620422003 + i} for i in range(50)]
+        # Create exactly MAX_ARTICLES_PER_REQUEST articles
+        articles_list = [{"barcode": 3017620422003 + i} for i in range(MAX_ARTICLES_PER_REQUEST)]
 
         data = {
             "client_id": self.client.pk,
@@ -362,7 +365,7 @@ class ArticleCreateViewTests(APITestCase):
         response = self.api_client.post(self.url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(Article.objects.count(), 50)
+        self.assertEqual(Article.objects.count(), MAX_ARTICLES_PER_REQUEST)
 
     def test_create_articles_invalid_barcode(self):
         """Test that invalid barcode format returns 400 error."""
