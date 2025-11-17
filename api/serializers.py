@@ -1,6 +1,7 @@
 from auth_kit.serializers.user import UserSerializer as AuthKitUserSerializer
 from rest_framework import serializers
 
+from .constants import MAX_ARTICLES_PER_REQUEST
 from .enums import UserRole
 from .models import Article, Client, CustomUser
 
@@ -47,23 +48,25 @@ class BulkArticleCreateSerializer(serializers.Serializer):
     The shop_id is automatically retrieved from the authenticated cashier user.
 
     Used by cashiers when scanning multiple articles for a client.
-    Maximum 50 articles can be created in a single request.
+    Maximum number of articles per request is configurable via MAX_ARTICLES_PER_REQUEST.
+    Default to 10.
     """
 
     client_id = serializers.IntegerField(help_text="ID of the client user (must have CLIENT role)")
     articles = ArticleInputSerializer(
-        many=True, help_text="List of articles to create (maximum 50 per request)"
+        many=True,
+        help_text=f"List of articles to create (maximum {MAX_ARTICLES_PER_REQUEST} per request)",
     )
 
     def validate_articles(self, value):
         """
-        Validate that the articles list is not empty and doesn't exceed 50 items.
+        Validate that the articles list is not empty and doesn't exceed the configured maximum.
         """
         if not value:
             raise serializers.ValidationError("Articles list cannot be empty.")
-        if len(value) > 50:
+        if len(value) > MAX_ARTICLES_PER_REQUEST:
             raise serializers.ValidationError(
-                f"Cannot create more than 50 articles at once. "
+                f"Cannot create more than {MAX_ARTICLES_PER_REQUEST} articles at once. "
                 f"Received {len(value)} articles. Please reduce the batch size."
             )
         return value
