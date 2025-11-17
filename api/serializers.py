@@ -1,9 +1,10 @@
 from auth_kit.serializers.user import UserSerializer as AuthKitUserSerializer
+from django.utils import timezone
 from rest_framework import serializers
 
 from .constants import MAX_ARTICLES_PER_REQUEST
-from .enums import UserRole
-from .models import Article, Client, CustomUser
+from .enums import CartStatus, UserRole
+from .models import Article, Cart, Client, CustomUser
 
 
 class CustomUserSerializer(AuthKitUserSerializer):
@@ -219,7 +220,6 @@ class CartCollectSerializer(serializers.Serializer):
 
     def update(self, instance, validated_data):
         """Update the cart status to COLLECTED and set collected_at timestamp."""
-        from django.utils import timezone
 
         instance.status = CartStatus.COLLECTED.value
         instance.collected_at = timezone.now()
