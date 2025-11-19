@@ -30,6 +30,26 @@ To launch only the database:
 docker compose up db
 ```
 
+## Environment Variables
+
+The following environment variables can be configured in your `.env` file:
+
+### Database Configuration
+- `SQL_ENGINE` - Database engine (default: `django.db.backends.postgresql`)
+- `SQL_DATABASE` - Database name
+- `SQL_USER` - Database user
+- `SQL_PASSWORD` - Database password
+- `SQL_HOST` - Database host
+- `SQL_PORT` - Database port
+
+### API Configuration
+- `MAX_ARTICLES_PER_REQUEST` - Maximum number of articles that can be created in a single bulk request (default: `50`)
+
+### Django Configuration
+- `DEBUG` - Enable debug mode (`1` for True, `0` for False)
+- `SECRET_KEY` - Django secret key
+- `ALLOWED_HOSTS` - Comma-separated list of allowed hosts
+
 ## Contributors
 
 - [Clement Viel](https://github.com/ClementViel)

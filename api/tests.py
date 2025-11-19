@@ -1,9 +1,20 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
-from rest_framework.test import APITestCase
+from rest_framework import status
+from rest_framework.test import APIClient, APITestCase
 
+from .constants import MAX_ARTICLES_PER_REQUEST
 from .enums import UserRole
-from .models import Cashier, Client, CustomUser, Recipient, Shop, SocialCenter, SocialWorker
+from .models import (
+    Article,
+    Cashier,
+    Client,
+    CustomUser,
+    Recipient,
+    Shop,
+    SocialCenter,
+    SocialWorker,
+)
 
 
 class UsersManagersTests(TestCase):
@@ -157,3 +168,235 @@ class CustomUserSerializerTests(APITestCase):
 
         # The role field should not be writable
         self.assertNotIn("role", serializer.validated_data)
+
+
+class ArticleCreateViewTests(APITestCase):
+    """Tests for the ArticleCreateView endpoint."""
+
+    def setUp(self):
+        """Set up test data for article creation tests."""
+        # Create social center
+        self.social_center = SocialCenter.objects.create(
+            name="Centre Social Test", address="123 Rue Test", mail="centre@test.com"
+        )
+
+        # Create shop
+        self.shop = Shop.objects.create(
+            name="Magasin Test", address="456 Avenue Test", social_center=self.social_center
+        )
+
+        # Create cashier user
+        self.cashier_user = CustomUser.objects.create_user(
+            email="cashier@test.com",
+            password="testpass123",
+            first_name="Caissier",
+            last_name="Test",
+        )
+        self.cashier = Cashier.objects.create(user=self.cashier_user, shop=self.shop)
+
+        # Create client user
+        self.client_user = CustomUser.objects.create_user(
+            email="client@test.com", password="testpass123", first_name="Client", last_name="Test"
+        )
+        self.client = Client.objects.create(user=self.client_user)
+
+        # Create other role users for permission testing
+        self.social_worker_user = CustomUser.objects.create_user(
+            email="socialworker@test.com",
+            password="testpass123",
+            first_name="Travailleur",
+            last_name="Social",
+        )
+        SocialWorker.objects.create(user=self.social_worker_user, social_center=self.social_center)
+
+        self.recipient_user = CustomUser.objects.create_user(
+            email="recipient@test.com",
+            password="testpass123",
+            first_name="Beneficiaire",
+            last_name="Test",
+        )
+        Recipient.objects.create(user=self.recipient_user, social_center=self.social_center)
+
+        # API client
+        self.api_client = APIClient()
+        self.url = "/api/articles/"
+
+    def test_create_articles_success(self):
+        """Test successful bulk article creation by a cashier."""
+        self.api_client.force_authenticate(user=self.cashier_user)
+
+        data = {
+            "client_id": self.client.pk,
+            "articles": [
+                {"barcode": 3017620422003},
+                {"barcode": 3564700013151},
+                {"barcode": 3270190207092},
+            ],
+        }
+
+        response = self.api_client.post(self.url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn("message", response.data)
+        self.assertIn("articles", response.data)
+        self.assertEqual(len(response.data["articles"]), 3)
+
+        # Verify articles were created in database
+        self.assertEqual(Article.objects.count(), 3)
+        article = Article.objects.first()
+        self.assertEqual(article.client, self.client)
+        self.assertEqual(article.shop, self.shop)
+        self.assertIsNone(article.cart)
+
+    def test_create_articles_unauthenticated(self):
+        """Test that unauthenticated users cannot create articles."""
+        data = {
+            "client_id": self.client.pk,
+            "articles": [{"barcode": 3017620422003}],
+        }
+
+        response = self.api_client.post(self.url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(Article.objects.count(), 0)
+
+    def test_create_articles_non_cashier_user(self):
+        """Test that non-cashier users (social worker, recipient, client) cannot create articles."""
+        # Test with social worker
+        self.api_client.force_authenticate(user=self.social_worker_user)
+        data = {
+            "client_id": self.client.pk,
+            "articles": [{"barcode": 3017620422003}],
+        }
+        response = self.api_client.post(self.url, data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # Test with recipient
+        self.api_client.force_authenticate(user=self.recipient_user)
+        response = self.api_client.post(self.url, data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # Test with client
+        self.api_client.force_authenticate(user=self.client_user)
+        response = self.api_client.post(self.url, data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        self.assertEqual(Article.objects.count(), 0)
+
+    def test_create_articles_invalid_client_id(self):
+        """Test that invalid client_id returns 400 error."""
+        self.api_client.force_authenticate(user=self.cashier_user)
+
+        data = {
+            "client_id": 99999,  # Non-existent client
+            "articles": [{"barcode": 3017620422003}],
+        }
+
+        response = self.api_client.post(self.url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("client_id", response.data)
+        self.assertEqual(Article.objects.count(), 0)
+
+    def test_create_articles_client_id_not_client_role(self):
+        """Test that client_id must correspond to a Client, not another role type."""
+        self.api_client.force_authenticate(user=self.cashier_user)
+
+        # Try to use a SocialWorker's ID as client_id
+        # This should fail because socialworker.pk is not a valid Client ID
+        data = {
+            "client_id": self.social_worker_user.socialworker.pk,
+            "articles": [{"barcode": 3017620422003}],
+        }
+
+        response = self.api_client.post(self.url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("client_id", response.data)
+        self.assertEqual(Article.objects.count(), 0)
+
+    def test_create_articles_empty_list(self):
+        """Test that empty articles list returns 400 error."""
+        self.api_client.force_authenticate(user=self.cashier_user)
+
+        data = {
+            "client_id": self.client.pk,
+            "articles": [],  # Empty list
+        }
+
+        response = self.api_client.post(self.url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("articles", response.data)
+        self.assertEqual(Article.objects.count(), 0)
+
+    def test_create_articles_exceeds_max_limit(self):
+        """Test that exceeding the configured MAX_ARTICLES_PER_REQUEST limit returns 400 error."""
+        self.api_client.force_authenticate(user=self.cashier_user)
+
+        # Create MAX_ARTICLES_PER_REQUEST + 1 articles (exceeds limit)
+        articles_list = [
+            {"barcode": 3017620422003 + i} for i in range(MAX_ARTICLES_PER_REQUEST + 1)
+        ]
+
+        data = {
+            "client_id": self.client.pk,
+            "articles": articles_list,
+        }
+
+        response = self.api_client.post(self.url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("articles", response.data)
+        self.assertEqual(Article.objects.count(), 0)
+
+    def test_create_articles_at_max_limit(self):
+        """Test that creating exactly MAX_ARTICLES_PER_REQUEST articles works."""
+        self.api_client.force_authenticate(user=self.cashier_user)
+
+        # Create exactly MAX_ARTICLES_PER_REQUEST articles
+        articles_list = [{"barcode": 3017620422003 + i} for i in range(MAX_ARTICLES_PER_REQUEST)]
+
+        data = {
+            "client_id": self.client.pk,
+            "articles": articles_list,
+        }
+
+        response = self.api_client.post(self.url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Article.objects.count(), MAX_ARTICLES_PER_REQUEST)
+
+    def test_create_articles_invalid_barcode(self):
+        """Test that invalid barcode format returns 400 error."""
+        self.api_client.force_authenticate(user=self.cashier_user)
+
+        data = {
+            "client_id": self.client.pk,
+            "articles": [{"barcode": -123}],  # Negative barcode
+        }
+
+        response = self.api_client.post(self.url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Article.objects.count(), 0)
+
+    def test_create_articles_missing_required_fields(self):
+        """Test that missing required fields returns 400 error."""
+        self.api_client.force_authenticate(user=self.cashier_user)
+
+        # Missing client_id
+        data = {
+            "articles": [{"barcode": 3017620422003}],
+        }
+        response = self.api_client.post(self.url, data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # Missing articles
+        data = {
+            "client_id": self.client.pk,
+        }
+        response = self.api_client.post(self.url, data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        self.assertEqual(Article.objects.count(), 0)

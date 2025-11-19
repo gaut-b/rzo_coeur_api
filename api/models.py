@@ -41,7 +41,7 @@ class CustomUser(AbstractUser):
 
 
 class Client(models.Model):
-    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, primary_key=True)
 
     def __str__(self):
         return str(self.user)
@@ -62,7 +62,7 @@ class SocialCenter(models.Model):
 
 
 class SocialWorker(models.Model):
-    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, primary_key=True)
     social_center = models.ForeignKey(
         SocialCenter, on_delete=models.CASCADE, related_name="social_workers"
     )
@@ -72,7 +72,7 @@ class SocialWorker(models.Model):
 
 
 class Recipient(models.Model):
-    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, primary_key=True)
     social_center = models.ForeignKey(
         SocialCenter, on_delete=models.CASCADE, related_name="recipients"
     )
@@ -96,7 +96,7 @@ class Shop(models.Model):
 
 
 class Cashier(models.Model):
-    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, primary_key=True)
     shop = models.OneToOneField(Shop, on_delete=models.CASCADE, related_name="cashier")
 
     def __str__(self):
@@ -122,7 +122,9 @@ class Article(models.Model):
     barcode = models.BigIntegerField()
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name="articles")
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name="articles")
-    cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name="articles")
+    cart = models.ForeignKey(
+        Cart, null=True, blank=True, on_delete=models.CASCADE, related_name="articles"
+    )
 
     class Meta:
         indexes = [models.Index(fields=["barcode"])]

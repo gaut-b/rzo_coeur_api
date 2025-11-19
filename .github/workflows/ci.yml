@@ -41,7 +41,12 @@ jobs:
 
       - name: Run tests
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+          SQL_ENGINE: django.db.backends.postgresql
+          SQL_DATABASE: test_db
+          SQL_USER: postgres
+          SQL_PASSWORD: postgres
+          SQL_HOST: localhost
+          SQL_PORT: 5432
           SECRET_KEY: test-secret-key-for-ci
           DEBUG: 'False'
         run: |
