@@ -38,9 +38,11 @@ class UsersManagersTests(TestCase):
         with self.assertRaises(TypeError):
             user_model.objects.create_user()  # type: ignore[attr-defined]
         with self.assertRaises(TypeError):
-            user_model.objects.create_user(email="")  # type: ignore[attr-defined]
+            # type: ignore[attr-defined]
+            user_model.objects.create_user(email="")
         with self.assertRaises(ValueError):
-            user_model.objects.create_user(email="", password="foo")  # type: ignore[attr-defined]
+            # type: ignore[attr-defined]
+            user_model.objects.create_user(email="", password="foo")
 
     def test_create_superuser(self):
         user_model = get_user_model()
@@ -1220,7 +1222,8 @@ class RecipientCartListViewTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 21)
-        self.assertEqual(len(response.data["results"]), 1)  # Only 1 cart on page 2
+        # Only 1 cart on page 2
+        self.assertEqual(len(response.data["results"]), 1)
         self.assertIsNone(response.data["next"])
         self.assertIsNotNone(response.data["previous"])
 
@@ -1238,7 +1241,8 @@ class RecipientCartListViewTests(APITestCase):
         response = self.api_client.get(self.url, {"status": "ASSIGNED"}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["count"], 21)  # 2 original + 19 new = 21
+        # 2 original + 19 new = 21
+        self.assertEqual(response.data["count"], 21)
         self.assertEqual(len(response.data["results"]), 20)
         self.assertIsNotNone(response.data["next"])
 

@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Any
 
 from django.contrib.auth.base_user import BaseUserManager
+from django.contrib.auth.decorators import permission_required
 from django.utils.translation import gettext_lazy as _
 
 if TYPE_CHECKING:
@@ -13,6 +14,7 @@ class CustomUserManager(BaseUserManager["CustomUser"]):
     for authentication instead of usernames.
     """
 
+    @permission_required("IsOwnerOrReadOnly")
     def create_user(  # type: ignore[override]
         self, email: str, password: str, **extra_fields: Any
     ) -> "CustomUser":
