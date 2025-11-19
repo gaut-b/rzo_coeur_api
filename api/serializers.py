@@ -1,9 +1,10 @@
 from auth_kit.serializers.user import UserSerializer as AuthKitUserSerializer
+from django.utils import timezone
 from rest_framework import serializers
 
 from .constants import MAX_ARTICLES_PER_REQUEST
-from .enums import UserRole
-from .models import Article, Client, CustomUser
+from .enums import CartStatus, UserRole
+from .models import Article, Cart, Client, CustomUser
 
 
 class CustomUserSerializer(AuthKitUserSerializer):
@@ -82,7 +83,7 @@ class BulkArticleCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError(f"Client with id {value} does not exist.")
 
         # Verify that the user has the CLIENT role
-        if client.user.role != UserRole.CLIENT:
+        if client.user.role != UserRole.CLIENT.value:
             raise serializers.ValidationError(f"User with id {value} is not a Client.")
 
         # Cache the client to avoid duplicate query in create()
@@ -142,3 +143,85 @@ class BulkArticleCreateSerializer(serializers.Serializer):
         created_articles = Article.objects.bulk_create(articles_to_create)
 
         return created_articles
+
+
+class CartSerializer(serializers.ModelSerializer):
+    """
+    Serializer for Cart model output.
+    """
+
+    shop_name = serializers.CharField(source="shop.name", read_only=True)
+    recipient_email = serializers.EmailField(source="recipient.user.email", read_only=True)
+    recipient_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Cart
+        fields = [
+            "id",
+            "shop",
+            "shop_name",
+            "recipient",
+            "recipient_email",
+            "recipient_name",
+            "status",
+            "collected_at",
+        ]
+        read_only_fields = ["id", "collected_at"]
+
+    def get_recipient_name(self, obj):
+        """Return the full name of the recipient."""
+        user = obj.recipient.user
+        return f"{user.first_name} {user.last_name}"
+
+
+class CartCollectSerializer(serializers.Serializer):
+    """
+    Serializer for marking a Cart as collected.
+    No input fields required - recipient and cart IDs come from URL.
+    """
+
+    def validate(self, attrs):
+        """
+        Validate that:
+        - Cart status is ASSIGNED
+        - Cashier's shop matches cart's shop
+        - Cart belongs to the specified recipient
+        """
+        request = self.context.get("request")
+        cart = self.context.get("cart")
+        recipient = self.context.get("recipient")
+
+        if not cart:
+            raise serializers.ValidationError("Cart context is required.")
+        if not recipient:
+            raise serializers.ValidationError("Recipient context is required.")
+
+        if cart.status != CartStatus.ASSIGNED.value:
+            raise serializers.ValidationError(
+                {
+                    "status": (
+                        f"Cart must be in ASSIGNED status to be collected. "
+                        f"Current status: {cart.status}"
+                    )
+                }
+            )
+        cashier = getattr(request.user, "cashier", None)
+        if not cashier or cashier.shop != cart.shop:
+            raise serializers.ValidationError(
+                {"shop": "You can only collect carts from your shop."}
+            )
+
+        if cart.recipient != recipient:
+            raise serializers.ValidationError(
+                {"recipient": "The cart does not belong to this recipient."}
+            )
+
+        return attrs
+
+    def update(self, instance, validated_data):
+        """Update the cart status to COLLECTED and set collected_at timestamp."""
+
+        instance.status = CartStatus.COLLECTED.value
+        instance.collected_at = timezone.now()
+        instance.save()
+        return instance

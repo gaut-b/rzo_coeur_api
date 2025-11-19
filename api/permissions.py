@@ -12,4 +12,4 @@ class IsCashier(BasePermission):
         """
         Check if the user is authenticated and has the CASHIER role.
         """
-        return request.user.is_authenticated and request.user.role == UserRole.CASHIER
+        return request.user.is_authenticated and request.user.role == UserRole.CASHIER.value

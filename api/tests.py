@@ -4,9 +4,10 @@ from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
 from .constants import MAX_ARTICLES_PER_REQUEST
-from .enums import UserRole
+from .enums import CartStatus, UserRole
 from .models import (
     Article,
+    Cart,
     Cashier,
     Client,
     CustomUser,
@@ -103,7 +104,7 @@ class CustomUserSerializerTests(APITestCase):
         data = serializer.data
 
         self.assertEqual(data["email"], "client@test.com")
-        self.assertEqual(data["role"], UserRole.CLIENT)
+        self.assertEqual(data["role"], UserRole.CLIENT.value)
 
     def test_serialize_social_worker(self):
         """Test serialization of a user with SOCIAL_WORKER role."""
@@ -119,7 +120,7 @@ class CustomUserSerializerTests(APITestCase):
         data = serializer.data
 
         self.assertEqual(data["email"], "socialworker@test.com")
-        self.assertEqual(data["role"], UserRole.SOCIAL_WORKER)
+        self.assertEqual(data["role"], UserRole.SOCIAL_WORKER.value)
 
     def test_serialize_recipient(self):
         """Test serialization of a user with RECIPIENT role."""
@@ -135,7 +136,7 @@ class CustomUserSerializerTests(APITestCase):
         data = serializer.data
 
         self.assertEqual(data["email"], "recipient@test.com")
-        self.assertEqual(data["role"], UserRole.RECIPIENT)
+        self.assertEqual(data["role"], UserRole.RECIPIENT.value)
 
     def test_serialize_cashier(self):
         """Test serialization of a user with CASHIER role."""
@@ -151,7 +152,7 @@ class CustomUserSerializerTests(APITestCase):
         data = serializer.data
 
         self.assertEqual(data["email"], "cashier@test.com")
-        self.assertEqual(data["role"], UserRole.CASHIER)
+        self.assertEqual(data["role"], UserRole.CASHIER.value)
 
     def test_role_field_is_read_only(self):
         """Test that the role field cannot be set during deserialization."""
@@ -160,7 +161,7 @@ class CustomUserSerializerTests(APITestCase):
             "password": "testpass123",
             "first_name": "New",
             "last_name": "User",
-            "role": UserRole.CLIENT,  # Should be ignored
+            "role": UserRole.CLIENT.value,  # Should be ignored
         }
 
         serializer = self.CustomUserSerializer(data=data)
@@ -400,3 +401,226 @@ class ArticleCreateViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         self.assertEqual(Article.objects.count(), 0)
+
+
+class CartCollectViewTests(APITestCase):
+    """Test suite for the CartCollectView endpoint."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        # Create social center
+        self.social_center = SocialCenter.objects.create(
+            name="Centre Social Test",
+            address="123 Rue Test",
+            mail="centre@test.com",
+        )
+
+        # Create shops
+        self.shop1 = Shop.objects.create(
+            name="Magasin Test 1",
+            address="456 Avenue Test",
+            social_center=self.social_center,
+        )
+        self.shop2 = Shop.objects.create(
+            name="Magasin Test 2",
+            address="789 Boulevard Test",
+            social_center=self.social_center,
+        )
+
+        # Create cashier user and cashier for shop1
+        self.cashier_user = CustomUser.objects.create_user(
+            email="cashier@test.com",
+            password="testpass123",
+            first_name="Caissier",
+            last_name="Test",
+        )
+        self.cashier = Cashier.objects.create(
+            user=self.cashier_user,
+            shop=self.shop1,
+        )
+
+        # Create another cashier for shop2
+        self.cashier2_user = CustomUser.objects.create_user(
+            email="cashier2@test.com",
+            password="testpass123",
+            first_name="Caissier2",
+            last_name="Test",
+        )
+        self.cashier2 = Cashier.objects.create(
+            user=self.cashier2_user,
+            shop=self.shop2,
+        )
+
+        # Create recipient user and recipient
+        self.recipient_user = CustomUser.objects.create_user(
+            email="recipient@test.com",
+            password="testpass123",
+            first_name="Bénéficiaire",
+            last_name="Test",
+        )
+        self.recipient = Recipient.objects.create(
+            user=self.recipient_user,
+            social_center=self.social_center,
+        )
+
+        # Create another recipient
+        self.recipient2_user = CustomUser.objects.create_user(
+            email="recipient2@test.com",
+            password="testpass123",
+            first_name="Bénéficiaire2",
+            last_name="Test",
+        )
+        self.recipient2 = Recipient.objects.create(
+            user=self.recipient2_user,
+            social_center=self.social_center,
+        )
+
+        # Create a cart in ASSIGNED status
+        self.cart_assigned = Cart.objects.create(
+            shop=self.shop1,
+            recipient=self.recipient,
+            status=CartStatus.ASSIGNED.value,
+        )
+
+        # Create a cart in PENDING status
+        self.cart_pending = Cart.objects.create(
+            shop=self.shop1,
+            recipient=self.recipient,
+            status=CartStatus.PENDING.value,
+        )
+
+        # Create a cart already COLLECTED
+        self.cart_collected = Cart.objects.create(
+            shop=self.shop1,
+            recipient=self.recipient,
+            status=CartStatus.COLLECTED.value,
+        )
+
+        # Create a cart for shop2
+        self.cart_shop2 = Cart.objects.create(
+            shop=self.shop2,
+            recipient=self.recipient,
+            status=CartStatus.ASSIGNED.value,
+        )
+
+        # Create client user (for permission tests)
+        self.client_user = CustomUser.objects.create_user(
+            email="client@test.com",
+            password="testpass123",
+            first_name="Client",
+            last_name="Test",
+        )
+        self.client = Client.objects.create(user=self.client_user)
+
+        self.api_client = APIClient()
+
+    def test_collect_cart_success(self):
+        """Test successful cart collection."""
+        self.api_client.force_authenticate(user=self.cashier_user)
+        url = f"/api/recipients/{self.recipient.user.pk}/carts/{self.cart_assigned.id}/collect/"
+        data = {}
+
+        response = self.api_client.patch(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        # Verify database update
+        self.cart_assigned.refresh_from_db()
+        self.assertEqual(self.cart_assigned.status, CartStatus.COLLECTED.value)
+        self.assertIsNotNone(self.cart_assigned.collected_at)
+
+    def test_collect_cart_unauthenticated(self):
+        """Test that unauthenticated users cannot collect carts."""
+        url = f"/api/recipients/{self.recipient.user.pk}/carts/{self.cart_assigned.id}/collect/"
+        data = {}
+
+        response = self.api_client.patch(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_collect_cart_non_cashier(self):
+        """Test that non-cashier users cannot collect carts."""
+        self.api_client.force_authenticate(user=self.client_user)
+        url = f"/api/recipients/{self.recipient.user.pk}/carts/{self.cart_assigned.id}/collect/"
+        data = {}
+
+        response = self.api_client.patch(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_collect_cart_not_found(self):
+        """Test collecting a non-existent cart."""
+        self.api_client.force_authenticate(user=self.cashier_user)
+        url = f"/api/recipients/{self.recipient.user.pk}/carts/99999/collect/"
+        data = {}
+
+        response = self.api_client.patch(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertIn("error", response.data)
+
+    def test_collect_cart_pending_status(self):
+        """Test that carts in PENDING status cannot be collected."""
+        self.api_client.force_authenticate(user=self.cashier_user)
+        url = f"/api/recipients/{self.recipient.user.pk}/carts/{self.cart_pending.id}/collect/"
+        data = {}
+
+        response = self.api_client.patch(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("status", response.data)
+
+    def test_collect_cart_already_collected(self):
+        """Test that already collected carts cannot be collected again."""
+        self.api_client.force_authenticate(user=self.cashier_user)
+        url = f"/api/recipients/{self.recipient.user.pk}/carts/{self.cart_collected.id}/collect/"
+        data = {}
+
+        response = self.api_client.patch(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("status", response.data)
+
+    def test_collect_cart_wrong_shop(self):
+        """Test that cashiers can only collect carts from their shop."""
+        self.api_client.force_authenticate(user=self.cashier_user)
+        url = f"/api/recipients/{self.recipient.user.pk}/carts/{self.cart_shop2.id}/collect/"
+        data = {}
+
+        response = self.api_client.patch(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("shop", response.data)
+
+    def test_collect_cart_recipient_mismatch(self):
+        """Test that recipient_id must match the cart's recipient."""
+        self.api_client.force_authenticate(user=self.cashier_user)
+        url = f"/api/recipients/{self.recipient2.user.pk}/carts/{self.cart_assigned.id}/collect/"
+        data = {}
+
+        response = self.api_client.patch(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("recipient", response.data)
+
+    def test_collect_cart_invalid_recipient_id(self):
+        """Test with non-existent recipient ID."""
+        self.api_client.force_authenticate(user=self.cashier_user)
+        url = f"/api/recipients/99999/carts/{self.cart_assigned.id}/collect/"
+        data = {}
+
+        response = self.api_client.patch(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertIn("error", response.data)
+
+    def test_collect_cart_missing_recipient_id(self):
+        """Test with missing recipient_id in request (now handled by URL)."""
+        self.api_client.force_authenticate(user=self.cashier_user)
+        url = f"/api/recipients/{self.recipient.user.pk}/carts/{self.cart_assigned.id}/collect/"
+        data = {}
+
+        response = self.api_client.patch(url, data, format="json")
+
+        # Should succeed since recipient_id is now in URL
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)

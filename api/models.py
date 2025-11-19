@@ -2,7 +2,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from .enums import UserRole
+from .enums import CartStatus, UserRole
 from .managers import CustomUserManager
 
 
@@ -28,13 +28,13 @@ class CustomUser(AbstractUser):
         """
         if not hasattr(self, "_cached_role"):
             if hasattr(self, "client"):
-                self._cached_role = UserRole.CLIENT
+                self._cached_role = UserRole.CLIENT.value
             elif hasattr(self, "socialworker"):
-                self._cached_role = UserRole.SOCIAL_WORKER
+                self._cached_role = UserRole.SOCIAL_WORKER.value
             elif hasattr(self, "recipient"):
-                self._cached_role = UserRole.RECIPIENT
+                self._cached_role = UserRole.RECIPIENT.value
             elif hasattr(self, "cashier"):
-                self._cached_role = UserRole.CASHIER
+                self._cached_role = UserRole.CASHIER.value
             else:
                 self._cached_role = None
         return self._cached_role
@@ -109,12 +109,16 @@ class Cart(models.Model):
     status = models.CharField(
         max_length=20,
         choices=[
-            ("PENDING", "Pending assignment"),
-            ("ASSIGNED", "Assigned to beneficiary"),
-            ("COLLECTED", "Collected"),
+            (CartStatus.PENDING.value, "Pending assignment"),
+            (CartStatus.ASSIGNED.value, "Assigned to beneficiary"),
+            (CartStatus.COLLECTED.value, "Collected"),
         ],
-        default="PENDING",
+        default=CartStatus.PENDING.value,
     )
+    collected_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Cart {self.id} - {self.status} - {self.shop.name}"
 
 
 class Article(models.Model):

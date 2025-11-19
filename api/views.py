@@ -3,8 +3,9 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .models import Cart
 from .permissions import IsCashier
-from .serializers import ArticleSerializer, BulkArticleCreateSerializer
+from .serializers import ArticleSerializer, BulkArticleCreateSerializer, CartCollectSerializer
 
 
 class ArticleCreateView(APIView):
@@ -183,4 +184,100 @@ class ArticleCreateView(APIView):
                 status=status.HTTP_201_CREATED,
             )
 
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CartCollectView(APIView):
+    """API endpoint for marking a cart as collected by a cashier."""
+
+    permission_classes = [IsCashier]
+
+    @extend_schema(
+        summary="Mark cart as collected",
+        description="""
+        Mark a cart as collected when the recipient picks it up.
+
+        **Authentication**: Required (JWT Cookie)
+
+        **Permission**: CASHIER role only
+
+        **Validations**:
+        - Recipient must exist
+        - Cart must exist
+        - Cart status must be "ASSIGNED"
+        - Cashier can only collect carts from their shop
+        - Cart must belong to the specified recipient
+
+        **Actions**:
+        - Updates cart status to "COLLECTED"
+        - Sets collected_at timestamp
+        """,
+        request=None,
+        responses={
+            204: {"description": "Cart successfully collected"},
+            400: {
+                "description": "Bad Request",
+                "examples": {
+                    "invalid_status": {
+                        "value": {
+                            "status": (
+                                "Cart must be in ASSIGNED status to be collected. "
+                                "Current status: PENDING"
+                            )
+                        }
+                    },
+                    "recipient_mismatch": {
+                        "value": {"recipient": "The cart does not belong to this recipient."}
+                    },
+                },
+            },
+            403: {
+                "description": "Forbidden - Wrong shop or not a cashier",
+                "examples": {
+                    "wrong_shop": {"value": {"shop": "You can only collect carts from your shop."}}
+                },
+            },
+            404: {
+                "description": "Recipient or Cart not found",
+                "examples": {
+                    "recipient_not_found": {"value": {"error": "Recipient not found."}},
+                    "cart_not_found": {"value": {"error": "Cart not found."}},
+                },
+            },
+        },
+        tags=["Carts"],
+    )
+    def patch(self, request, recipient_id, cart_id):
+        """Handle PATCH request to mark cart as collected."""
+        # Get the recipient or return 404
+        try:
+            from .models import Recipient
+
+            recipient = Recipient.objects.select_related("user").get(user__pk=recipient_id)
+        except Recipient.DoesNotExist:
+            return Response(
+                {"error": "Recipient not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Get the cart or return 404
+        try:
+            cart = Cart.objects.select_related("shop", "recipient", "recipient__user").get(
+                pk=cart_id
+            )
+        except Cart.DoesNotExist:
+            return Response(
+                {"error": "Cart not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Validate and update
+        serializer = CartCollectSerializer(
+            data={},
+            context={"request": request, "cart": cart, "recipient": recipient},
+        )
+
+        if serializer.is_valid():
+            serializer.update(cart, serializer.validated_data)
+            return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
