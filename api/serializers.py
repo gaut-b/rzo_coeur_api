@@ -42,6 +42,48 @@ class ArticleSerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
 
 
+class ArticleDetailSerializer(serializers.ModelSerializer):
+    """
+    Serializer for detailed article output with shop info, cart info, and status.
+    Used for client's article list view.
+    """
+
+    shop = serializers.SerializerMethodField()
+    cart = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Article
+        fields = ["id", "barcode", "name", "shop", "status", "cart"]
+        read_only_fields = ["id"]
+
+    def get_shop(self, obj):
+        """Return shop information."""
+        return {
+            "id": obj.shop.id,
+            "name": obj.shop.name,
+        }
+
+    def get_cart(self, obj):
+        """Return cart information if article is assigned to a cart."""
+        if obj.cart:
+            return {
+                "id": obj.cart.id,
+                "status": obj.cart.status,
+            }
+        return None
+
+    def get_status(self, obj):
+        """
+        Calculate article status based on cart assignment.
+        - AVAILABLE: No cart assigned
+        - ASSIGNED or COLLECTED: Based on cart status
+        """
+        if not obj.cart:
+            return "AVAILABLE"
+        return obj.cart.status
+
+
 class BulkArticleCreateSerializer(serializers.Serializer):
     """
     Serializer for bulk article creation.
