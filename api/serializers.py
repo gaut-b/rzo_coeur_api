@@ -98,6 +98,8 @@ class BulkArticleCreateSerializer(serializers.Serializer):
         Caches the shop instance for use in create().
         """
         request = self.context.get("request")
+        if request is None:
+            raise serializers.ValidationError("Request context is required.")
         cashier = getattr(request.user, "cashier", None)
         shop = getattr(cashier, "shop", None)
 
@@ -191,6 +193,8 @@ class CartCollectSerializer(serializers.Serializer):
         cart = self.context.get("cart")
         recipient = self.context.get("recipient")
 
+        if request is None:
+            raise serializers.ValidationError("Request context is required.")
         if not cart:
             raise serializers.ValidationError("Cart context is required.")
         if not recipient:

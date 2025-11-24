@@ -22,7 +22,9 @@ class UsersManagersTests(TestCase):
 
     def test_create_user(self):
         user_model = get_user_model()
-        user = user_model.objects.create_user(email="normal@user.com", password="foo")
+        user = user_model.objects.create_user(  # type: ignore[attr-defined]
+            email="normal@user.com", password="foo"
+        )
         self.assertEqual(user.email, "normal@user.com")
         self.assertTrue(user.is_active)
         self.assertFalse(user.is_staff)
@@ -34,15 +36,17 @@ class UsersManagersTests(TestCase):
         except AttributeError:
             pass
         with self.assertRaises(TypeError):
-            user_model.objects.create_user()
+            user_model.objects.create_user()  # type: ignore[attr-defined]
         with self.assertRaises(TypeError):
-            user_model.objects.create_user(email="")
+            user_model.objects.create_user(email="")  # type: ignore[attr-defined]
         with self.assertRaises(ValueError):
-            user_model.objects.create_user(email="", password="foo")
+            user_model.objects.create_user(email="", password="foo")  # type: ignore[attr-defined]
 
     def test_create_superuser(self):
         user_model = get_user_model()
-        admin_user = user_model.objects.create_superuser(email="super@user.com", password="foo")
+        admin_user = user_model.objects.create_superuser(  # type: ignore[attr-defined]
+            email="super@user.com", password="foo"
+        )
         self.assertEqual(admin_user.email, "super@user.com")
         self.assertTrue(admin_user.is_active)
         self.assertTrue(admin_user.is_staff)
@@ -54,7 +58,7 @@ class UsersManagersTests(TestCase):
         except AttributeError:
             pass
         with self.assertRaises(ValueError):
-            user_model.objects.create_superuser(
+            user_model.objects.create_superuser(  # type: ignore[attr-defined]
                 email="super@user.com", password="foo", is_superuser=False
             )
 
@@ -81,7 +85,7 @@ class CustomUserSerializerTests(APITestCase):
 
     def test_serialize_user_without_role(self):
         """Test serialization of a user without any role."""
-        user = CustomUser.objects.create_user(
+        user = CustomUser.objects.create_user(  # type: ignore[call-arg]
             email="norole@test.com", password="testpass123", first_name="Sans", last_name="Role"
         )
 
@@ -95,7 +99,7 @@ class CustomUserSerializerTests(APITestCase):
 
     def test_serialize_client(self):
         """Test serialization of a user with CLIENT role."""
-        user = CustomUser.objects.create_user(
+        user = CustomUser.objects.create_user(  # type: ignore[call-arg]
             email="client@test.com", password="testpass123", first_name="Client", last_name="Test"
         )
         Client.objects.create(user=user)
@@ -108,7 +112,7 @@ class CustomUserSerializerTests(APITestCase):
 
     def test_serialize_social_worker(self):
         """Test serialization of a user with SOCIAL_WORKER role."""
-        user = CustomUser.objects.create_user(
+        user = CustomUser.objects.create_user(  # type: ignore[call-arg]
             email="socialworker@test.com",
             password="testpass123",
             first_name="Travailleur",
@@ -124,7 +128,7 @@ class CustomUserSerializerTests(APITestCase):
 
     def test_serialize_recipient(self):
         """Test serialization of a user with RECIPIENT role."""
-        user = CustomUser.objects.create_user(
+        user = CustomUser.objects.create_user(  # type: ignore[call-arg]
             email="recipient@test.com",
             password="testpass123",
             first_name="Beneficiaire",
@@ -140,7 +144,7 @@ class CustomUserSerializerTests(APITestCase):
 
     def test_serialize_cashier(self):
         """Test serialization of a user with CASHIER role."""
-        user = CustomUser.objects.create_user(
+        user = CustomUser.objects.create_user(  # type: ignore[call-arg]
             email="cashier@test.com",
             password="testpass123",
             first_name="Caissier",
@@ -187,7 +191,7 @@ class ArticleCreateViewTests(APITestCase):
         )
 
         # Create cashier user
-        self.cashier_user = CustomUser.objects.create_user(
+        self.cashier_user = CustomUser.objects.create_user(  # type: ignore[call-arg]
             email="cashier@test.com",
             password="testpass123",
             first_name="Caissier",
@@ -196,13 +200,13 @@ class ArticleCreateViewTests(APITestCase):
         self.cashier = Cashier.objects.create(user=self.cashier_user, shop=self.shop)
 
         # Create client user
-        self.client_user = CustomUser.objects.create_user(
+        self.client_user = CustomUser.objects.create_user(  # type: ignore[call-arg]
             email="client@test.com", password="testpass123", first_name="Client", last_name="Test"
         )
-        self.client = Client.objects.create(user=self.client_user)
+        self.test_client_user = Client.objects.create(user=self.client_user)
 
         # Create other role users for permission testing
-        self.social_worker_user = CustomUser.objects.create_user(
+        self.social_worker_user = CustomUser.objects.create_user(  # type: ignore[call-arg]
             email="socialworker@test.com",
             password="testpass123",
             first_name="Travailleur",
@@ -210,7 +214,7 @@ class ArticleCreateViewTests(APITestCase):
         )
         SocialWorker.objects.create(user=self.social_worker_user, social_center=self.social_center)
 
-        self.recipient_user = CustomUser.objects.create_user(
+        self.recipient_user = CustomUser.objects.create_user(  # type: ignore[call-arg]
             email="recipient@test.com",
             password="testpass123",
             first_name="Beneficiaire",
@@ -227,7 +231,7 @@ class ArticleCreateViewTests(APITestCase):
         self.api_client.force_authenticate(user=self.cashier_user)
 
         data = {
-            "client_id": self.client.pk,
+            "client_id": self.test_client_user.pk,
             "articles": [
                 {"barcode": 3017620422003},
                 {"barcode": 3564700013151},
@@ -245,14 +249,16 @@ class ArticleCreateViewTests(APITestCase):
         # Verify articles were created in database
         self.assertEqual(Article.objects.count(), 3)
         article = Article.objects.first()
-        self.assertEqual(article.client, self.client)
+
+        assert article is not None
+        self.assertEqual(article.client, self.test_client_user)
         self.assertEqual(article.shop, self.shop)
         self.assertIsNone(article.cart)
 
     def test_create_articles_unauthenticated(self):
         """Test that unauthenticated users cannot create articles."""
         data = {
-            "client_id": self.client.pk,
+            "client_id": self.test_client_user.pk,
             "articles": [{"barcode": 3017620422003}],
         }
 
@@ -266,7 +272,7 @@ class ArticleCreateViewTests(APITestCase):
         # Test with social worker
         self.api_client.force_authenticate(user=self.social_worker_user)
         data = {
-            "client_id": self.client.pk,
+            "client_id": self.test_client_user.pk,
             "articles": [{"barcode": 3017620422003}],
         }
         response = self.api_client.post(self.url, data, format="json")
@@ -321,7 +327,7 @@ class ArticleCreateViewTests(APITestCase):
         self.api_client.force_authenticate(user=self.cashier_user)
 
         data = {
-            "client_id": self.client.pk,
+            "client_id": self.test_client_user.pk,
             "articles": [],  # Empty list
         }
 
@@ -341,7 +347,7 @@ class ArticleCreateViewTests(APITestCase):
         ]
 
         data = {
-            "client_id": self.client.pk,
+            "client_id": self.test_client_user.pk,
             "articles": articles_list,
         }
 
@@ -359,7 +365,7 @@ class ArticleCreateViewTests(APITestCase):
         articles_list = [{"barcode": 3017620422003 + i} for i in range(MAX_ARTICLES_PER_REQUEST)]
 
         data = {
-            "client_id": self.client.pk,
+            "client_id": self.test_client_user.pk,
             "articles": articles_list,
         }
 
@@ -373,7 +379,7 @@ class ArticleCreateViewTests(APITestCase):
         self.api_client.force_authenticate(user=self.cashier_user)
 
         data = {
-            "client_id": self.client.pk,
+            "client_id": self.test_client_user.pk,
             "articles": [{"barcode": -123}],  # Negative barcode
         }
 
@@ -395,7 +401,7 @@ class ArticleCreateViewTests(APITestCase):
 
         # Missing articles
         data = {
-            "client_id": self.client.pk,
+            "client_id": self.test_client_user.pk,
         }
         response = self.api_client.post(self.url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -428,7 +434,7 @@ class CartCollectViewTests(APITestCase):
         )
 
         # Create cashier user and cashier for shop1
-        self.cashier_user = CustomUser.objects.create_user(
+        self.cashier_user = CustomUser.objects.create_user(  # type: ignore[call-arg]
             email="cashier@test.com",
             password="testpass123",
             first_name="Caissier",
@@ -440,7 +446,7 @@ class CartCollectViewTests(APITestCase):
         )
 
         # Create another cashier for shop2
-        self.cashier2_user = CustomUser.objects.create_user(
+        self.cashier2_user = CustomUser.objects.create_user(  # type: ignore[call-arg]
             email="cashier2@test.com",
             password="testpass123",
             first_name="Caissier2",
@@ -452,7 +458,7 @@ class CartCollectViewTests(APITestCase):
         )
 
         # Create recipient user and recipient
-        self.recipient_user = CustomUser.objects.create_user(
+        self.recipient_user = CustomUser.objects.create_user(  # type: ignore[call-arg]
             email="recipient@test.com",
             password="testpass123",
             first_name="Bénéficiaire",
@@ -464,7 +470,7 @@ class CartCollectViewTests(APITestCase):
         )
 
         # Create another recipient
-        self.recipient2_user = CustomUser.objects.create_user(
+        self.recipient2_user = CustomUser.objects.create_user(  # type: ignore[call-arg]
             email="recipient2@test.com",
             password="testpass123",
             first_name="Bénéficiaire2",
@@ -504,13 +510,13 @@ class CartCollectViewTests(APITestCase):
         )
 
         # Create client user (for permission tests)
-        self.client_user = CustomUser.objects.create_user(
+        self.client_user = CustomUser.objects.create_user(  # type: ignore[call-arg]
             email="client@test.com",
             password="testpass123",
             first_name="Client",
             last_name="Test",
         )
-        self.client = Client.objects.create(user=self.client_user)
+        self.test_client_user = Client.objects.create(user=self.client_user)
 
         self.api_client = APIClient()
 
