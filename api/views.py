@@ -3,9 +3,14 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Cart
-from .permissions import IsCashier
-from .serializers import ArticleSerializer, BulkArticleCreateSerializer, CartCollectSerializer
+from .models import Article, Cart, Recipient
+from .permissions import IsCashier, IsClient
+from .serializers import (
+    ArticleDetailSerializer,
+    ArticleSerializer,
+    BulkArticleCreateSerializer,
+    CartCollectSerializer,
+)
 
 
 class ArticleCreateView(APIView):
@@ -187,6 +192,123 @@ class ArticleCreateView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class ArticleGetListView(APIView):
+    """
+    API endpoint to retrieve articles paid by a user.
+    Only accessible by authenticated users with CLIENT role.
+
+    """
+
+    permission_classes = [IsClient]
+
+    @extend_schema(
+        summary="Retrieve articles paid by user",
+        description="""
+        Allows authenticated users to retrieve all the articles they have paid and their statuses.
+
+        **Permissions:**
+        - User must be authenticated (JWT Cookie)
+        - User must have CLIENT role
+
+
+        **Validation:**
+        - client_id must exist and correspond to a CLIENT user
+        """,
+        responses={
+            200: {
+                "description": "Articles successfully retrieved",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "count": 3,
+                            "articles": [
+                                {
+                                    "id": 1,
+                                    "barcode": 3017620422003,
+                                    "name": "Product Name",
+                                    "shop": {"id": 1, "name": "Carrefour City Centre"},
+                                    "status": "AVAILABLE",
+                                    "cart": None,
+                                    "created_at": "2025-11-20T14:30:00Z",
+                                },
+                                {
+                                    "id": 2,
+                                    "barcode": 3564700013151,
+                                    "name": "Another Product",
+                                    "shop": {"id": 1, "name": "Carrefour City Centre"},
+                                    "status": "ASSIGNED",
+                                    "cart": {"id": 5, "status": "ASSIGNED"},
+                                    "created_at": "2025-11-20T14:30:00Z",
+                                },
+                                {
+                                    "id": 3,
+                                    "barcode": 3270190207092,
+                                    "name": "Third Product",
+                                    "shop": {"id": 2, "name": "Monoprix Gare"},
+                                    "status": "COLLECTED",
+                                    "cart": {"id": 5, "status": "COLLECTED"},
+                                    "created_at": "2025-11-19T10:15:00Z",
+                                },
+                            ],
+                        }
+                    }
+                },
+            },
+            400: {
+                "description": "Bad Request - Validation errors",
+                "content": {
+                    "application/json": {
+                        "examples": {
+                            "invalid_client": {
+                                "summary": "Invalid client ID",
+                                "value": {"client_id": ["Client with id 999 does not exist."]},
+                            },
+                            "not_a_client": {
+                                "summary": "User is not a client",
+                                "value": {"client_id": ["User with id 2 is not a Client."]},
+                            },
+                        }
+                    }
+                },
+            },
+            401: {
+                "description": "Unauthorized - Authentication required",
+                "content": {
+                    "application/json": {
+                        "example": {"detail": "Authentication credentials were not provided."}
+                    }
+                },
+            },
+            403: {
+                "description": "Forbidden - User is not a client",
+                "content": {
+                    "application/json": {
+                        "example": {"detail": "You do not have permission to perform this action."}
+                    }
+                },
+            },
+        },
+        examples=[],
+        tags=["Articles"],
+    )
+    def get(self, request):
+        """
+        Retrieve all articles purchased by the authenticated client.
+        Returns articles with their status (AVAILABLE, ASSIGNED, COLLECTED).
+        """
+        articles = (
+            Article.objects.filter(client__user=request.user)
+            .select_related("shop", "cart")
+            .order_by("-id")
+        )
+
+        serializer = ArticleDetailSerializer(articles, many=True)
+
+        return Response(
+            {"count": len(articles), "articles": serializer.data}, status=status.HTTP_200_OK
+        )
+
+
 class CartCollectView(APIView):
     """API endpoint for marking a cart as collected by a cashier."""
 
@@ -251,8 +373,6 @@ class CartCollectView(APIView):
         """Handle PATCH request to mark cart as collected."""
         # Get the recipient or return 404
         try:
-            from .models import Recipient
-
             recipient = Recipient.objects.select_related("user").get(user__pk=recipient_id)
         except Recipient.DoesNotExist:
             return Response(

@@ -13,3 +13,16 @@ class IsCashier(BasePermission):
         Check if the user is authenticated and has the CASHIER role.
         """
         return request.user.is_authenticated and request.user.role == UserRole.CASHIER.value
+
+
+class IsClient(BasePermission):
+    """
+    Permission class that allows access only to users with the CLIENT role.
+    """
+
+    def has_permission(self, request, view):
+        """
+        Check if the user is authenticated and has the CLIENT role.
+        """
+
+        return request.user.is_authenticated and request.user.role == UserRole.CLIENT.value

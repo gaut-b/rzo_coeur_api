@@ -78,6 +78,7 @@ SPECTACULAR_SETTINGS = {
 # Configure auth_kit to use our custom serializer
 AUTH_KIT = {
     "USER_SERIALIZER": "api.serializers.CustomUserSerializer",
+    "USE_AUTH_COOKIE": True,
 }
 
 MIDDLEWARE = [
