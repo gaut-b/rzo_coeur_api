@@ -1,7 +1,17 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
-from .models import Cart, Client, CustomUser, Recipient, Shop, SocialCenter
+from .models import (
+    Article,
+    Cart,
+    Cashier,
+    Client,
+    CustomUser,
+    Recipient,
+    Shop,
+    SocialCenter,
+    SocialWorker,
+)
 
 # Register your models here.
 
@@ -50,7 +60,10 @@ class CustomUserAdmin(UserAdmin):
 
 admin.site.register(Shop)
 admin.site.register(SocialCenter)
+admin.site.register(SocialWorker)
+admin.site.register(Cashier)
 admin.site.register(Recipient)
 admin.site.register(Client)
 admin.site.register(CustomUser, CustomUserAdmin)
 admin.site.register(Cart)
+admin.site.register(Article)
