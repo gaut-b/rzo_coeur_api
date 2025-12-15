@@ -197,6 +197,7 @@ class CartSerializer(serializers.ModelSerializer):
     shop_name = serializers.CharField(source="shop.name", read_only=True)
     recipient_email = serializers.EmailField(source="recipient.user.email", read_only=True)
     recipient_name = serializers.SerializerMethodField()
+    articles = ArticleDetailSerializer(many=True, read_only=True)
 
     class Meta:
         model = Cart
@@ -209,6 +210,7 @@ class CartSerializer(serializers.ModelSerializer):
             "recipient_name",
             "status",
             "collected_at",
+            "articles",
         ]
         read_only_fields = ["id", "collected_at"]
 

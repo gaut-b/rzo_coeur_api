@@ -54,6 +54,8 @@ REST_FRAMEWORK = {
         "auth_kit.authentication.JWTCookieAuthentication",
     ],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 20,
 }
 
 # Add BrowsableAPIRenderer only in development

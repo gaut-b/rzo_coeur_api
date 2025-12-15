@@ -1,15 +1,18 @@
 from drf_spectacular.utils import OpenApiExample, extend_schema
 from rest_framework import status
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .enums import CartStatus
 from .models import Article, Cart, Recipient
-from .permissions import IsCashier, IsClient
+from .permissions import IsCashier, IsClient, IsRecipient
 from .serializers import (
     ArticleDetailSerializer,
     ArticleSerializer,
     BulkArticleCreateSerializer,
     CartCollectSerializer,
+    CartSerializer,
 )
 
 
@@ -307,6 +310,157 @@ class ArticleGetListView(APIView):
         return Response(
             {"count": len(articles), "articles": serializer.data}, status=status.HTTP_200_OK
         )
+
+
+class RecipientCartListView(APIView):
+    """API endpoint for recipients to retrieve their carts."""
+
+    permission_classes = [IsRecipient]
+
+    @extend_schema(
+        summary="Retrieve carts for authenticated recipient",
+        description="""
+        Allows authenticated recipients to retrieve all their assigned carts with articles.
+
+        **Authentication**: Required (JWT Cookie)
+
+        **Permission**: RECIPIENT role only
+
+        **Features**:
+        - Paginated results (20 carts per page by default)
+        - Optional filtering by cart status (PENDING, ASSIGNED, COLLECTED)
+        - Sorted from most recent to oldest (by cart ID)
+        - Includes all articles for each cart with shop information
+
+        **Query Parameters**:
+        - `status` (optional): Filter by cart status (PENDING, ASSIGNED, or COLLECTED)
+        - `page` (optional): Page number for pagination
+        """,
+        parameters=[
+            {
+                "name": "status",
+                "in": "query",
+                "description": "Filter carts by status",
+                "required": False,
+                "schema": {
+                    "type": "string",
+                    "enum": ["PENDING", "ASSIGNED", "COLLECTED"],
+                },
+            },
+            {
+                "name": "page",
+                "in": "query",
+                "description": "Page number",
+                "required": False,
+                "schema": {"type": "integer"},
+            },
+        ],
+        responses={
+            200: {
+                "description": "Carts successfully retrieved",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "count": 42,
+                            "next": "http://api.example.com/api/recipients/me/carts/?page=2",
+                            "previous": None,
+                            "results": [
+                                {
+                                    "id": 5,
+                                    "shop": 1,
+                                    "shop_name": "Carrefour City Centre",
+                                    "recipient": 3,
+                                    "recipient_email": "recipient@example.com",
+                                    "recipient_name": "John Doe",
+                                    "status": "ASSIGNED",
+                                    "collected_at": None,
+                                    "articles": [
+                                        {
+                                            "id": 1,
+                                            "barcode": 3017620422003,
+                                            "name": "Product Name",
+                                            "shop": {"id": 1, "name": "Carrefour City Centre"},
+                                            "status": "ASSIGNED",
+                                            "cart": {"id": 5, "status": "ASSIGNED"},
+                                        },
+                                        {
+                                            "id": 2,
+                                            "barcode": 3564700013151,
+                                            "name": "Another Product",
+                                            "shop": {"id": 1, "name": "Carrefour City Centre"},
+                                            "status": "ASSIGNED",
+                                            "cart": {"id": 5, "status": "ASSIGNED"},
+                                        },
+                                    ],
+                                }
+                            ],
+                        }
+                    }
+                },
+            },
+            400: {
+                "description": "Bad Request - Invalid status parameter",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "status": [
+                                "Invalid status. Must be one of: PENDING, ASSIGNED, COLLECTED"
+                            ]
+                        }
+                    }
+                },
+            },
+            401: {
+                "description": "Unauthorized - Authentication required",
+                "content": {
+                    "application/json": {
+                        "example": {"detail": "Authentication credentials were not provided."}
+                    }
+                },
+            },
+            403: {
+                "description": "Forbidden - User is not a recipient",
+                "content": {
+                    "application/json": {
+                        "example": {"detail": "You do not have permission to perform this action."}
+                    }
+                },
+            },
+        },
+        tags=["Carts"],
+    )
+    def get(self, request):
+        """
+        Retrieve all carts for the authenticated recipient.
+        Supports optional filtering by status and includes pagination.
+        """
+        # Base queryset filtered by authenticated recipient
+        carts = (
+            Cart.objects.filter(recipient__user=request.user)
+            .select_related("shop", "recipient__user")
+            .prefetch_related("articles__shop")
+            .order_by("-id")
+        )
+
+        # Optional status filtering
+        status_param = request.query_params.get("status")
+        if status_param:
+            # Validate status parameter
+            valid_statuses = [status.value for status in CartStatus]
+            if status_param not in valid_statuses:
+                return Response(
+                    {"status": [f"Invalid status. Must be one of: {', '.join(valid_statuses)}"]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            carts = carts.filter(status=status_param)
+
+        # Paginate results
+        paginator = PageNumberPagination()
+        paginated_carts = paginator.paginate_queryset(carts, request)
+
+        # Serialize and return paginated response
+        serializer = CartSerializer(paginated_carts, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
 
 class CartCollectView(APIView):
