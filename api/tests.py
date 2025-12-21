@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
@@ -484,28 +485,25 @@ class CartCollectViewTests(APITestCase):
         self.cart_assigned = Cart.objects.create(
             shop=self.shop1,
             recipient=self.recipient,
-            status=CartStatus.ASSIGNED.value,
         )
 
         # Create a cart in PENDING status
         self.cart_pending = Cart.objects.create(
             shop=self.shop1,
-            recipient=self.recipient,
-            status=CartStatus.PENDING.value,
+            recipient=None,
         )
 
         # Create a cart already COLLECTED
         self.cart_collected = Cart.objects.create(
             shop=self.shop1,
             recipient=self.recipient,
-            status=CartStatus.COLLECTED.value,
+            collected_at=timezone.now(),
         )
 
         # Create a cart for shop2
         self.cart_shop2 = Cart.objects.create(
             shop=self.shop2,
             recipient=self.recipient,
-            status=CartStatus.ASSIGNED.value,
         )
 
         # Create client user (for permission tests)
@@ -698,12 +696,11 @@ class ClientArticleListViewTests(APITestCase):
         self.cart_assigned = Cart.objects.create(
             shop=self.shop1,
             recipient=self.recipient,
-            status=CartStatus.ASSIGNED.value,
         )
         self.cart_collected = Cart.objects.create(
             shop=self.shop1,
             recipient=self.recipient,
-            status=CartStatus.COLLECTED.value,
+            collected_at=timezone.now(),
         )
 
         # Create articles with different statuses

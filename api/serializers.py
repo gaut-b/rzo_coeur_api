@@ -280,9 +280,7 @@ class CartCollectSerializer(serializers.Serializer):
         return attrs
 
     def update(self, instance, validated_data):
-        """Update the cart status to COLLECTED and set collected_at timestamp."""
-
-        instance.status = CartStatus.COLLECTED.value
+        """Update the cart collected_at timestamp (status is computed automatically)."""
         instance.collected_at = timezone.now()
         instance.save()
         return instance

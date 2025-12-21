@@ -65,5 +65,14 @@ admin.site.register(Cashier)
 admin.site.register(Recipient)
 admin.site.register(Client)
 admin.site.register(CustomUser, CustomUserAdmin)
-admin.site.register(Cart)
+
+
+class CartAdmin(admin.ModelAdmin):
+    readonly_fields = ["status"]
+    list_display = ["id", "shop", "recipient", "status", "collected_at"]
+    list_filter = ["shop", "collected_at"]
+    search_fields = ["id", "shop__name", "recipient__user__email"]
+
+
+admin.site.register(Cart, CartAdmin)
 admin.site.register(Article)
