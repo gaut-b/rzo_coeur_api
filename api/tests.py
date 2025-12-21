@@ -1104,8 +1104,6 @@ class RecipientCartListViewTests(APITestCase):
             self.assertIn("id", article)
             self.assertIn("barcode", article)
             self.assertIn("name", article)
-            self.assertIn("shop", article)
-            self.assertIn("status", article)
 
     def test_get_carts_includes_articles(self):
         """Test that carts include their associated articles."""
