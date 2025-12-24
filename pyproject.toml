@@ -1,3 +1,14 @@
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]  # E=pycodestyle, F=pyflakes, I=isort
+ignore = ["E203"]  # Whitespace before ':' (conflicts with black)
+
+[tool.ruff.lint.per-file-ignores]
+"**/migrations/*.py" = ["E501"]  # Ignore line length in migrations
+
 [tool.mypy]
 plugins = ["mypy_django_plugin.main"]
 
