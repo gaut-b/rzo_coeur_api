@@ -8,8 +8,11 @@ The mobile apps of the project can be found [on this repo](https://github.com/ga
 
 ## Requirements
 
+### With Docker (Recommended)
+
 - [Docker](https://docs.docker.com/get-docker/)
 - [uv](https://docs.astral.sh/uv/) (optional, for local development)
+- [PostgreSQL](https://www.postgresql.org/) with [PostGIS](https://postgis.net/) extension (automatically configured in Docker)
 
 ## 🚀 Quick start
 
@@ -49,9 +52,24 @@ uv sync
 
 This will create a virtual environment and install all dependencies from the lock file.
 
-3. Set up your `.env` file with the required environment variables (see below)
+3. Install GDAL and GEOS
 
-4. Run migrations and start the server:
+for macOS:
+
+```sh
+brew install gdal geos
+```
+
+For Ubuntu/Debian
+
+```sh
+sudo apt-get update
+sudo apt-get install gdal-bin libgdal-dev libgeos-dev
+```
+
+4. Set up your `.env` file with the required environment variables (see below)
+
+5. Run migrations and start the server:
 
 ```sh
 uv run python manage.py migrate
@@ -70,7 +88,7 @@ The following environment variables can be configured in your `.env` file:
 
 ### Database Configuration
 
-- `SQL_ENGINE` - Database engine (default: `django.db.backends.postgresql`)
+- `SQL_ENGINE` - Database engine (must be `django.contrib.gis.db.backends.postgis` for PostGIS support)
 - `SQL_DATABASE` - Database name
 - `SQL_USER` - Database user
 - `SQL_PASSWORD` - Database password
