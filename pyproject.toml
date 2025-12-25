@@ -21,7 +21,7 @@ dependencies = [
     "pyjwt==2.10.1",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "django-stubs==5.2.7",
     "djangorestframework-stubs==3.16.5",
