@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("api", "0005_shop_city_shop_latitude_shop_longitude_and_more"),
     ]

@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("api", "0007_remove_shop_latitude_remove_shop_longitude_and_more"),
     ]
