@@ -41,22 +41,27 @@ If you prefer to develop locally without Docker:
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-2. Create a virtual environment and install dependencies:
+2. Install dependencies (uses `uv.lock` for reproducible builds):
 
 ```sh
-uv venv
-source .venv/bin/activate  # On macOS/Linux
-# or .venv\Scripts\activate on Windows
-uv pip install -r requirements.txt
+uv sync
 ```
+
+This will create a virtual environment and install all dependencies from the lock file.
 
 3. Set up your `.env` file with the required environment variables (see below)
 
 4. Run migrations and start the server:
 
 ```sh
-python manage.py migrate
-python manage.py runserver
+uv run python manage.py migrate
+uv run python manage.py runserver
+```
+
+**Development tools**: To install dev dependencies (ruff, mypy, etc.):
+
+```sh
+uv sync --group dev
 ```
 
 ## Environment Variables

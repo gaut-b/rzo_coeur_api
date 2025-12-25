@@ -40,7 +40,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv pip install --system -r requirements.txt
+          uv sync --frozen
 
       - name: Run tests
         env:
@@ -73,7 +73,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv pip install --system ruff
+          uv sync --frozen --group dev
 
       - name: Run ruff linter
         run: |
