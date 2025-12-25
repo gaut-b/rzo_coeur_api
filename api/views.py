@@ -417,8 +417,7 @@ class CartCollectView(APIView):
                 "Invalid cart status",
                 value={
                     "status": (
-                        "Cart must be in ASSIGNED status to be collected. "
-                        "Current status: PENDING"
+                        "Cart must be in ASSIGNED status to be collected. Current status: PENDING"
                     )
                 },
                 response_only=True,
