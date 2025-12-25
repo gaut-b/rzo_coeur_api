@@ -15,7 +15,6 @@ def reverse_migration(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("api", "0005_make_cart_recipient_nullable"),
     ]
