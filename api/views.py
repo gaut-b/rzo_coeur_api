@@ -1,15 +1,18 @@
 from drf_spectacular.utils import OpenApiExample, extend_schema
 from rest_framework import status
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .enums import CartStatus
 from .models import Article, Cart, Recipient
-from .permissions import IsCashier, IsClient
+from .permissions import IsCashier, IsClient, IsRecipient
 from .serializers import (
     ArticleDetailSerializer,
     ArticleSerializer,
     BulkArticleCreateSerializer,
     CartCollectSerializer,
+    CartSerializer,
 )
 
 
@@ -57,90 +60,7 @@ class ArticleCreateView(APIView):
         - Cashier must have an associated shop
         """,
         request=BulkArticleCreateSerializer,
-        responses={
-            201: {
-                "description": "Articles successfully created",
-                "content": {
-                    "application/json": {
-                        "example": {
-                            "message": "Successfully created 2 articles.",
-                            "articles": [
-                                {
-                                    "id": 1,
-                                    "name": "",
-                                    "barcode": 3017620422003,
-                                    "client": 1,
-                                    "shop": 1,
-                                    "cart": None,
-                                },
-                                {
-                                    "id": 2,
-                                    "name": "",
-                                    "barcode": 3564700013151,
-                                    "client": 1,
-                                    "shop": 1,
-                                    "cart": None,
-                                },
-                            ],
-                        }
-                    }
-                },
-            },
-            400: {
-                "description": "Bad Request - Validation errors",
-                "content": {
-                    "application/json": {
-                        "examples": {
-                            "invalid_client": {
-                                "summary": "Invalid client ID",
-                                "value": {"client_id": ["Client with id 999 does not exist."]},
-                            },
-                            "not_a_client": {
-                                "summary": "User is not a client",
-                                "value": {"client_id": ["User with id 2 is not a Client."]},
-                            },
-                            "empty_articles": {
-                                "summary": "Empty articles list",
-                                "value": {"articles": ["Articles list cannot be empty."]},
-                            },
-                            "too_many_articles": {
-                                "summary": "Too many articles",
-                                "value": {
-                                    "articles": [
-                                        "Cannot create more than 50 articles at once. "
-                                        "Received 75 articles. Please reduce the batch size."
-                                    ]
-                                },
-                            },
-                            "no_shop": {
-                                "summary": "Cashier has no associated shop",
-                                "value": {
-                                    "non_field_errors": [
-                                        "Authenticated user does not have an associated shop."
-                                    ]
-                                },
-                            },
-                        }
-                    }
-                },
-            },
-            401: {
-                "description": "Unauthorized - Authentication required",
-                "content": {
-                    "application/json": {
-                        "example": {"detail": "Authentication credentials were not provided."}
-                    }
-                },
-            },
-            403: {
-                "description": "Forbidden - User is not a cashier",
-                "content": {
-                    "application/json": {
-                        "example": {"detail": "You do not have permission to perform this action."}
-                    }
-                },
-            },
-        },
+        responses={201: ArticleSerializer(many=True)},
         examples=[
             OpenApiExample(
                 "Valid request with 2 articles",
@@ -163,6 +83,69 @@ class ArticleCreateView(APIView):
                     ],
                 },
                 request_only=True,
+            ),
+            OpenApiExample(
+                "Successful creation response",
+                value={
+                    "message": "Successfully created 2 articles.",
+                    "articles": [
+                        {
+                            "id": 1,
+                            "name": "",
+                            "barcode": 3017620422003,
+                            "client": 1,
+                            "shop": 1,
+                            "cart": None,
+                        },
+                        {
+                            "id": 2,
+                            "name": "",
+                            "barcode": 3564700013151,
+                            "client": 1,
+                            "shop": 1,
+                            "cart": None,
+                        },
+                    ],
+                },
+                response_only=True,
+                status_codes=["201"],
+            ),
+            OpenApiExample(
+                "Invalid client ID",
+                value={"client_id": ["Client with id 999 does not exist."]},
+                response_only=True,
+                status_codes=["400"],
+            ),
+            OpenApiExample(
+                "User is not a client",
+                value={"client_id": ["User with id 2 is not a Client."]},
+                response_only=True,
+                status_codes=["400"],
+            ),
+            OpenApiExample(
+                "Empty articles list",
+                value={"articles": ["Articles list cannot be empty."]},
+                response_only=True,
+                status_codes=["400"],
+            ),
+            OpenApiExample(
+                "Too many articles",
+                value={
+                    "articles": [
+                        "Cannot create more than 50 articles at once. "
+                        "Received 75 articles. Please reduce the batch size."
+                    ]
+                },
+                response_only=True,
+                status_codes=["400"],
+            ),
+            OpenApiExample(
+                "Cashier has no associated shop",
+                value={
+                    "non_field_errors": ["Authenticated user does not have an associated shop."]
+                },
+                response_only=True,
+                status_codes=["400"],
             ),
         ],
         tags=["Articles"],
@@ -209,86 +192,44 @@ class ArticleGetListView(APIView):
         **Permissions:**
         - User must be authenticated (JWT Cookie)
         - User must have CLIENT role
-
-
-        **Validation:**
-        - client_id must exist and correspond to a CLIENT user
         """,
-        responses={
-            200: {
-                "description": "Articles successfully retrieved",
-                "content": {
-                    "application/json": {
-                        "example": {
-                            "count": 3,
-                            "articles": [
-                                {
-                                    "id": 1,
-                                    "barcode": 3017620422003,
-                                    "name": "Product Name",
-                                    "shop": {"id": 1, "name": "Carrefour City Centre"},
-                                    "status": "AVAILABLE",
-                                    "cart": None,
-                                    "created_at": "2025-11-20T14:30:00Z",
-                                },
-                                {
-                                    "id": 2,
-                                    "barcode": 3564700013151,
-                                    "name": "Another Product",
-                                    "shop": {"id": 1, "name": "Carrefour City Centre"},
-                                    "status": "ASSIGNED",
-                                    "cart": {"id": 5, "status": "ASSIGNED"},
-                                    "created_at": "2025-11-20T14:30:00Z",
-                                },
-                                {
-                                    "id": 3,
-                                    "barcode": 3270190207092,
-                                    "name": "Third Product",
-                                    "shop": {"id": 2, "name": "Monoprix Gare"},
-                                    "status": "COLLECTED",
-                                    "cart": {"id": 5, "status": "COLLECTED"},
-                                    "created_at": "2025-11-19T10:15:00Z",
-                                },
-                            ],
-                        }
-                    }
+        responses={200: ArticleDetailSerializer(many=True)},
+        examples=[
+            OpenApiExample(
+                "Successful response with mixed statuses",
+                value={
+                    "count": 3,
+                    "articles": [
+                        {
+                            "id": 1,
+                            "barcode": 3017620422003,
+                            "name": "Product Name",
+                            "shop": {"id": 1, "name": "Carrefour City Centre"},
+                            "status": "AVAILABLE",
+                            "cart": None,
+                        },
+                        {
+                            "id": 2,
+                            "barcode": 3564700013151,
+                            "name": "Another Product",
+                            "shop": {"id": 1, "name": "Carrefour City Centre"},
+                            "status": "ASSIGNED",
+                            "cart": {"id": 5, "status": "ASSIGNED"},
+                        },
+                        {
+                            "id": 3,
+                            "barcode": 3270190207092,
+                            "name": "Third Product",
+                            "shop": {"id": 2, "name": "Monoprix Gare"},
+                            "status": "COLLECTED",
+                            "cart": {"id": 5, "status": "COLLECTED"},
+                        },
+                    ],
                 },
-            },
-            400: {
-                "description": "Bad Request - Validation errors",
-                "content": {
-                    "application/json": {
-                        "examples": {
-                            "invalid_client": {
-                                "summary": "Invalid client ID",
-                                "value": {"client_id": ["Client with id 999 does not exist."]},
-                            },
-                            "not_a_client": {
-                                "summary": "User is not a client",
-                                "value": {"client_id": ["User with id 2 is not a Client."]},
-                            },
-                        }
-                    }
-                },
-            },
-            401: {
-                "description": "Unauthorized - Authentication required",
-                "content": {
-                    "application/json": {
-                        "example": {"detail": "Authentication credentials were not provided."}
-                    }
-                },
-            },
-            403: {
-                "description": "Forbidden - User is not a client",
-                "content": {
-                    "application/json": {
-                        "example": {"detail": "You do not have permission to perform this action."}
-                    }
-                },
-            },
-        },
-        examples=[],
+                response_only=True,
+                status_codes=["200"],
+            ),
+        ],
         tags=["Articles"],
     )
     def get(self, request):
@@ -307,6 +248,134 @@ class ArticleGetListView(APIView):
         return Response(
             {"count": len(articles), "articles": serializer.data}, status=status.HTTP_200_OK
         )
+
+
+class RecipientCartListView(APIView):
+    """API endpoint for recipients to retrieve their carts."""
+
+    permission_classes = [IsRecipient]
+
+    @extend_schema(
+        summary="Retrieve carts for authenticated recipient",
+        description="""
+        Allows authenticated recipients to retrieve all their assigned carts with articles.
+
+        **Authentication**: Required (JWT Cookie)
+
+        **Permission**: RECIPIENT role only
+
+        **Features**:
+        - Paginated results (20 carts per page by default)
+        - Optional filtering by cart status (PENDING, ASSIGNED, COLLECTED)
+        - Sorted from most recent to oldest (by cart ID)
+        - Includes all articles for each cart with shop information
+
+        **Query Parameters**:
+        - `status` (optional): Filter by cart status (PENDING, ASSIGNED, or COLLECTED)
+        - `page` (optional): Page number for pagination
+        """,
+        parameters=[
+            {
+                "name": "status",
+                "in": "query",
+                "description": "Filter carts by status",
+                "required": False,
+                "schema": {
+                    "type": "string",
+                    "enum": ["PENDING", "ASSIGNED", "COLLECTED"],
+                },
+            },
+            {
+                "name": "page",
+                "in": "query",
+                "description": "Page number",
+                "required": False,
+                "schema": {"type": "integer"},
+            },
+        ],
+        responses={200: CartSerializer(many=True)},
+        examples=[
+            OpenApiExample(
+                "Successful paginated response with carts and articles",
+                value={
+                    "count": 42,
+                    "next": "http://api.example.com/api/recipients/me/carts/?page=2",
+                    "previous": None,
+                    "results": [
+                        {
+                            "id": 5,
+                            "shop": 1,
+                            "shop_name": "Carrefour City Centre",
+                            "recipient": 3,
+                            "recipient_email": "recipient@example.com",
+                            "recipient_name": "John Doe",
+                            "status": "ASSIGNED",
+                            "collected_at": None,
+                            "articles": [
+                                {
+                                    "id": 1,
+                                    "barcode": 3017620422003,
+                                    "name": "Product Name",
+                                    "shop": {"id": 1, "name": "Carrefour City Centre"},
+                                    "status": "ASSIGNED",
+                                    "cart": {"id": 5, "status": "ASSIGNED"},
+                                },
+                                {
+                                    "id": 2,
+                                    "barcode": 3564700013151,
+                                    "name": "Another Product",
+                                    "shop": {"id": 1, "name": "Carrefour City Centre"},
+                                    "status": "ASSIGNED",
+                                    "cart": {"id": 5, "status": "ASSIGNED"},
+                                },
+                            ],
+                        }
+                    ],
+                },
+                response_only=True,
+                status_codes=["200"],
+            ),
+            OpenApiExample(
+                "Invalid status parameter",
+                value={"status": ["Invalid status. Must be one of: PENDING, ASSIGNED, COLLECTED"]},
+                response_only=True,
+                status_codes=["400"],
+            ),
+        ],
+        tags=["Carts"],
+    )
+    def get(self, request):
+        """
+        Retrieve all carts for the authenticated recipient.
+        Supports optional filtering by status and includes pagination.
+        """
+        # Base queryset filtered by authenticated recipient
+        carts = (
+            Cart.objects.filter(recipient__user=request.user)
+            .select_related("shop", "recipient__user")
+            .prefetch_related("articles__shop")
+            .order_by("-id")
+        )
+
+        # Optional status filtering
+        status_param = request.query_params.get("status")
+        if status_param:
+            # Validate status parameter
+            valid_statuses = [status.value for status in CartStatus]
+            if status_param not in valid_statuses:
+                return Response(
+                    {"status": [f"Invalid status. Must be one of: {', '.join(valid_statuses)}"]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            carts = carts.filter(status=status_param)
+
+        # Paginate results
+        paginator = PageNumberPagination()
+        paginated_carts = paginator.paginate_queryset(carts, request)
+
+        # Serialize and return paginated response
+        serializer = CartSerializer(paginated_carts, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
 
 class CartCollectView(APIView):
@@ -335,38 +404,50 @@ class CartCollectView(APIView):
         - Sets collected_at timestamp
         """,
         request=None,
-        responses={
-            204: {"description": "Cart successfully collected"},
-            400: {
-                "description": "Bad Request",
-                "examples": {
-                    "invalid_status": {
-                        "value": {
-                            "status": (
-                                "Cart must be in ASSIGNED status to be collected. "
-                                "Current status: PENDING"
-                            )
-                        }
-                    },
-                    "recipient_mismatch": {
-                        "value": {"recipient": "The cart does not belong to this recipient."}
-                    },
+        responses={204: None},
+        examples=[
+            OpenApiExample(
+                "Cart successfully collected",
+                description="No content returned on success",
+                value=None,
+                response_only=True,
+                status_codes=["204"],
+            ),
+            OpenApiExample(
+                "Invalid cart status",
+                value={
+                    "status": (
+                        "Cart must be in ASSIGNED status to be collected. Current status: PENDING"
+                    )
                 },
-            },
-            403: {
-                "description": "Forbidden - Wrong shop or not a cashier",
-                "examples": {
-                    "wrong_shop": {"value": {"shop": "You can only collect carts from your shop."}}
-                },
-            },
-            404: {
-                "description": "Recipient or Cart not found",
-                "examples": {
-                    "recipient_not_found": {"value": {"error": "Recipient not found."}},
-                    "cart_not_found": {"value": {"error": "Cart not found."}},
-                },
-            },
-        },
+                response_only=True,
+                status_codes=["400"],
+            ),
+            OpenApiExample(
+                "Cart does not belong to recipient",
+                value={"recipient": "The cart does not belong to this recipient."},
+                response_only=True,
+                status_codes=["400"],
+            ),
+            OpenApiExample(
+                "Wrong shop",
+                value={"shop": "You can only collect carts from your shop."},
+                response_only=True,
+                status_codes=["400"],
+            ),
+            OpenApiExample(
+                "Recipient not found",
+                value={"error": "Recipient not found."},
+                response_only=True,
+                status_codes=["404"],
+            ),
+            OpenApiExample(
+                "Cart not found",
+                value={"error": "Cart not found."},
+                response_only=True,
+                status_codes=["404"],
+            ),
+        ],
         tags=["Carts"],
     )
     def patch(self, request, recipient_id, cart_id):

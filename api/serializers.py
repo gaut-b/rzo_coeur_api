@@ -189,6 +189,19 @@ class BulkArticleCreateSerializer(serializers.Serializer):
         return created_articles
 
 
+class ArticleCartSerializer(serializers.ModelSerializer):
+    """
+    Simplified serializer for articles within a cart context.
+    Only returns essential article information (id, barcode, name).
+    Shop, status, and cart info are already available at the cart level.
+    """
+
+    class Meta:
+        model = Article
+        fields = ["id", "barcode", "name"]
+        read_only_fields = ["id"]
+
+
 class CartSerializer(serializers.ModelSerializer):
     """
     Serializer for Cart model output.
@@ -197,6 +210,7 @@ class CartSerializer(serializers.ModelSerializer):
     shop_name = serializers.CharField(source="shop.name", read_only=True)
     recipient_email = serializers.EmailField(source="recipient.user.email", read_only=True)
     recipient_name = serializers.SerializerMethodField()
+    articles = ArticleCartSerializer(many=True, read_only=True)
 
     class Meta:
         model = Cart
@@ -209,6 +223,7 @@ class CartSerializer(serializers.ModelSerializer):
             "recipient_name",
             "status",
             "collected_at",
+            "articles",
         ]
         read_only_fields = ["id", "collected_at"]
 
