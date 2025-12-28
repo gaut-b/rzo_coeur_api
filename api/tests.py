@@ -995,35 +995,28 @@ class RecipientCartListViewTests(APITestCase):
         self.cashier = Cashier.objects.create(user=self.cashier_user, shop=self.shop1)
 
         # Create carts with different statuses for recipient1
-        self.cart_pending = Cart.objects.create(
-            shop=self.shop1,
-            recipient=self.recipient,
-            status=CartStatus.PENDING.value,
-        )
+        # Note: PENDING carts have no recipient, so they won't appear in recipient cart lists
 
         self.cart_assigned1 = Cart.objects.create(
             shop=self.shop1,
-            recipient=self.recipient,
-            status=CartStatus.ASSIGNED.value,
+            recipient=self.recipient,  # ASSIGNED: has recipient, no collected_at
         )
 
         self.cart_assigned2 = Cart.objects.create(
             shop=self.shop2,
-            recipient=self.recipient,
-            status=CartStatus.ASSIGNED.value,
+            recipient=self.recipient,  # ASSIGNED: has recipient, no collected_at
         )
 
         self.cart_collected = Cart.objects.create(
             shop=self.shop1,
             recipient=self.recipient,
-            status=CartStatus.COLLECTED.value,
+            collected_at=timezone.now(),  # COLLECTED: has recipient and collected_at
         )
 
         # Create cart for recipient2 (should not be visible to recipient1)
         self.cart_other_recipient = Cart.objects.create(
             shop=self.shop1,
-            recipient=self.recipient2,
-            status=CartStatus.ASSIGNED.value,
+            recipient=self.recipient2,  # ASSIGNED: has recipient, no collected_at
         )
 
         # Create articles for carts
@@ -1071,8 +1064,8 @@ class RecipientCartListViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("count", response.data)
         self.assertIn("results", response.data)
-        self.assertEqual(response.data["count"], 4)
-        self.assertEqual(len(response.data["results"]), 4)
+        self.assertEqual(response.data["count"], 3)  # 2 ASSIGNED + 1 COLLECTED
+        self.assertEqual(len(response.data["results"]), 3)
 
     def test_get_carts_with_correct_structure(self):
         """Test that carts have the correct structure with nested articles."""
@@ -1147,8 +1140,8 @@ class RecipientCartListViewTests(APITestCase):
         cart_ids = [c["id"] for c in response.data["results"]]
         self.assertNotIn(self.cart_other_recipient.id, cart_ids)
 
-        # Verify all carts belong to recipient1
-        self.assertEqual(response.data["count"], 4)
+        # Verify all carts belong to recipient1 (2 ASSIGNED + 1 COLLECTED)
+        self.assertEqual(response.data["count"], 3)
 
     def test_get_carts_filter_by_status_assigned(self):
         """Test filtering carts by ASSIGNED status."""
@@ -1164,14 +1157,14 @@ class RecipientCartListViewTests(APITestCase):
             self.assertEqual(cart["status"], CartStatus.ASSIGNED.value)
 
     def test_get_carts_filter_by_status_pending(self):
-        """Test filtering carts by PENDING status."""
+        """Test filtering carts by PENDING status returns empty list."""
         self.api_client.force_authenticate(user=self.recipient_user)
 
         response = self.api_client.get(self.url, {"status": "PENDING"}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["count"], 1)
-        self.assertEqual(response.data["results"][0]["status"], CartStatus.PENDING.value)
+        # PENDING carts have no recipient, so filtering by PENDING should return 0 carts
+        self.assertEqual(response.data["count"], 0)
 
     def test_get_carts_filter_by_status_collected(self):
         """Test filtering carts by COLLECTED status."""
@@ -1197,12 +1190,11 @@ class RecipientCartListViewTests(APITestCase):
         self.api_client.force_authenticate(user=self.recipient_user)
 
         # Create more carts to test pagination (total should be > 20 for default page size)
-        # We already have 4, create 17 more to have 21 total
-        for _ in range(17):
+        # We already have 3, create 18 more to have 21 total
+        for _ in range(18):
             Cart.objects.create(
                 shop=self.shop1,
-                recipient=self.recipient,
-                status=CartStatus.PENDING.value,
+                recipient=self.recipient,  # ASSIGNED: has recipient, no collected_at
             )
 
         response = self.api_client.get(self.url, format="json")
@@ -1218,11 +1210,10 @@ class RecipientCartListViewTests(APITestCase):
         self.api_client.force_authenticate(user=self.recipient_user)
 
         # Create more carts to test pagination
-        for _ in range(17):
+        for _ in range(18):
             Cart.objects.create(
                 shop=self.shop1,
-                recipient=self.recipient,
-                status=CartStatus.PENDING.value,
+                recipient=self.recipient,  # ASSIGNED: has recipient, no collected_at
             )
 
         response = self.api_client.get(self.url, {"page": 2}, format="json")
@@ -1237,18 +1228,17 @@ class RecipientCartListViewTests(APITestCase):
         """Test pagination combined with status filtering."""
         self.api_client.force_authenticate(user=self.recipient_user)
 
-        # Create more ASSIGNED carts
+        # Create more ASSIGNED carts (we already have 2, need 19 more for 21 total)
         for _ in range(19):
             Cart.objects.create(
                 shop=self.shop1,
-                recipient=self.recipient,
-                status=CartStatus.ASSIGNED.value,
+                recipient=self.recipient,  # ASSIGNED: has recipient, no collected_at
             )
 
         response = self.api_client.get(self.url, {"status": "ASSIGNED"}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["count"], 21)  # 2 existing + 19 new
+        self.assertEqual(response.data["count"], 21)  # 2 original + 19 new = 21
         self.assertEqual(len(response.data["results"]), 20)
         self.assertIsNotNone(response.data["next"])
 
