@@ -9,6 +9,7 @@ The mobile apps of the project can be found [on this repo](https://github.com/ga
 ## Requirements
 
 - [Docker](https://docs.docker.com/get-docker/)
+- [uv](https://docs.astral.sh/uv/) (optional, for local development)
 
 ## 🚀 Quick start
 
@@ -30,11 +31,45 @@ To launch only the database:
 docker compose up db
 ```
 
+## Local Development (without Docker)
+
+If you prefer to develop locally without Docker:
+
+1. Install [uv](https://docs.astral.sh/uv/getting-started/installation/):
+
+```sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+2. Install dependencies (uses `uv.lock` for reproducible builds):
+
+```sh
+uv sync
+```
+
+This will create a virtual environment and install all dependencies from the lock file.
+
+3. Set up your `.env` file with the required environment variables (see below)
+
+4. Run migrations and start the server:
+
+```sh
+uv run python manage.py migrate
+uv run python manage.py runserver
+```
+
+**Development tools**: To install dev dependencies (ruff, mypy, etc.):
+
+```sh
+uv sync --group dev
+```
+
 ## Environment Variables
 
 The following environment variables can be configured in your `.env` file:
 
 ### Database Configuration
+
 - `SQL_ENGINE` - Database engine (default: `django.db.backends.postgresql`)
 - `SQL_DATABASE` - Database name
 - `SQL_USER` - Database user
@@ -43,9 +78,11 @@ The following environment variables can be configured in your `.env` file:
 - `SQL_PORT` - Database port
 
 ### API Configuration
+
 - `MAX_ARTICLES_PER_REQUEST` - Maximum number of articles that can be created in a single bulk request (default: `50`)
 
 ### Django Configuration
+
 - `DEBUG` - Enable debug mode (`1` for True, `0` for False)
 - `SECRET_KEY` - Django secret key
 - `ALLOWED_HOSTS` - Comma-separated list of allowed hosts

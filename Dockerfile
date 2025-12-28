@@ -17,14 +17,14 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Upgrade pip and install dependencies
-RUN pip install --upgrade pip
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Copy the requirements file first (better caching)
-COPY requirements.txt /app/
+# Copy dependency files first (better caching)
+COPY pyproject.toml uv.lock /app/
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN uv sync --frozen --no-dev
 
 # Stage 2: Production stage
 FROM python:3.13-slim
