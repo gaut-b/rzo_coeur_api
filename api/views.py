@@ -367,7 +367,21 @@ class RecipientCartListView(APIView):
                     {"status": [f"Invalid status. Must be one of: {', '.join(valid_statuses)}"]},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            carts = carts.filter(status=status_param)
+
+            # Map status to underlying field conditions
+            # Status is computed from recipient and collected_at fields:
+            # - PENDING: recipient is None (won't match since we filter by recipient__user)
+            # - ASSIGNED: recipient is not None AND collected_at is None
+            # - COLLECTED: recipient is not None AND collected_at is not None
+            if status_param == CartStatus.PENDING.value:
+                # PENDING carts have no recipient, so they won't be in recipient's list
+                carts = carts.filter(recipient__isnull=True)
+            elif status_param == CartStatus.ASSIGNED.value:
+                # ASSIGNED carts have recipient but no collected_at
+                carts = carts.filter(collected_at__isnull=True)
+            elif status_param == CartStatus.COLLECTED.value:
+                # COLLECTED carts have both recipient and collected_at
+                carts = carts.filter(collected_at__isnull=False)
 
         # Paginate results
         paginator = PageNumberPagination()
