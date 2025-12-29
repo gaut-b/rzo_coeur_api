@@ -85,10 +85,6 @@ class AddressLocationAdminForm(forms.ModelForm):
 
         if latitude is not None and longitude is not None:
             instance.location = Point(float(longitude), float(latitude), srid=4326)
-        elif latitude is None and longitude is None:
-            # Only clear location if both fields are explicitly None
-            instance.location = None
-        # Otherwise, keep existing location unchanged
 
         if commit:
             instance.save()
