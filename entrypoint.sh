@@ -11,9 +11,8 @@ then
     echo "PostgreSQL started"
 fi
 
-python manage.py collectstatic --no-input
-python manage.py flush --no-input
 python manage.py migrate
+python manage.py collectstatic --no-input
 
 # Set default workers if GUNICORN_WORKERS is not set
 WORKERS=${GUNICORN_WORKERS:-3}
