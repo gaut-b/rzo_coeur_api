@@ -16,9 +16,8 @@ from .models import (
     SocialWorker,
 )
 
+
 # Register your models here.
-
-
 class AddressLocationAdminForm(forms.ModelForm):
     """Base form for models with address and location fields."""
 
@@ -44,34 +43,38 @@ class AddressLocationAdminForm(forms.ModelForm):
     )
 
     class Meta:
-        fields = "__all__"
-        exclude = ["location"]
+        fields = [
+            "address",
+            "postal_code",
+            "street_number",
+            "street_name",
+            "city",
+            "latitude",
+            "longitude",
+        ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if not self.instance or not self.instance.pk:
+            return
         # Pre-fill the address field with current structured address
-        if self.instance and self.instance.pk:
-            parts = []
-            if self.instance.street_number:
-                parts.append(self.instance.street_number)
-            if self.instance.street_name:
-                parts.append(self.instance.street_name)
-            address_line = " ".join(parts) if parts else ""
+        address_parts = filter(None, [self.instance.street_number, self.instance.street_name])
+        address_line = " ".join(address_parts)
 
-            if self.instance.postal_code and self.instance.city:
-                if address_line:
-                    self.initial["address"] = (
-                        f"{address_line}, {self.instance.postal_code} {self.instance.city}"
-                    )
-                else:
-                    self.initial["address"] = f"{self.instance.postal_code} {self.instance.city}"
-            elif address_line:
-                self.initial["address"] = address_line
+        if self.instance.postal_code and self.instance.city:
+            if address_line:
+                self.initial["address"] = (
+                    f"{address_line}, {self.instance.postal_code} {self.instance.city}"
+                )
+            else:
+                self.initial["address"] = f"{self.instance.postal_code} {self.instance.city}"
+        elif address_line:
+            self.initial["address"] = address_line
 
-            # Pre-fill latitude/longitude from location Point
-            if self.instance.location:
-                self.initial["latitude"] = self.instance.location.y
-                self.initial["longitude"] = self.instance.location.x
+        # Pre-fill latitude/longitude from location Point
+        if self.instance.location:
+            self.initial["latitude"] = self.instance.location.y
+            self.initial["longitude"] = self.instance.location.x
 
     def save(self, commit=True):
         instance = super().save(commit=False)
@@ -83,7 +86,9 @@ class AddressLocationAdminForm(forms.ModelForm):
         if latitude is not None and longitude is not None:
             instance.location = Point(float(longitude), float(latitude), srid=4326)
         elif latitude is None and longitude is None:
+            # Only clear location if both fields are explicitly None
             instance.location = None
+        # Otherwise, keep existing location unchanged
 
         if commit:
             instance.save()
@@ -95,8 +100,17 @@ class ShopAdminForm(AddressLocationAdminForm):
 
     class Meta:
         model = Shop
-        fields = "__all__"
-        exclude = ["location"]
+        fields = [
+            "name",
+            "social_center",
+            "address",
+            "postal_code",
+            "street_number",
+            "street_name",
+            "city",
+            "latitude",
+            "longitude",
+        ]
 
 
 class SocialCenterAdminForm(AddressLocationAdminForm):
@@ -104,8 +118,17 @@ class SocialCenterAdminForm(AddressLocationAdminForm):
 
     class Meta:
         model = SocialCenter
-        fields = "__all__"
-        exclude = ["location"]
+        fields = [
+            "name",
+            "mail",
+            "address",
+            "postal_code",
+            "street_number",
+            "street_name",
+            "city",
+            "latitude",
+            "longitude",
+        ]
 
 
 class AddressLocationAdminMixin:
