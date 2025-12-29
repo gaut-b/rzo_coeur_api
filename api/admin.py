@@ -4,6 +4,7 @@ from django.contrib.auth.admin import UserAdmin
 from django.contrib.gis.geos import Point
 from django.utils.html import format_html
 
+from .enums import UserRole
 from .models import (
     Article,
     Cart,
@@ -16,8 +17,9 @@ from .models import (
     SocialWorker,
 )
 
-
 # Register your models here.
+
+
 class AddressLocationAdminForm(forms.ModelForm):
     """Base form for models with address and location fields."""
 
@@ -97,6 +99,7 @@ class ShopAdminForm(AddressLocationAdminForm):
         fields = [
             "name",
             "social_center",
+            "social_worker",
             "address",
             "postal_code",
             "street_number",
@@ -210,27 +213,187 @@ class CustomUserAdmin(UserAdmin):
     ordering = ["email"]
 
 
-class ShopAdmin(AddressLocationAdminMixin, admin.ModelAdmin):
-    """
-    Custom admin for Shop model with address autocomplete
-    and interactive map display.
-    """
+class CustomUserNoAdmin(UserAdmin):
+    model = CustomUser
+    list_display = ["email", "first_name", "last_name", "is_active"]
+    list_filter = ["is_active"]
+    fieldsets = (
+        (None, {"fields": ("email", "password")}),
+        ("Personal info", {"fields": ("first_name", "last_name")}),
+        (
+            "Permissions",
+            {
+                "fields": (
+                    "is_active",
+                    "groups",
+                    "user_permissions",
+                )
+            },
+        ),
+        ("Important dates", {"fields": ("last_login", "date_joined")}),
+    )
+    add_fieldsets = (
+        (
+            None,
+            {
+                "classes": ("wide",),
+                "fields": (
+                    "email",
+                    "password1",
+                    "password2",
+                    "first_name",
+                    "last_name",
+                    "is_active",
+                ),
+            },
+        ),
+    )
+    search_fields = ["email", "first_name", "last_name"]
+    ordering = ["email"]
 
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_authenticated and request.user.role == UserRole.SOCIALCENTERADMIN.value
+
+    def has_add_permission(self, request, obj=None):
+        return request.user.is_authenticated and request.user.role == UserRole.SOCIALCENTERADMIN.value
+
+    def has_module_permission(self, request):
+        return request.user.is_authenticated and request.user.role == UserRole.SOCIALCENTERADMIN.value
+
+    def has_permission(self, request):
+        return request.user.is_authenticated and request.user.role == UserRole.SOCIALCENTERADMIN.value
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_authenticated and request.user.role == UserRole.SOCIALCENTERADMIN.value
+
+
+class ArticleInline(admin.StackedInline):
+    model = Article
+
+
+class ShopSocialAdmin(AddressLocationAdminMixin, admin.ModelAdmin):
+    model = Shop
+    list_display_links = ["articles"]
+    inlines = [ArticleInline]
     form = ShopAdminForm
-    list_display = ["name", "full_address", "city", "postal_code", "has_coordinates"]
+    list_display = ["name", "full_address", "city", "postal_code", "has_coordinates", "social_center", "articles"]
     list_filter = ["social_center", "city"]
     search_fields = ["name", "street_name", "city", "postal_code"]
 
     fieldsets = (
-        ("General Information", {"fields": ("name", "social_center")}),
+        ("General Information", {"fields": ("name", "social_center", "social_worker")}),
         (
             "Address",
             {
                 "fields": (
                     "address",
-                    "postal_code",
                     "street_number",
                     "street_name",
+                    "postal_code",
+                    "city",
+                    "latitude",
+                    "longitude",
+                    "display_coordinates",
+                ),
+                "description": (
+                    "Start typing in the address field to see suggestions. "
+                    "The structured fields below are auto-filled but can be edited."
+                ),
+            },
+        ),
+    )
+
+    readonly_fields = ["display_coordinates"]
+
+    class Media:
+        css = {
+            "all": (
+                "api/css/admin_shop.css",
+                "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
+            )
+        }
+        js = (
+            "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
+            "api/js/admin_shop_autocomplete.js",
+        )
+
+    # redirect vers articles social admin
+
+    def get_list_display_links(self, obj):
+        pass
+
+    def articles(self, obj):
+        return ",".join([article.name for article in Article.objects.filter(shop_id=obj.id)])
+
+    def get_queryset(self, request):
+        request_social_center = "1"
+        user = request.user
+        qs = super(ShopSocialAdmin, self).get_queryset(request)
+        for s in Shop.objects.all():
+            if user == s.social_worker:  # we're not going through this...FIXME
+                request_social_center = s.social_center
+        return qs.filter(social_center=request_social_center)
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_authenticated and request.user.role == UserRole.SOCIALCENTERADMIN.value
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_authenticated and request.user.role == UserRole.SOCIALCENTERADMIN.value
+
+    def has_add_permission(self, request, obj=None):
+        return request.user.is_authenticated and request.user.role == UserRole.SOCIALCENTERADMIN.value
+
+    def has_module_permission(self, request):
+        return request.user.is_authenticated and request.user.role == UserRole.SOCIALCENTERADMIN.value
+
+
+class SocialWorkerAdmin(admin.ModelAdmin):
+    model = SocialWorker
+    list_display = ["user__first_name", "user__email", "social_center"]
+
+    def get_queryset(self, request):
+        request_social_center = ""
+        user = request.user
+        qs = super(SocialWorkerAdmin, self).get_queryset(request)
+        for s in SocialWorker.objects.all():
+            if user == s.user:
+                request_social_center = s.social_center
+            return qs.filter(social_center=request_social_center)
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_authenticated and request.user.role == UserRole.SOCIALCENTERADMIN.value
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_authenticated and request.user.role == UserRole.SOCIALCENTERADMIN.value
+
+    def has_add_permission(self, request, obj=None):
+        return request.user.is_authenticated and request.user.role == UserRole.SOCIALCENTERADMIN.value
+
+    def has_module_permission(self, request):
+        return request.user.is_authenticated and request.user.role == UserRole.SOCIALCENTERADMIN.value
+
+
+class SocialCenterAdmin(AddressLocationAdminMixin, admin.ModelAdmin):
+    """
+    Custom admin for SocialCenter model with address autocomplete
+    and interactive map display.
+    """
+
+    form = SocialCenterAdminForm
+    list_display = ["name", "mail", "full_address", "city", "postal_code", "has_coordinates"]
+    list_filter = ["city"]
+    search_fields = ["name", "street_name", "city", "postal_code", "mail"]
+
+    fieldsets = (
+        ("General Information", {"fields": ("name", "mail")}),
+        (
+            "Address",
+            {
+                "fields": (
+                    "address",
+                    "street_number",
+                    "street_name",
+                    "postal_code",
                     "city",
                     "latitude",
                     "longitude",
@@ -259,14 +422,26 @@ class ShopAdmin(AddressLocationAdminMixin, admin.ModelAdmin):
         )
 
 
-class SocialCenterAdmin(AddressLocationAdminMixin, admin.ModelAdmin):
+class SocialAdminSite(AddressLocationAdminMixin, admin.sites.AdminSite):
+    model = SocialWorker
+    site_title = "RZO Centre social afdmin"
+    list_display = ["shop__name", "shop__address"]
     """
     Custom admin for SocialCenter model with address autocomplete
     and interactive map display.
     """
 
     form = SocialCenterAdminForm
-    list_display = ["name", "mail", "full_address", "city", "postal_code", "has_coordinates"]
+    list_display = [
+        "name",
+        "mail",
+        "full_address",
+        "city",
+        "postal_code",
+        "has_coordinates",
+        "shop__name",
+        "shop__address",
+    ]
     list_filter = ["city"]
     search_fields = ["name", "street_name", "city", "postal_code", "mail"]
 
@@ -307,14 +482,20 @@ class SocialCenterAdmin(AddressLocationAdminMixin, admin.ModelAdmin):
             "api/js/admin_shop_autocomplete.js",
         )
 
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_authenticated and request.user.role == UserRole.SOCIALCENTERADMIN.value
 
-admin.site.register(Shop, ShopAdmin)
-admin.site.register(SocialCenter, SocialCenterAdmin)
-admin.site.register(SocialWorker)
-admin.site.register(Cashier)
-admin.site.register(Recipient)
-admin.site.register(Client)
-admin.site.register(CustomUser, CustomUserAdmin)
+    def has_add_permission(self, request, obj=None):
+        return request.user.is_authenticated and request.user.role == UserRole.SOCIALCENTERADMIN.value
+
+    def has_module_permission(self, request):
+        return request.user.is_authenticated and request.user.role == UserRole.SOCIALCENTERADMIN.value
+
+    def has_change_permission(self, request):
+        return request.user.is_authenticated and request.user.role == UserRole.SOCIALCENTERADMIN.value
+
+    def has_permission(self, request):
+        return request.user.is_authenticated and request.user.role == UserRole.SOCIALCENTERADMIN.value
 
 
 class CartAdmin(admin.ModelAdmin):
@@ -324,6 +505,17 @@ class CartAdmin(admin.ModelAdmin):
     search_fields = ["id", "shop__name", "recipient__user__email"]
 
 
+social_admin_site = SocialAdminSite(name="social_admin")
+social_admin_site.register(Shop, ShopSocialAdmin)
+social_admin_site.register(SocialWorker, SocialWorkerAdmin)
+social_admin_site.register(CustomUser, CustomUserNoAdmin)
+social_admin_site.register(Cart, CartAdmin)
+admin.site.register(SocialCenter, SocialCenterAdmin)
+admin.site.register(SocialWorker)
+admin.site.register(Cashier)
+admin.site.register(Recipient)
+admin.site.register(Client)
+admin.site.register(CustomUser, CustomUserAdmin)
 admin.site.register(Cart, CartAdmin)
 
 

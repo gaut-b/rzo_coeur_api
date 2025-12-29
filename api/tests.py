@@ -1,9 +1,21 @@
+from decimal import Decimal
+
+from django.contrib.admin.sites import AdminSite
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.contrib.gis.geos import Point
+from django.test import RequestFactory, TestCase
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
+from .admin import (
+    CustomUserAdmin,
+    ShopAdminForm,
+    ShopSocialAdmin,
+    SocialCenterAdmin,
+    SocialCenterAdminForm,
+    SocialWorkerAdmin,
+)
 from .constants import MAX_ARTICLES_PER_REQUEST
 from .enums import CartStatus, UserRole
 from .models import (
@@ -17,6 +29,15 @@ from .models import (
     SocialCenter,
     SocialWorker,
 )
+
+User = get_user_model()
+
+
+class MockRequest:
+    """Mock request object for testing admin permissions."""
+
+    def __init__(self, user=None):
+        self.user = user
 
 
 class UsersManagersTests(TestCase):
@@ -38,9 +59,11 @@ class UsersManagersTests(TestCase):
         with self.assertRaises(TypeError):
             user_model.objects.create_user()  # type: ignore[attr-defined]
         with self.assertRaises(TypeError):
-            user_model.objects.create_user(email="")  # type: ignore[attr-defined]
+            # type: ignore[attr-defined]
+            user_model.objects.create_user(email="")
         with self.assertRaises(ValueError):
-            user_model.objects.create_user(email="", password="foo")  # type: ignore[attr-defined]
+            # type: ignore[attr-defined]
+            user_model.objects.create_user(email="", password="foo")
 
     def test_create_superuser(self):
         user_model = get_user_model()
@@ -112,6 +135,13 @@ class CustomUserSerializerTests(APITestCase):
             city="Paris",
             mail="centre@test.com",
         )
+        user = CustomUser.objects.create_user(  # type: ignore[call-arg]
+            email="socialworker11@test.com",
+            password="testpass123",
+            first_name="Travailleur",
+            last_name="Social",
+        )
+        self.social_worker = SocialWorker.objects.create(user=user, social_center=self.social_center)
 
         # Create a shop for cashiers
         self.shop = Shop.objects.create(
@@ -121,6 +151,7 @@ class CustomUserSerializerTests(APITestCase):
             postal_code="75002",
             city="Paris",
             social_center=self.social_center,
+            social_worker=self.social_worker,
         )
 
     def test_serialize_user_without_role(self):
@@ -230,6 +261,15 @@ class ArticleCreateViewTests(APITestCase):
             mail="centre@test.com",
         )
 
+        # Create other role users for permission testing
+        self.social_worker_user = CustomUser.objects.create_user(  # type: ignore[call-arg]
+            email="socialworker@test.com",
+            password="testpass123",
+            first_name="Travailleur",
+            last_name="Social",
+        )
+        self.social_worker = SocialWorker.objects.create(user=self.social_worker_user, social_center=self.social_center)
+
         # Create shop
         self.shop = Shop.objects.create(
             name="Magasin Test",
@@ -238,6 +278,7 @@ class ArticleCreateViewTests(APITestCase):
             postal_code="75002",
             city="Paris",
             social_center=self.social_center,
+            social_worker=self.social_worker,
         )
 
         # Create cashier user
@@ -254,15 +295,6 @@ class ArticleCreateViewTests(APITestCase):
             email="client@test.com", password="testpass123", first_name="Client", last_name="Test"
         )
         self.test_client_user = Client.objects.create(user=self.client_user)
-
-        # Create other role users for permission testing
-        self.social_worker_user = CustomUser.objects.create_user(  # type: ignore[call-arg]
-            email="socialworker@test.com",
-            password="testpass123",
-            first_name="Travailleur",
-            last_name="Social",
-        )
-        SocialWorker.objects.create(user=self.social_worker_user, social_center=self.social_center)
 
         self.recipient_user = CustomUser.objects.create_user(  # type: ignore[call-arg]
             email="recipient@test.com",
@@ -535,6 +567,14 @@ class ArticleGetListViewTests(APITestCase):
             mail="centre@test.com",
         )
 
+        self.social_worker_user = CustomUser.objects.create_user(  # type: ignore[call-arg]
+            email="socialworker2@test.com",
+            password="testpass123",
+            first_name="Travailleur",
+            last_name="Social",
+        )
+        self.social_worker = SocialWorker.objects.create(user=self.social_worker_user, social_center=self.social_center)
+
         # Create shop
         self.shop = Shop.objects.create(
             name="Magasin Test",
@@ -543,6 +583,7 @@ class ArticleGetListViewTests(APITestCase):
             postal_code="75002",
             city="Paris",
             social_center=self.social_center,
+            social_worker=self.social_worker,
         )
 
         # Create client user
@@ -721,6 +762,13 @@ class CartCollectViewTests(APITestCase):
             city="Paris",
             mail="centre@test.com",
         )
+        self.social_worker_user = CustomUser.objects.create_user(  # type: ignore[call-arg]
+            email="socialworker3@test.com",
+            password="testpass123",
+            first_name="Travailleur",
+            last_name="Social",
+        )
+        self.social_worker = SocialWorker.objects.create(user=self.social_worker_user, social_center=self.social_center)
 
         # Create shops
         self.shop1 = Shop.objects.create(
@@ -730,6 +778,7 @@ class CartCollectViewTests(APITestCase):
             postal_code="75002",
             city="Paris",
             social_center=self.social_center,
+            social_worker=self.social_worker,
         )
         self.shop2 = Shop.objects.create(
             name="Magasin Test 2",
@@ -738,6 +787,7 @@ class CartCollectViewTests(APITestCase):
             postal_code="75003",
             city="Paris",
             social_center=self.social_center,
+            social_worker=self.social_worker,
         )
 
         # Create cashier user and cashier for shop1
@@ -950,6 +1000,13 @@ class ClientArticleListViewTests(APITestCase):
             city="Paris",
             mail="centre@test.com",
         )
+        self.social_worker_user = CustomUser.objects.create_user(  # type: ignore[call-arg]
+            email="socialworker3@test.com",
+            password="testpass123",
+            first_name="Travailleur",
+            last_name="Social",
+        )
+        self.social_worker = SocialWorker.objects.create(user=self.social_worker_user, social_center=self.social_center)
 
         # Create shops
         self.shop1 = Shop.objects.create(
@@ -959,6 +1016,7 @@ class ClientArticleListViewTests(APITestCase):
             postal_code="75002",
             city="Paris",
             social_center=self.social_center,
+            social_worker=self.social_worker,
         )
         self.shop2 = Shop.objects.create(
             name="Monoprix Gare",
@@ -967,6 +1025,7 @@ class ClientArticleListViewTests(APITestCase):
             postal_code="75003",
             city="Paris",
             social_center=self.social_center,
+            social_worker=self.social_worker,
         )
 
         # Create client user
@@ -1250,6 +1309,13 @@ class RecipientCartListViewTests(APITestCase):
             city="Paris",
             mail="centre@test.com",
         )
+        user = CustomUser.objects.create_user(  # type: ignore[call-arg]
+            email="socialworker11@test.com",
+            password="testpass123",
+            first_name="Travailleur",
+            last_name="Social",
+        )
+        self.social_worker = SocialWorker.objects.create(user=user, social_center=self.social_center)
 
         # Create shops
         self.shop1 = Shop.objects.create(
@@ -1259,6 +1325,7 @@ class RecipientCartListViewTests(APITestCase):
             postal_code="75002",
             city="Paris",
             social_center=self.social_center,
+            social_worker=self.social_worker,
         )
         self.shop2 = Shop.objects.create(
             name="Monoprix Gare",
@@ -1267,6 +1334,7 @@ class RecipientCartListViewTests(APITestCase):
             postal_code="75003",
             city="Paris",
             social_center=self.social_center,
+            social_worker=self.social_worker,
         )
 
         # Create recipient user
@@ -1535,7 +1603,8 @@ class RecipientCartListViewTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 21)
-        self.assertEqual(len(response.data["results"]), 1)  # Only 1 cart on page 2
+        # Only 1 cart on page 2
+        self.assertEqual(len(response.data["results"]), 1)
         self.assertIsNone(response.data["next"])
         self.assertIsNotNone(response.data["previous"])
 
@@ -1553,7 +1622,8 @@ class RecipientCartListViewTests(APITestCase):
         response = self.api_client.get(self.url, {"status": "ASSIGNED"}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["count"], 21)  # 2 original + 19 new = 21
+        # 2 original + 19 new = 21
+        self.assertEqual(response.data["count"], 21)
         self.assertEqual(len(response.data["results"]), 20)
         self.assertIsNotNone(response.data["next"])
 
@@ -1640,15 +1710,24 @@ class CartDetailViewTests(APITestCase):
             name="Test Social Center",
             mail="centre@test.com",
         )
+        self.social_worker_user = CustomUser.objects.create_user(  # type: ignore[call-arg]
+            email="socialworker4@test.com",
+            password="testpass123",
+            first_name="Travailleur",
+            last_name="Social",
+        )
+        self.social_worker = SocialWorker.objects.create(user=self.social_worker_user, social_center=self.social_center)
 
         # Create shops
         self.shop1 = Shop.objects.create(
             name="Shop 1",
             social_center=self.social_center,
+            social_worker=self.social_worker,
         )
         self.shop2 = Shop.objects.create(
             name="Shop 2",
             social_center=self.social_center,
+            social_worker=self.social_worker,
         )
 
         # Create cashier user for shop1
@@ -1836,6 +1915,14 @@ class ShopDetailViewTests(APITestCase):
             mail="centre@test.com",
         )
 
+        self.social_worker_user = CustomUser.objects.create_user(  # type: ignore[call-arg]
+            email="socialworker5@test.com",
+            password="testpass123",
+            first_name="Travailleur",
+            last_name="Social",
+        )
+        self.social_worker = SocialWorker.objects.create(user=self.social_worker_user, social_center=self.social_center)
+
         # Create shop with location
         from django.contrib.gis.geos import Point
 
@@ -1846,6 +1933,7 @@ class ShopDetailViewTests(APITestCase):
             postal_code="75001",
             city="Paris",
             social_center=self.social_center,
+            social_worker=self.social_worker,
             location=Point(2.3522, 48.8566, srid=4326),  # longitude, latitude
         )
 
@@ -1893,6 +1981,7 @@ class ShopDetailViewTests(APITestCase):
             postal_code="75010",
             city="Paris",
             social_center=self.social_center,
+            social_worker=self.social_worker,
         )
 
         url = f"/api/shops/{shop_without_location.id}/"
@@ -1920,6 +2009,13 @@ class ShopListViewTests(APITestCase):
             city="Paris",
             mail="centre@test.com",
         )
+        self.social_worker_user = CustomUser.objects.create_user(  # type: ignore[call-arg]
+            email="socialworker6@test.com",
+            password="testpass123",
+            first_name="Travailleur",
+            last_name="Social",
+        )
+        self.social_worker = SocialWorker.objects.create(user=self.social_worker_user, social_center=self.social_center)
 
         # Create multiple shops with locations
         # Shop 1 - Paris centre (reference point)
@@ -1930,6 +2026,7 @@ class ShopListViewTests(APITestCase):
             postal_code="75001",
             city="Paris",
             social_center=self.social_center,
+            social_worker=self.social_worker,
             location=Point(2.3522, 48.8566, srid=4326),  # Paris centre
         )
 
@@ -1941,6 +2038,7 @@ class ShopListViewTests(APITestCase):
             postal_code="75019",
             city="Paris",
             social_center=self.social_center,
+            social_worker=self.social_worker,
             location=Point(2.3700, 48.8900, srid=4326),  # Paris nord
         )
 
@@ -1952,6 +2050,7 @@ class ShopListViewTests(APITestCase):
             postal_code="75013",
             city="Paris",
             social_center=self.social_center,
+            social_worker=self.social_worker,
             location=Point(2.3583, 48.8217, srid=4326),  # Paris sud
         )
 
@@ -1963,6 +2062,7 @@ class ShopListViewTests(APITestCase):
             postal_code="75010",
             city="Paris",
             social_center=self.social_center,
+            social_worker=self.social_worker,
         )
 
         self.api_client = APIClient()
@@ -2127,3 +2227,314 @@ class ShopListViewTests(APITestCase):
 
         for field in expected_fields:
             self.assertIn(field, shop)
+
+
+class AddressLocationAdminFormTest(TestCase):
+    """Test the AddressLocationAdminForm functionality."""
+
+    def setUp(self):
+        self.social_center = SocialCenter.objects.create(
+            name="Test Center",
+            mail="test@center.com",
+            street_number="123",
+            street_name="Main St",
+            city="Paris",
+            postal_code="75001",
+            location=Point(2.3522, 48.8566, srid=4326),
+        )
+
+    def test_form_initialization_with_existing_instance(self):
+        """Test that form pre-fills address and coordinates from existing instance."""
+        form = SocialCenterAdminForm(instance=self.social_center)
+
+        self.assertEqual(form.initial["address"], "123 Main St, 75001 Paris")
+        self.assertAlmostEqual(float(form.initial["latitude"]), 48.8566, places=4)
+        self.assertAlmostEqual(float(form.initial["longitude"]), 2.3522, places=4)
+
+    def test_form_initialization_without_street(self):
+        """Test form initialization when only postal code and city exist."""
+        center = SocialCenter.objects.create(
+            name="Test Center 2", mail="test2@center.com", city="Lyon", postal_code="69001"
+        )
+        form = SocialCenterAdminForm(instance=center)
+
+        self.assertEqual(form.initial["address"], "69001 Lyon")
+
+    def test_form_save_creates_point_from_coordinates(self):
+        """Test that saving form creates Point object from lat/lon."""
+        form_data = {
+            "name": "New Center",
+            "mail": "new@center.com",
+            "street_number": "456",
+            "street_name": "Oak Ave",
+            "city": "Marseille",
+            "postal_code": "13001",
+            "latitude": Decimal("43.2965"),
+            "longitude": Decimal("5.3698"),
+        }
+        form = SocialCenterAdminForm(data=form_data)
+
+        self.assertTrue(form.is_valid())
+        instance = form.save()
+
+        self.assertIsNotNone(instance.location)
+        self.assertAlmostEqual(instance.location.y, 43.2965, places=4)
+        self.assertAlmostEqual(instance.location.x, 5.3698, places=4)
+
+    def test_form_save_without_coordinates(self):
+        """Test that form saves without coordinates when not provided."""
+        form_data = {
+            "name": "Center Without GPS",
+            "mail": "nogps@center.com",
+            "city": "Toulouse",
+            "postal_code": "31000",
+        }
+        form = SocialCenterAdminForm(data=form_data)
+
+        self.assertTrue(form.is_valid())
+        instance = form.save()
+
+        self.assertIsNone(instance.location)
+
+
+class ShopAdminFormTest(TestCase):
+    """Test the ShopAdminForm functionality."""
+
+    def setUp(self):
+        self.social_center = SocialCenter.objects.create(name="Test Center", mail="test@center.com")
+        user = CustomUser.objects.create_user(  # type: ignore[call-arg]
+            email="socialworker11@test.com",
+            password="testpass123",
+            first_name="Travailleur",
+            last_name="Social",
+        )
+        self.social_worker = SocialWorker.objects.create(user=user, social_center=self.social_center)
+
+    def test_shop_form_includes_social_center(self):
+        """Test that ShopAdminForm includes social_center field."""
+        form = ShopAdminForm()
+        self.assertIn("social_center", form.Meta.fields)
+
+    def test_shop_form_saves_with_coordinates(self):
+        """Test that shop form correctly saves with coordinates."""
+        form_data = {
+            "name": "Test Shop",
+            "social_center": self.social_center.id,
+            "social_worker": self.social_worker,
+            "street_number": "10",
+            "street_name": "Rue de la Paix",
+            "city": "Paris",
+            "postal_code": "75002",
+            "latitude": Decimal("48.8698"),
+            "longitude": Decimal("2.3314"),
+        }
+        form = ShopAdminForm(data=form_data)
+
+        self.assertTrue(form.is_valid())
+        shop = form.save()
+
+        self.assertEqual(shop.name, "Test Shop")
+        self.assertIsNotNone(shop.location)
+
+
+class CustomUserAdminTest(TestCase):
+    """Test the CustomUserAdmin functionality."""
+
+    def setUp(self):
+        self.site = AdminSite()
+        self.admin = CustomUserAdmin(CustomUser, self.site)
+        self.superuser = CustomUser.objects.create_superuser(email="admin@test.com", password="password123")
+
+    def test_list_display_fields(self):
+        """Test that list_display contains expected fields."""
+        expected_fields = ["email", "first_name", "last_name", "is_staff", "is_active"]
+        self.assertEqual(self.admin.list_display, expected_fields)
+
+    def test_search_fields(self):
+        """Test that search_fields are configured correctly."""
+        expected_fields = ["email", "first_name", "last_name"]
+        self.assertEqual(self.admin.search_fields, expected_fields)
+
+    def test_ordering(self):
+        """Test that ordering is by email."""
+        self.assertEqual(self.admin.ordering, ["email"])
+
+
+class CustomUserNoAdminTest(TestCase):
+    """Test the CustomUserNoAdmin with permission restrictions."""
+
+    def setUp(self):
+        self.site = AdminSite()
+        self.admin = SocialCenterAdmin(SocialCenter, self.site)
+
+        self.social_center_admin = CustomUser.objects.create_superuser(
+            email="socialadmin@test.com", password="password123"
+        )
+
+        self.regular_user = CustomUser.objects.create_user(email="user@test.com", password="password123")
+
+    def test_has_change_permission_for_social_admin(self):
+        """Test that social center admin has change permission."""
+        request = MockRequest(user=self.social_center_admin)
+        self.assertTrue(self.admin.has_change_permission(request))
+
+    def test_has_change_permission_denied_for_regular_user(self):
+        """Test that regular user does not have change permission."""
+        request = MockRequest(user=self.regular_user)
+        self.assertFalse(self.admin.has_change_permission(request))
+
+    def test_has_view_permission_for_social_admin(self):
+        """Test that social center admin has view permission."""
+        request = MockRequest(user=self.social_center_admin)
+        self.assertTrue(self.admin.has_view_permission(request))
+
+    def test_has_add_permission_for_social_admin(self):
+        """Test that social center admin has add permission."""
+        request = MockRequest(user=self.social_center_admin)
+        self.assertTrue(self.admin.has_add_permission(request))
+
+    def test_has_module_permission_for_social_admin(self):
+        """Test that social center admin has module permission."""
+        request = MockRequest(user=self.social_center_admin)
+        self.assertTrue(self.admin.has_module_permission(request))
+
+
+class ShopSocialAdminTest(TestCase):
+    """Test the ShopSocialAdmin functionality."""
+
+    def setUp(self):
+        self.factory = RequestFactory()
+        self.site = AdminSite()
+        self.admin = ShopSocialAdmin(Shop, self.site)
+
+        self.social_center = SocialCenter.objects.create(name="Test Center", mail="test@center.com")
+
+        self.social_admin_user = CustomUser.objects.create_superuser(
+            email="socialadmin@test.com", password="password123"
+        )
+
+        self.social_worker = SocialWorker.objects.create(user=self.social_admin_user, social_center=self.social_center)
+
+        self.shop = Shop.objects.create(
+            name="Test Shop",
+            social_center=self.social_center,
+            social_worker=self.social_worker,
+            location=Point(2.3522, 48.8566, srid=4326),
+        )
+
+    def test_full_address_display(self):
+        """Test the full_address method returns formatted address."""
+        self.shop.street_number = "123"
+        self.shop.street_name = "Main St"
+        self.shop.postal_code = "75001"
+        self.shop.city = "Paris"
+        self.shop.save()
+
+        address = self.admin.full_address(self.shop)
+        self.assertEqual(address, "123 Main St, 75001 Paris")
+
+    def test_has_coordinates_display_with_coordinates(self):
+        """Test has_coordinates shows checkmark when coordinates exist."""
+        self.shop.location = Point(2.3522, 48.8566, srid=4326)
+        self.shop.save()
+
+        result = self.admin.has_coordinates(self.shop)
+        self.assertIn("green", result)
+        self.assertIn("✓", result)
+
+    def test_has_coordinates_display_without_coordinates(self):
+        """Test has_coordinates shows X when coordinates missing."""
+        self.shop.location = None
+        self.shop.save()
+
+        result = self.admin.has_coordinates(self.shop)
+        self.assertIn("red", result)
+        self.assertIn("✗", result)
+
+    def test_articles_display(self):
+        """Test the articles method returns comma-separated article names."""
+        Article.objects.create(name="Article 1", barcode="123456", shop=self.shop)
+        Article.objects.create(name="Article 2", barcode="789012", shop=self.shop)
+
+        result = self.admin.articles(self.shop)
+        self.assertIn("Article 1", result)
+        self.assertIn("Article 2", result)
+
+    def test_permissions_for_social_admin(self):
+        """Test that social admin has proper permissions."""
+        request = MockRequest(user=self.social_admin_user)
+
+        self.assertTrue(self.admin.has_change_permission(request))
+        self.assertTrue(self.admin.has_view_permission(request))
+        self.assertTrue(self.admin.has_add_permission(request))
+        self.assertTrue(self.admin.has_module_permission(request))
+
+
+class SocialWorkerAdminTest(TestCase):
+    """Test the SocialWorkerAdmin functionality."""
+
+    def setUp(self):
+        self.site = AdminSite()
+        self.admin = SocialWorkerAdmin(SocialWorker, self.site)
+
+        self.social_center = SocialCenter.objects.create(name="Test Center", mail="test@center.com")
+
+        self.user = CustomUser.objects.create_superuser(
+            email="worker@test.com", password="password123", first_name="John"
+        )
+
+        self.social_worker = SocialWorker.objects.create(user=self.user, social_center=self.social_center)
+
+    def test_list_display_fields(self):
+        """Test that list_display contains expected fields."""
+        expected_fields = ["user__first_name", "user__email", "social_center"]
+        self.assertEqual(self.admin.list_display, expected_fields)
+
+    def test_permissions_for_social_admin(self):
+        """Test permissions for social center admin."""
+        request = MockRequest(user=self.user)
+
+        self.assertTrue(self.admin.has_change_permission(request))
+        self.assertTrue(self.admin.has_view_permission(request))
+        self.assertTrue(self.admin.has_add_permission(request))
+        self.assertTrue(self.admin.has_module_permission(request))
+
+
+class SocialCenterAdminTest(TestCase):
+    """Test the SocialCenterAdmin functionality."""
+
+    def setUp(self):
+        self.site = AdminSite()
+        self.admin = SocialCenterAdmin(SocialCenter, self.site)
+
+        self.social_center = SocialCenter.objects.create(
+            name="Test Center",
+            mail="test@center.com",
+            street_number="123",
+            street_name="Main St",
+            city="Paris",
+            postal_code="75001",
+            location=Point(2.3522, 48.8566, srid=4326),
+        )
+
+    def test_list_display_fields(self):
+        """Test that list_display contains expected fields."""
+        expected_fields = ["name", "mail", "full_address", "city", "postal_code", "has_coordinates"]
+        self.assertEqual(self.admin.list_display, expected_fields)
+
+    def test_search_fields(self):
+        """Test that search_fields are configured correctly."""
+        expected_fields = ["name", "street_name", "city", "postal_code", "mail"]
+        self.assertEqual(self.admin.search_fields, expected_fields)
+
+    def test_readonly_fields(self):
+        """Test that display_coordinates is readonly."""
+        self.assertIn("display_coordinates", self.admin.readonly_fields)
+
+    def test_display_coordinates_with_location(self):
+        """Test display_coordinates shows formatted coordinates."""
+        result = self.admin.display_coordinates(self.social_center)
+        self.assertIn("Latitude", result)
+        self.assertIn("Longitude", result)
+        self.assertIn("48.8566", result)
+        self.assertIn("2.3522", result)

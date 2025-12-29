@@ -24,8 +24,12 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-m$k=iw56r4-nqz8c2q5=j
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("DEBUG", "0").lower() in ("1", "true", "yes")
 
-ALLOWED_HOSTS = [h.strip() for h in os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "carie-tingly-saniyah.ngrok-free.dev"]
 
+CSRF_TRUSTED_ORIGINS = [
+    "https://*.ngrok.io",
+    "https://carie-tingly-saniyah.ngrok-free.dev",
+]
 AUTH_USER_MODEL = "api.CustomUser"
 
 GRAPH_MODELS = {

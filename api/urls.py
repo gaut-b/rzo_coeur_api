@@ -1,5 +1,6 @@
 from django.urls import path
 
+from .admin import social_admin_site
 from .views import (
     ArticleCreateView,
     ArticleGetListView,
@@ -22,4 +23,5 @@ urlpatterns = [
     ),
     path("shops/", ShopListView.as_view(), name="shop-list"),
     path("shops/<int:shop_id>/", ShopDetailView.as_view(), name="shop-detail"),
+    path("social-admin/", social_admin_site.urls),
 ]

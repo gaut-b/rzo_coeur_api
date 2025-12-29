@@ -21,8 +21,11 @@ from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
+from api.admin import social_admin_site
+
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("social-admin/", social_admin_site.urls),
     path("api/auth/", include("auth_kit.urls")),
     path("api/", include("api.urls")),
 ]

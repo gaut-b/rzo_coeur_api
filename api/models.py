@@ -76,8 +76,11 @@ class CustomUser(AbstractUser):
         Caches the result to avoid repeated database queries.
         """
         if not hasattr(self, "_cached_role"):
+            print(self.is_staff)
             if hasattr(self, "client"):
                 self._cached_role = UserRole.CLIENT.value
+            elif hasattr(self, "socialworker") and self.is_staff:
+                self._cached_role = UserRole.SOCIALCENTERADMIN.value
             elif hasattr(self, "socialworker"):
                 self._cached_role = UserRole.SOCIAL_WORKER.value
             elif hasattr(self, "recipient"):
@@ -87,6 +90,10 @@ class CustomUser(AbstractUser):
             else:
                 self._cached_role = None
         return self._cached_role
+
+    @property
+    def is_social_admin(self):
+        return self.is_active and (self.is_staff and self.role == UserRole.SOCIAL_WORKER.value)
 
 
 class Client(models.Model):
@@ -133,7 +140,9 @@ class Recipient(models.Model):
 
 class Shop(AddressLocationMixin):
     name = models.CharField(max_length=100)
+    address = models.CharField(max_length=200, default="")
     social_center = models.ForeignKey(SocialCenter, on_delete=models.CASCADE, related_name="shops")
+    social_worker = models.ForeignKey(SocialWorker, default="0", on_delete=models.CASCADE, related_name="shops")
 
     def __str__(self) -> str:
         return self.name
@@ -177,8 +186,8 @@ class Cart(models.Model):
 class Article(models.Model):
     name = models.CharField(max_length=50, blank=True, default="")
     barcode = models.BigIntegerField()
-    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name="articles")
-    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name="articles")
+    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name="articles", default="0")
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name="articles", default="0")
     cart = models.ForeignKey(Cart, null=True, blank=True, on_delete=models.CASCADE, related_name="articles")
     img_url = models.URLField(max_length=500, blank=True, default="")
     thumb_url = models.URLField(max_length=500, blank=True, default="")

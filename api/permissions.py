@@ -38,3 +38,15 @@ class IsRecipient(BasePermission):
         Check if the user is authenticated and has the RECIPIENT role.
         """
         return request.user.is_authenticated and request.user.role == UserRole.RECIPIENT.value
+
+
+class IsSocialCenterAdmin(BasePermission):
+    """
+    Permission class that allows access only to users with the RECIPIENT role.
+    """
+
+    def has_permission(self, request, view):
+        """
+        Check if the user is authenticated and has the RECIPIENT role.
+        """
+        return request.user.is_authenticated and request.user.role == UserRole.SOCIALCENTERADMIN.value

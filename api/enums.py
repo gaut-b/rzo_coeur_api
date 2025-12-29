@@ -8,6 +8,7 @@ class UserRole(str, Enum):
     SOCIAL_WORKER = "SOCIAL_WORKER"
     RECIPIENT = "RECIPIENT"
     CASHIER = "CASHIER"
+    SOCIALCENTERADMIN = "SOCIAL_CENTER_ADMIN"
 
     def __str__(self):
         return self.value
