@@ -75,12 +75,22 @@ class CustomUserSerializerTests(APITestCase):
 
         # Create a social center for social workers and recipients
         self.social_center = SocialCenter.objects.create(
-            name="Centre Social Test", address="123 Rue Test", mail="centre@test.com"
+            name="Centre Social Test",
+            street_number="123",
+            street_name="Rue Test",
+            postal_code="75001",
+            city="Paris",
+            mail="centre@test.com",
         )
 
         # Create a shop for cashiers
         self.shop = Shop.objects.create(
-            name="Magasin Test", address="456 Avenue Test", social_center=self.social_center
+            name="Magasin Test",
+            street_number="456",
+            street_name="Avenue Test",
+            postal_code="75002",
+            city="Paris",
+            social_center=self.social_center,
         )
 
     def test_serialize_user_without_role(self):
@@ -182,12 +192,22 @@ class ArticleCreateViewTests(APITestCase):
         """Set up test data for article creation tests."""
         # Create social center
         self.social_center = SocialCenter.objects.create(
-            name="Centre Social Test", address="123 Rue Test", mail="centre@test.com"
+            name="Centre Social Test",
+            street_number="123",
+            street_name="Rue Test",
+            postal_code="75001",
+            city="Paris",
+            mail="centre@test.com",
         )
 
         # Create shop
         self.shop = Shop.objects.create(
-            name="Magasin Test", address="456 Avenue Test", social_center=self.social_center
+            name="Magasin Test",
+            street_number="456",
+            street_name="Avenue Test",
+            postal_code="75002",
+            city="Paris",
+            social_center=self.social_center,
         )
 
         # Create cashier user
@@ -417,19 +437,28 @@ class CartCollectViewTests(APITestCase):
         # Create social center
         self.social_center = SocialCenter.objects.create(
             name="Centre Social Test",
-            address="123 Rue Test",
+            street_number="123",
+            street_name="Rue Test",
+            postal_code="75001",
+            city="Paris",
             mail="centre@test.com",
         )
 
         # Create shops
         self.shop1 = Shop.objects.create(
             name="Magasin Test 1",
-            address="456 Avenue Test",
+            street_number="456",
+            street_name="Avenue Test",
+            postal_code="75002",
+            city="Paris",
             social_center=self.social_center,
         )
         self.shop2 = Shop.objects.create(
             name="Magasin Test 2",
-            address="789 Boulevard Test",
+            street_number="789",
+            street_name="Boulevard Test",
+            postal_code="75003",
+            city="Paris",
             social_center=self.social_center,
         )
 
@@ -637,19 +666,28 @@ class ClientArticleListViewTests(APITestCase):
         # Create social center
         self.social_center = SocialCenter.objects.create(
             name="Centre Social Test",
-            address="123 Rue Test",
+            street_number="123",
+            street_name="Rue Test",
+            postal_code="75001",
+            city="Paris",
             mail="centre@test.com",
         )
 
         # Create shops
         self.shop1 = Shop.objects.create(
             name="Carrefour City Centre",
-            address="456 Avenue Test",
+            street_number="456",
+            street_name="Avenue Test",
+            postal_code="75002",
+            city="Paris",
             social_center=self.social_center,
         )
         self.shop2 = Shop.objects.create(
             name="Monoprix Gare",
-            address="789 Boulevard Test",
+            street_number="789",
+            street_name="Boulevard Test",
+            postal_code="75003",
+            city="Paris",
             social_center=self.social_center,
         )
 
@@ -936,19 +974,28 @@ class RecipientCartListViewTests(APITestCase):
         # Create social center
         self.social_center = SocialCenter.objects.create(
             name="Centre Social Test",
-            address="123 Rue Test",
+            street_number="123",
+            street_name="Rue Test",
+            postal_code="75001",
+            city="Paris",
             mail="centre@test.com",
         )
 
         # Create shops
         self.shop1 = Shop.objects.create(
             name="Carrefour City Centre",
-            address="456 Avenue Test",
+            street_number="456",
+            street_name="Avenue Test",
+            postal_code="75002",
+            city="Paris",
             social_center=self.social_center,
         )
         self.shop2 = Shop.objects.create(
             name="Monoprix Gare",
-            address="789 Boulevard Test",
+            street_number="789",
+            street_name="Boulevard Test",
+            postal_code="75003",
+            city="Paris",
             social_center=self.social_center,
         )
 

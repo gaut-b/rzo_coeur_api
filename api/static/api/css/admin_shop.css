@@ -1,0 +1,122 @@
+/**
+ * Styles for address autocomplete in Django admin
+ */
+
+/* Suggestions container */
+.address-suggestions {
+  display: none;
+  position: fixed;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  max-height: 300px;
+  overflow-y: auto;
+  min-width: 300px;
+  z-index: 9999;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .address-suggestions {
+    background: #2b2b2b;
+    border-color: #444;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  }
+
+  .suggestion-item {
+    border-bottom-color: #444;
+    color: #f8f8f8;
+  }
+
+  .suggestion-item:hover {
+    background-color: #3a3a3a;
+  }
+
+  .suggestion-item.loading {
+    color: #aaa;
+  }
+
+  .suggestion-item.no-results {
+    color: #888;
+  }
+
+  .suggestion-item.error {
+    color: #ff6b6b;
+    background-color: #3d1f1f;
+  }
+
+  #shop-map {
+    border-color: #444;
+  }
+}
+
+/* Suggestion items */
+.suggestion-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.2s;
+}
+
+.suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.suggestion-item:hover {
+  background-color: #f5f5f5;
+}
+
+.suggestion-item.loading {
+  cursor: default;
+  color: #666;
+  font-style: italic;
+}
+
+.suggestion-item.no-results {
+  cursor: default;
+  color: #999;
+  text-align: center;
+}
+
+.suggestion-item.error {
+  cursor: default;
+  color: #ba2121;
+  background-color: #fff3f3;
+}
+
+/* Remove old positioning rule for address field */
+
+/* Style for map container */
+#shop-map-container {
+  margin-top: 15px;
+  margin-bottom: 15px;
+}
+
+#shop-map {
+  height: 300px;
+  width: 100%;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+/* Responsive: adjust map height on small screens */
+@media (max-width: 768px) {
+  #shop-map {
+    height: 250px;
+  }
+
+  .address-suggestions {
+    max-height: 200px;
+  }
+}
+
+/* Ensure Leaflet popups are visible */
+.leaflet-popup-content-wrapper {
+  border-radius: 4px;
+}
+
+.leaflet-popup-content {
+  margin: 10px 12px;
+  font-size: 13px;
+}

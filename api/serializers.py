@@ -4,7 +4,7 @@ from rest_framework import serializers
 
 from .constants import MAX_ARTICLES_PER_REQUEST
 from .enums import CartStatus, UserRole
-from .models import Article, Cart, Client, CustomUser
+from .models import Article, Cart, Client, CustomUser, Shop, SocialCenter
 
 
 class CustomUserSerializer(AuthKitUserSerializer):
@@ -18,6 +18,90 @@ class CustomUserSerializer(AuthKitUserSerializer):
     class Meta(AuthKitUserSerializer.Meta):
         model = CustomUser
         fields = AuthKitUserSerializer.Meta.fields + ("role",)
+
+
+class AddressLocationSerializerMixin:
+    """
+    Mixin for serializers that need to handle address and location fields.
+    Provides common methods for constructing full addresses and extracting coordinates.
+    """
+
+    def get_full_address(self, obj):
+        """Construct full address from structured fields."""
+        parts = []
+        if obj.street_number:
+            parts.append(obj.street_number)
+        if obj.street_name:
+            parts.append(obj.street_name)
+        address_line = " ".join(parts) if parts else ""
+
+        if obj.postal_code and obj.city:
+            if address_line:
+                return f"{address_line}, {obj.postal_code} {obj.city}"
+            return f"{obj.postal_code} {obj.city}"
+        elif address_line:
+            return address_line
+        return ""
+
+    def get_latitude(self, obj):
+        """Extract latitude from location Point."""
+        return obj.latitude
+
+    def get_longitude(self, obj):
+        """Extract longitude from location Point."""
+        return obj.longitude
+
+
+class SocialCenterSerializer(AddressLocationSerializerMixin, serializers.ModelSerializer):
+    """
+    Serializer for SocialCenter model with full address constructed from structured fields.
+    """
+
+    full_address = serializers.SerializerMethodField()
+    latitude = serializers.SerializerMethodField()
+    longitude = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SocialCenter
+        fields = [
+            "id",
+            "name",
+            "mail",
+            "full_address",
+            "street_number",
+            "street_name",
+            "postal_code",
+            "city",
+            "latitude",
+            "longitude",
+        ]
+        read_only_fields = ["id"]
+
+
+class ShopSerializer(AddressLocationSerializerMixin, serializers.ModelSerializer):
+    """
+    Serializer for Shop model with full address constructed from structured fields.
+    """
+
+    full_address = serializers.SerializerMethodField()
+    latitude = serializers.SerializerMethodField()
+    longitude = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Shop
+        fields = [
+            "id",
+            "name",
+            "full_address",
+            "street_number",
+            "street_name",
+            "postal_code",
+            "city",
+            "latitude",
+            "longitude",
+            "social_center",
+        ]
+        read_only_fields = ["id"]
 
 
 class ArticleInputSerializer(serializers.Serializer):
