@@ -1374,19 +1374,16 @@ class CartDetailViewTests(APITestCase):
         # Create social center
         self.social_center = SocialCenter.objects.create(
             name="Test Social Center",
-            address="123 Test Street",
             mail="centre@test.com",
         )
 
         # Create shops
         self.shop1 = Shop.objects.create(
             name="Shop 1",
-            address="Shop 1 Address",
             social_center=self.social_center,
         )
         self.shop2 = Shop.objects.create(
             name="Shop 2",
-            address="Shop 2 Address",
             social_center=self.social_center,
         )
 
