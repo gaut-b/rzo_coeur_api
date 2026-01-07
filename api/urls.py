@@ -6,6 +6,8 @@ from .views import (
     CartCollectView,
     CartDetailView,
     RecipientCartListView,
+    ShopDetailView,
+    ShopListView,
 )
 
 urlpatterns = [
@@ -18,4 +20,6 @@ urlpatterns = [
         CartCollectView.as_view(),
         name="cart-collect",
     ),
+    path("shops/", ShopListView.as_view(), name="shop-list"),
+    path("shops/<int:shop_id>/", ShopDetailView.as_view(), name="shop-detail"),
 ]
