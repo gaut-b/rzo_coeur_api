@@ -1364,3 +1364,194 @@ class RecipientCartListViewTests(APITestCase):
         self.assertEqual(cart["recipient"], self.recipient.user.pk)
         self.assertEqual(cart["recipient_email"], "recipient@test.com")
         self.assertEqual(cart["recipient_name"], "Bénéficiaire Test")
+
+
+class CartDetailViewTests(APITestCase):
+    """Tests for the CartDetailView endpoint."""
+
+    def setUp(self):
+        """Set up test data."""
+        # Create social center
+        self.social_center = SocialCenter.objects.create(
+            name="Test Social Center",
+            mail="centre@test.com",
+        )
+
+        # Create shops
+        self.shop1 = Shop.objects.create(
+            name="Shop 1",
+            social_center=self.social_center,
+        )
+        self.shop2 = Shop.objects.create(
+            name="Shop 2",
+            social_center=self.social_center,
+        )
+
+        # Create cashier user for shop1
+        self.cashier_user = CustomUser.objects.create_user(
+            email="cashier@example.com",
+            password="testpass123",
+        )
+        self.cashier = Cashier.objects.create(user=self.cashier_user, shop=self.shop1)
+
+        # Create another cashier for shop2
+        self.cashier2_user = CustomUser.objects.create_user(
+            email="cashier2@example.com",
+            password="testpass123",
+        )
+        self.cashier2 = Cashier.objects.create(user=self.cashier2_user, shop=self.shop2)
+
+        # Create recipient
+        self.recipient_user = CustomUser.objects.create_user(
+            email="recipient@example.com",
+            password="testpass123",
+            first_name="John",
+            last_name="Doe",
+        )
+        self.recipient = Recipient.objects.create(
+            user=self.recipient_user,
+            social_center=self.social_center,
+        )
+
+        # Create client
+        self.client_user = CustomUser.objects.create_user(
+            email="client@example.com",
+            password="testpass123",
+        )
+        self.client = Client.objects.create(user=self.client_user)
+
+        # Create social worker
+        self.social_worker_user = CustomUser.objects.create_user(
+            email="socialworker@example.com",
+            password="testpass123",
+        )
+        self.social_worker = SocialWorker.objects.create(
+            user=self.social_worker_user,
+            social_center=self.social_center,
+        )
+
+        # Create carts
+        self.cart_pending = Cart.objects.create(shop=self.shop1)
+        self.cart_assigned = Cart.objects.create(shop=self.shop1, recipient=self.recipient)
+        self.cart_collected = Cart.objects.create(
+            shop=self.shop1,
+            recipient=self.recipient,
+            collected_at=timezone.now(),
+        )
+        self.cart_shop2 = Cart.objects.create(shop=self.shop2, recipient=self.recipient)
+
+        # Create articles for cart_assigned
+        self.article1 = Article.objects.create(
+            barcode="3017620422003",
+            name="Product 1",
+            shop=self.shop1,
+            client=self.client,
+            cart=self.cart_assigned,
+        )
+        self.article2 = Article.objects.create(
+            barcode="3564700013151",
+            name="Product 2",
+            shop=self.shop1,
+            client=self.client,
+            cart=self.cart_assigned,
+        )
+
+        self.api_client = APIClient()
+
+    def test_get_cart_success(self):
+        """Test successful cart retrieval."""
+        self.api_client.force_authenticate(user=self.cashier_user)
+        url = f"/api/carts/{self.cart_assigned.id}/"
+
+        response = self.api_client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["id"], self.cart_assigned.id)
+        self.assertEqual(response.data["shop"], self.shop1.id)
+        self.assertEqual(response.data["shop_name"], "Shop 1")
+        self.assertEqual(response.data["recipient"], self.recipient.user.id)
+        self.assertEqual(response.data["recipient_email"], "recipient@example.com")
+        self.assertEqual(response.data["recipient_name"], "John Doe")
+        self.assertEqual(response.data["status"], "ASSIGNED")
+        self.assertIsNone(response.data["collected_at"])
+        self.assertEqual(len(response.data["articles"]), 2)
+        self.assertEqual(response.data["articles"][0]["name"], "Product 1")
+        self.assertEqual(response.data["articles"][1]["name"], "Product 2")
+
+    def test_get_cart_pending_status(self):
+        """Test retrieving a pending cart."""
+        self.api_client.force_authenticate(user=self.cashier_user)
+        url = f"/api/carts/{self.cart_pending.id}/"
+
+        response = self.api_client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "PENDING")
+        self.assertIsNone(response.data["recipient"])
+        self.assertEqual(len(response.data["articles"]), 0)
+
+    def test_get_cart_collected_status(self):
+        """Test retrieving a collected cart."""
+        self.api_client.force_authenticate(user=self.cashier_user)
+        url = f"/api/carts/{self.cart_collected.id}/"
+
+        response = self.api_client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "COLLECTED")
+        self.assertIsNotNone(response.data["collected_at"])
+
+    def test_get_cart_not_found(self):
+        """Test retrieving a non-existent cart returns 404."""
+        self.api_client.force_authenticate(user=self.cashier_user)
+        url = "/api/carts/99999/"
+
+        response = self.api_client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.data["error"], "Cart not found.")
+
+    def test_get_cart_wrong_shop(self):
+        """Test retrieving a cart from another shop returns 403."""
+        self.api_client.force_authenticate(user=self.cashier_user)
+        url = f"/api/carts/{self.cart_shop2.id}/"
+
+        response = self.api_client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data["error"], "You can only access carts from your shop.")
+
+    def test_get_cart_unauthenticated(self):
+        """Test unauthenticated request returns 401."""
+        url = f"/api/carts/{self.cart_assigned.id}/"
+
+        response = self.api_client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_get_cart_wrong_role_client(self):
+        """Test client role cannot access endpoint."""
+        self.api_client.force_authenticate(user=self.client_user)
+        url = f"/api/carts/{self.cart_assigned.id}/"
+
+        response = self.api_client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_get_cart_wrong_role_recipient(self):
+        """Test recipient role cannot access endpoint."""
+        self.api_client.force_authenticate(user=self.recipient_user)
+        url = f"/api/carts/{self.cart_assigned.id}/"
+
+        response = self.api_client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_get_cart_wrong_role_social_worker(self):
+        """Test social worker role cannot access endpoint."""
+        self.api_client.force_authenticate(user=self.social_worker_user)
+        url = f"/api/carts/{self.cart_assigned.id}/"
+
+        response = self.api_client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

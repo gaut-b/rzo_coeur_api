@@ -313,6 +313,8 @@ class CartSerializer(serializers.ModelSerializer):
 
     def get_recipient_name(self, obj):
         """Return the full name of the recipient."""
+        if obj.recipient is None:
+            return None
         user = obj.recipient.user
         return f"{user.first_name} {user.last_name}"
 

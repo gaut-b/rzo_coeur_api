@@ -1,3 +1,4 @@
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiExample, extend_schema
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
@@ -496,3 +497,103 @@ class CartCollectView(APIView):
             serializer.update(cart, serializer.validated_data)
             return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CartDetailView(APIView):
+    """
+    Retrieve a cart by its ID.
+    Only accessible by cashiers for carts from their shop.
+    """
+
+    permission_classes = [IsCashier]
+
+    @extend_schema(
+        summary="Retrieve cart by ID",
+        description="""
+        Retrieve a cart with its complete content by cart ID.
+
+        **Authentication**: Required (JWT Cookie)
+
+        **Permission**: CASHIER role only
+
+        **Validations**:
+        - Cart must exist
+        - Cart must belong to the cashier's shop
+
+        **Returns**:
+        - Cart details including all articles
+        - Recipient information if assigned
+        - Computed status (PENDING, ASSIGNED, or COLLECTED)
+        """,
+        responses={
+            200: CartSerializer,
+            403: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT,
+        },
+        examples=[
+            OpenApiExample(
+                "Cart successfully retrieved",
+                value={
+                    "id": 1,
+                    "shop": 1,
+                    "shop_name": "Carrefour City Centre",
+                    "recipient": 3,
+                    "recipient_email": "recipient@example.com",
+                    "recipient_name": "John Doe",
+                    "status": "ASSIGNED",
+                    "collected_at": None,
+                    "articles": [
+                        {
+                            "id": 1,
+                            "barcode": "3017620422003",
+                            "name": "Product Name",
+                        },
+                        {
+                            "id": 2,
+                            "barcode": "3564700013151",
+                            "name": "Another Product",
+                        },
+                    ],
+                },
+                response_only=True,
+                status_codes=["200"],
+            ),
+            OpenApiExample(
+                "Cart from different shop",
+                value={"error": "You can only access carts from your shop."},
+                response_only=True,
+                status_codes=["403"],
+            ),
+            OpenApiExample(
+                "Cart not found",
+                value={"error": "Cart not found."},
+                response_only=True,
+                status_codes=["404"],
+            ),
+        ],
+        tags=["Carts"],
+    )
+    def get(self, request, cart_id):
+        """Handle GET request to retrieve a cart by ID."""
+        # Get the cart or return 404
+        try:
+            cart = (
+                Cart.objects.select_related("shop", "recipient__user")
+                .prefetch_related("articles")
+                .get(pk=cart_id)
+            )
+        except Cart.DoesNotExist:
+            return Response(
+                {"error": "Cart not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Verify the cart belongs to the cashier's shop
+        if cart.shop != request.user.cashier.shop:
+            return Response(
+                {"error": "You can only access carts from your shop."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = CartSerializer(cart)
+        return Response(serializer.data, status=status.HTTP_200_OK)
