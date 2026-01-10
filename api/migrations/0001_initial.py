@@ -19,9 +19,7 @@ class Migration(migrations.Migration):
             fields=[
                 (
                     "id",
-                    models.BigAutoField(
-                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
-                    ),
+                    models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID"),
                 ),
                 ("name", models.CharField(max_length=100)),
                 ("address", models.CharField(max_length=200)),
@@ -32,9 +30,7 @@ class Migration(migrations.Migration):
             fields=[
                 (
                     "id",
-                    models.BigAutoField(
-                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
-                    ),
+                    models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID"),
                 ),
                 ("name", models.CharField(max_length=50)),
                 ("address", models.CharField(max_length=200)),
@@ -46,9 +42,7 @@ class Migration(migrations.Migration):
             fields=[
                 (
                     "id",
-                    models.BigAutoField(
-                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
-                    ),
+                    models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID"),
                 ),
                 ("password", models.CharField(max_length=128, verbose_name="password")),
                 (
@@ -89,9 +83,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "date_joined",
-                    models.DateTimeField(
-                        default=django.utils.timezone.now, verbose_name="date joined"
-                    ),
+                    models.DateTimeField(default=django.utils.timezone.now, verbose_name="date joined"),
                 ),
                 (
                     "email",
@@ -131,15 +123,11 @@ class Migration(migrations.Migration):
             fields=[
                 (
                     "id",
-                    models.BigAutoField(
-                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
-                    ),
+                    models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID"),
                 ),
                 (
                     "user",
-                    models.OneToOneField(
-                        on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL
-                    ),
+                    models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL),
                 ),
             ],
         ),
@@ -148,15 +136,11 @@ class Migration(migrations.Migration):
             fields=[
                 (
                     "id",
-                    models.BigAutoField(
-                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
-                    ),
+                    models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID"),
                 ),
                 (
                     "user",
-                    models.OneToOneField(
-                        on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL
-                    ),
+                    models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL),
                 ),
                 (
                     "social_center",
@@ -173,15 +157,11 @@ class Migration(migrations.Migration):
             fields=[
                 (
                     "id",
-                    models.BigAutoField(
-                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
-                    ),
+                    models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID"),
                 ),
                 (
                     "user",
-                    models.OneToOneField(
-                        on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL
-                    ),
+                    models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL),
                 ),
                 (
                     "shop",
@@ -198,9 +178,7 @@ class Migration(migrations.Migration):
             fields=[
                 (
                     "id",
-                    models.BigAutoField(
-                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
-                    ),
+                    models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID"),
                 ),
                 (
                     "status",
@@ -246,9 +224,7 @@ class Migration(migrations.Migration):
             fields=[
                 (
                     "id",
-                    models.BigAutoField(
-                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
-                    ),
+                    models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID"),
                 ),
                 (
                     "social_center",
@@ -260,9 +236,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "user",
-                    models.OneToOneField(
-                        on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL
-                    ),
+                    models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL),
                 ),
             ],
         ),
@@ -271,9 +245,7 @@ class Migration(migrations.Migration):
             fields=[
                 (
                     "id",
-                    models.BigAutoField(
-                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
-                    ),
+                    models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID"),
                 ),
                 ("name", models.CharField(max_length=50)),
                 ("barcode", models.BigIntegerField()),
@@ -303,9 +275,7 @@ class Migration(migrations.Migration):
                 ),
             ],
             options={
-                "indexes": [
-                    models.Index(fields=["barcode"], name="api_article_barcode_aaaafc_idx")
-                ],
+                "indexes": [models.Index(fields=["barcode"], name="api_article_barcode_aaaafc_idx")],
             },
         ),
     ]

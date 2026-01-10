@@ -275,6 +275,18 @@ class ArticleCreateViewTests(APITestCase):
         self.assertEqual(article.shop, self.shop)
         self.assertIsNone(article.cart)
 
+        # Verify new fields exist in response
+        for article_data in response.data["articles"]:
+            self.assertIn("img_url", article_data)
+            self.assertIn("thumb_url", article_data)
+            self.assertIn("brand_label", article_data)
+            self.assertIn("created_at", article_data)
+            self.assertIn("updated_at", article_data)
+
+        # Verify timestamps are automatically generated
+        self.assertIsNotNone(article.created_at)
+        self.assertIsNotNone(article.updated_at)
+
     def test_create_articles_unauthenticated(self):
         """Test that unauthenticated users cannot create articles."""
         data = {
@@ -362,9 +374,7 @@ class ArticleCreateViewTests(APITestCase):
         self.api_client.force_authenticate(user=self.cashier_user)
 
         # Create MAX_ARTICLES_PER_REQUEST + 1 articles (exceeds limit)
-        articles_list = [
-            {"barcode": 3017620422003 + i} for i in range(MAX_ARTICLES_PER_REQUEST + 1)
-        ]
+        articles_list = [{"barcode": 3017620422003 + i} for i in range(MAX_ARTICLES_PER_REQUEST + 1)]
 
         data = {
             "client_id": self.test_client_user.pk,
@@ -427,6 +437,244 @@ class ArticleCreateViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         self.assertEqual(Article.objects.count(), 0)
+
+    def test_create_articles_with_optional_fields(self):
+        """Test successful article creation with optional fields (name, img_url, thumb_url, brand_label)."""
+        self.api_client.force_authenticate(user=self.cashier_user)
+
+        data = {
+            "client_id": self.test_client_user.pk,
+            "articles": [
+                {
+                    "barcode": 3017620422003,
+                    "name": "Coca-Cola 33cl",
+                    "img_url": "https://example.com/image1.jpg",
+                    "thumb_url": "https://example.com/thumb1.jpg",
+                    "brand_label": "Coca-Cola",
+                },
+                {
+                    "barcode": 3564700013151,
+                    "name": "KitKat",
+                    "brand_label": "Nestle",
+                },
+                {
+                    "barcode": 3270190207092,
+                },
+            ],
+        }
+
+        response = self.api_client.post(self.url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Article.objects.count(), 3)
+
+        # Verify first article with all optional fields
+        article1 = Article.objects.get(barcode=3017620422003)
+        self.assertEqual(article1.name, "Coca-Cola 33cl")
+        self.assertEqual(article1.img_url, "https://example.com/image1.jpg")
+        self.assertEqual(article1.thumb_url, "https://example.com/thumb1.jpg")
+        self.assertEqual(article1.brand_label, "Coca-Cola")
+
+        # Verify second article with partial optional fields
+        article2 = Article.objects.get(barcode=3564700013151)
+        self.assertEqual(article2.name, "KitKat")
+        self.assertEqual(article2.img_url, "")
+        self.assertEqual(article2.thumb_url, "")
+        self.assertEqual(article2.brand_label, "Nestle")
+
+        # Verify third article without optional fields
+        article3 = Article.objects.get(barcode=3270190207092)
+        self.assertEqual(article3.name, "")
+        self.assertEqual(article3.img_url, "")
+        self.assertEqual(article3.thumb_url, "")
+        self.assertEqual(article3.brand_label, "")
+
+
+class ArticleGetListViewTests(APITestCase):
+    """Tests for the ArticleGetListView endpoint (GET /clients/me/articles/)."""
+
+    def setUp(self):
+        """Set up test data for article list tests."""
+        # Create social center
+        self.social_center = SocialCenter.objects.create(
+            name="Centre Social Test",
+            street_number="123",
+            street_name="Rue Test",
+            postal_code="75001",
+            city="Paris",
+            mail="centre@test.com",
+        )
+
+        # Create shop
+        self.shop = Shop.objects.create(
+            name="Magasin Test",
+            street_number="456",
+            street_name="Avenue Test",
+            postal_code="75002",
+            city="Paris",
+            social_center=self.social_center,
+        )
+
+        # Create client user
+        self.client_user = CustomUser.objects.create_user(  # type: ignore[call-arg]
+            email="client@test.com", password="testpass123", first_name="Client", last_name="Test"
+        )
+        self.test_client = Client.objects.create(user=self.client_user)
+
+        # Create another client user for testing isolation
+        self.other_client_user = CustomUser.objects.create_user(  # type: ignore[call-arg]
+            email="otherclient@test.com",
+            password="testpass123",
+            first_name="Other",
+            last_name="Client",
+        )
+        self.other_client = Client.objects.create(user=self.other_client_user)
+
+        # Create other role users for permission testing
+        self.cashier_user = CustomUser.objects.create_user(  # type: ignore[call-arg]
+            email="cashier@test.com",
+            password="testpass123",
+            first_name="Caissier",
+            last_name="Test",
+        )
+        Cashier.objects.create(user=self.cashier_user, shop=self.shop)
+
+        self.social_worker_user = CustomUser.objects.create_user(  # type: ignore[call-arg]
+            email="socialworker@test.com",
+            password="testpass123",
+            first_name="Travailleur",
+            last_name="Social",
+        )
+        SocialWorker.objects.create(user=self.social_worker_user, social_center=self.social_center)
+
+        # Create cart for testing article status
+        self.cart = Cart.objects.create(shop=self.shop)
+
+        # API client
+        self.api_client = APIClient()
+        self.url = "/api/clients/me/articles/"
+
+    def test_get_articles_list_success(self):
+        """Test successful retrieval of client's articles."""
+        self.api_client.force_authenticate(user=self.client_user)
+
+        # Create articles for the client with various states
+        article1 = Article.objects.create(
+            name="Article 1",
+            barcode=3017620422003,
+            client=self.test_client,
+            shop=self.shop,
+            img_url="https://example.com/img1.jpg",
+            thumb_url="https://example.com/thumb1.jpg",
+            brand_label="Brand A",
+        )
+        article2 = Article.objects.create(
+            name="Article 2",
+            barcode=3564700013151,
+            client=self.test_client,
+            shop=self.shop,
+            cart=self.cart,
+            brand_label="Brand B",
+        )
+        article3 = Article.objects.create(
+            name="Article 3",
+            barcode=3270190207092,
+            client=self.test_client,
+            shop=self.shop,
+        )
+
+        response = self.api_client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("count", response.data)
+        self.assertIn("articles", response.data)
+        self.assertEqual(response.data["count"], 3)
+        self.assertEqual(len(response.data["articles"]), 3)
+
+        # Verify all new fields are present in response
+        for article_data in response.data["articles"]:
+            self.assertIn("id", article_data)
+            self.assertIn("barcode", article_data)
+            self.assertIn("name", article_data)
+            self.assertIn("img_url", article_data)
+            self.assertIn("thumb_url", article_data)
+            self.assertIn("brand_label", article_data)
+            self.assertIn("shop", article_data)
+            self.assertIn("status", article_data)
+            self.assertIn("cart", article_data)
+            self.assertIn("created_at", article_data)
+            self.assertIn("updated_at", article_data)
+
+        # Verify specific values for first article
+        article1_data = next(a for a in response.data["articles"] if a["id"] == article1.id)
+        self.assertEqual(article1_data["img_url"], "https://example.com/img1.jpg")
+        self.assertEqual(article1_data["thumb_url"], "https://example.com/thumb1.jpg")
+        self.assertEqual(article1_data["brand_label"], "Brand A")
+        self.assertEqual(article1_data["status"], "AVAILABLE")
+        self.assertIsNone(article1_data["cart"])
+
+        # Verify article with cart assigned
+        article2_data = next(a for a in response.data["articles"] if a["id"] == article2.id)
+        self.assertEqual(article2_data["brand_label"], "Brand B")
+        self.assertEqual(article2_data["status"], "PENDING")
+        self.assertIsNotNone(article2_data["cart"])
+
+        # Verify article without optional fields
+        article3_data = next(a for a in response.data["articles"] if a["id"] == article3.id)
+        self.assertEqual(article3_data["img_url"], "")
+        self.assertEqual(article3_data["thumb_url"], "")
+        self.assertEqual(article3_data["brand_label"], "")
+
+    def test_get_articles_list_unauthenticated(self):
+        """Test that unauthenticated users cannot access articles list."""
+        response = self.api_client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_get_articles_list_non_client_user(self):
+        """Test that non-client users (cashier, social worker) cannot access articles list."""
+        # Test with cashier
+        self.api_client.force_authenticate(user=self.cashier_user)
+        response = self.api_client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # Test with social worker
+        self.api_client.force_authenticate(user=self.social_worker_user)
+        response = self.api_client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_get_articles_list_only_own_articles(self):
+        """Test that clients only see their own articles."""
+        self.api_client.force_authenticate(user=self.client_user)
+
+        # Create articles for both clients
+        Article.objects.create(
+            name="My Article",
+            barcode=3017620422003,
+            client=self.test_client,
+            shop=self.shop,
+        )
+        Article.objects.create(
+            name="Other Article",
+            barcode=3564700013151,
+            client=self.other_client,
+            shop=self.shop,
+        )
+
+        response = self.api_client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["articles"][0]["name"], "My Article")
+
+    def test_get_articles_list_empty(self):
+        """Test that clients with no articles get an empty list."""
+        self.api_client.force_authenticate(user=self.client_user)
+
+        response = self.api_client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 0)
+        self.assertEqual(len(response.data["articles"]), 0)
 
 
 class CartCollectViewTests(APITestCase):
@@ -848,9 +1096,7 @@ class ClientArticleListViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         # Find article with ASSIGNED cart
-        assigned_article = next(
-            (a for a in response.data["articles"] if a["id"] == self.article2.id), None
-        )
+        assigned_article = next((a for a in response.data["articles"] if a["id"] == self.article2.id), None)
 
         self.assertIsNotNone(assigned_article)
         self.assertEqual(assigned_article["status"], CartStatus.ASSIGNED.value)
@@ -866,9 +1112,7 @@ class ClientArticleListViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         # Find article with COLLECTED cart
-        collected_article = next(
-            (a for a in response.data["articles"] if a["id"] == self.article3.id), None
-        )
+        collected_article = next((a for a in response.data["articles"] if a["id"] == self.article3.id), None)
 
         self.assertIsNotNone(collected_article)
         self.assertEqual(collected_article["status"], CartStatus.COLLECTED.value)
@@ -948,18 +1192,14 @@ class ClientArticleListViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         # Find article from shop1
-        shop1_article = next(
-            (a for a in response.data["articles"] if a["id"] == self.article1.id), None
-        )
+        shop1_article = next((a for a in response.data["articles"] if a["id"] == self.article1.id), None)
 
         self.assertIsNotNone(shop1_article)
         self.assertEqual(shop1_article["shop"]["id"], self.shop1.id)
         self.assertEqual(shop1_article["shop"]["name"], "Carrefour City Centre")
 
         # Find article from shop2
-        shop2_article = next(
-            (a for a in response.data["articles"] if a["id"] == self.article3.id), None
-        )
+        shop2_article = next((a for a in response.data["articles"] if a["id"] == self.article3.id), None)
 
         self.assertIsNotNone(shop2_article)
         self.assertEqual(shop2_article["shop"]["id"], self.shop2.id)
@@ -1151,9 +1391,7 @@ class RecipientCartListViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         # Find cart_assigned1 which has 2 articles
-        cart_with_articles = next(
-            (c for c in response.data["results"] if c["id"] == self.cart_assigned1.id), None
-        )
+        cart_with_articles = next((c for c in response.data["results"] if c["id"] == self.cart_assigned1.id), None)
 
         self.assertIsNotNone(cart_with_articles)
         self.assertEqual(len(cart_with_articles["articles"]), 2)
@@ -1335,18 +1573,14 @@ class RecipientCartListViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         # Find cart from shop1
-        shop1_cart = next(
-            (c for c in response.data["results"] if c["id"] == self.cart_assigned1.id), None
-        )
+        shop1_cart = next((c for c in response.data["results"] if c["id"] == self.cart_assigned1.id), None)
 
         self.assertIsNotNone(shop1_cart)
         self.assertEqual(shop1_cart["shop"], self.shop1.id)
         self.assertEqual(shop1_cart["shop_name"], "Carrefour City Centre")
 
         # Find cart from shop2
-        shop2_cart = next(
-            (c for c in response.data["results"] if c["id"] == self.cart_assigned2.id), None
-        )
+        shop2_cart = next((c for c in response.data["results"] if c["id"] == self.cart_assigned2.id), None)
 
         self.assertIsNotNone(shop2_cart)
         self.assertEqual(shop2_cart["shop"], self.shop2.id)
