@@ -779,8 +779,8 @@ class ShopListView(APIView):
         latitude = request.query_params.get("latitude")
         longitude = request.query_params.get("longitude")
 
-        # Validate coordinate parameters
-        if (latitude is None) and (longitude is None):
+        # Validate coordinate parameters - only one provided is an error
+        if (latitude is None) != (longitude is None):
             return Response(
                 {
                     "coordinates": (
