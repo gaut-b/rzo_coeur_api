@@ -18,16 +18,12 @@ GEOS_LIBRARY_PATH = os.getenv("GEOS_LIBRARY_PATH")
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get(
-    "SECRET_KEY", "django-insecure-m$k=iw56r4-nqz8c2q5=j1!#8y6g=ajyb^7rkaft&7t98v(q!g"
-)
+SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-m$k=iw56r4-nqz8c2q5=j1!#8y6g=ajyb^7rkaft&7t98v(q!g")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("DEBUG", "0").lower() in ("1", "true", "yes")
 
-ALLOWED_HOSTS = [
-    h.strip() for h in os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
-]
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")]
 
 AUTH_USER_MODEL = "api.CustomUser"
 

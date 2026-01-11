@@ -64,23 +64,17 @@ class ArticleCreateView(APIView):
         responses={201: ArticleSerializer(many=True)},
         examples=[
             OpenApiExample(
-                "Valid request with 2 articles",
-                value={
-                    "client_id": 1,
-                    "articles": [{"barcode": 3017620422003}, {"barcode": 3564700013151}],
-                },
-                request_only=True,
-            ),
-            OpenApiExample(
-                "Valid request with 5 articles",
+                "Valid request with optional fields",
                 value={
                     "client_id": 1,
                     "articles": [
-                        {"barcode": 3017620422003},
-                        {"barcode": 3564700013151},
-                        {"barcode": 8712566405619},
-                        {"barcode": 5410188031508},
-                        {"barcode": 3228857000852},
+                        {
+                            "barcode": 3017620422003,
+                            "name": "Coca-Cola 33cl",
+                            "img_url": "https://example.com/product1.jpg",
+                            "thumb_url": "https://example.com/thumb1.jpg",
+                            "brand_label": "Coca-Cola",
+                        },
                     ],
                 },
                 request_only=True,
@@ -92,19 +86,29 @@ class ArticleCreateView(APIView):
                     "articles": [
                         {
                             "id": 1,
-                            "name": "",
+                            "name": "Coca-Cola 33cl",
                             "barcode": 3017620422003,
                             "client": 1,
                             "shop": 1,
                             "cart": None,
+                            "img_url": "https://example.com/product1.jpg",
+                            "thumb_url": "https://example.com/thumb1.jpg",
+                            "brand_label": "Coca-Cola",
+                            "created_at": "2026-01-10T10:30:00Z",
+                            "updated_at": "2026-01-10T10:30:00Z",
                         },
                         {
                             "id": 2,
-                            "name": "",
+                            "name": "KitKat",
                             "barcode": 3564700013151,
                             "client": 1,
                             "shop": 1,
                             "cart": None,
+                            "img_url": "",
+                            "thumb_url": "",
+                            "brand_label": "Nestle",
+                            "created_at": "2026-01-10T10:30:01Z",
+                            "updated_at": "2026-01-10T10:30:01Z",
                         },
                     ],
                 },
@@ -142,9 +146,7 @@ class ArticleCreateView(APIView):
             ),
             OpenApiExample(
                 "Cashier has no associated shop",
-                value={
-                    "non_field_errors": ["Authenticated user does not have an associated shop."]
-                },
+                value={"non_field_errors": ["Authenticated user does not have an associated shop."]},
                 response_only=True,
                 status_codes=["400"],
             ),
@@ -205,25 +207,40 @@ class ArticleGetListView(APIView):
                             "id": 1,
                             "barcode": 3017620422003,
                             "name": "Product Name",
+                            "img_url": "https://example.com/product1.jpg",
+                            "thumb_url": "https://example.com/thumb1.jpg",
+                            "brand_label": "Coca-Cola",
                             "shop": {"id": 1, "name": "Carrefour City Centre"},
                             "status": "AVAILABLE",
                             "cart": None,
+                            "created_at": "2026-01-10T10:30:00Z",
+                            "updated_at": "2026-01-10T10:30:00Z",
                         },
                         {
                             "id": 2,
                             "barcode": 3564700013151,
                             "name": "Another Product",
+                            "img_url": "",
+                            "thumb_url": "",
+                            "brand_label": "Nestle",
                             "shop": {"id": 1, "name": "Carrefour City Centre"},
                             "status": "ASSIGNED",
                             "cart": {"id": 5, "status": "ASSIGNED"},
+                            "created_at": "2026-01-09T14:20:00Z",
+                            "updated_at": "2026-01-09T14:20:00Z",
                         },
                         {
                             "id": 3,
                             "barcode": 3270190207092,
                             "name": "Third Product",
+                            "img_url": "",
+                            "thumb_url": "",
+                            "brand_label": "",
                             "shop": {"id": 2, "name": "Monoprix Gare"},
                             "status": "COLLECTED",
                             "cart": {"id": 5, "status": "COLLECTED"},
+                            "created_at": "2026-01-08T09:15:00Z",
+                            "updated_at": "2026-01-08T09:15:00Z",
                         },
                     ],
                 },
@@ -238,17 +255,11 @@ class ArticleGetListView(APIView):
         Retrieve all articles purchased by the authenticated client.
         Returns articles with their status (AVAILABLE, ASSIGNED, COLLECTED).
         """
-        articles = (
-            Article.objects.filter(client__user=request.user)
-            .select_related("shop", "cart")
-            .order_by("-id")
-        )
+        articles = Article.objects.filter(client__user=request.user).select_related("shop", "cart").order_by("-id")
 
         serializer = ArticleDetailSerializer(articles, many=True)
 
-        return Response(
-            {"count": len(articles), "articles": serializer.data}, status=status.HTTP_200_OK
-        )
+        return Response({"count": len(articles), "articles": serializer.data}, status=status.HTTP_200_OK)
 
 
 class RecipientCartListView(APIView):
@@ -316,18 +327,18 @@ class RecipientCartListView(APIView):
                                 {
                                     "id": 1,
                                     "barcode": 3017620422003,
-                                    "name": "Product Name",
-                                    "shop": {"id": 1, "name": "Carrefour City Centre"},
-                                    "status": "ASSIGNED",
-                                    "cart": {"id": 5, "status": "ASSIGNED"},
+                                    "name": "Coca-Cola 33cl",
+                                    "img_url": "https://example.com/product1.jpg",
+                                    "thumb_url": "https://example.com/thumb1.jpg",
+                                    "brand_label": "Coca-Cola",
                                 },
                                 {
                                     "id": 2,
                                     "barcode": 3564700013151,
-                                    "name": "Another Product",
-                                    "shop": {"id": 1, "name": "Carrefour City Centre"},
-                                    "status": "ASSIGNED",
-                                    "cart": {"id": 5, "status": "ASSIGNED"},
+                                    "name": "KitKat",
+                                    "img_url": "",
+                                    "thumb_url": "",
+                                    "brand_label": "Nestle",
                                 },
                             ],
                         }
@@ -430,11 +441,7 @@ class CartCollectView(APIView):
             ),
             OpenApiExample(
                 "Invalid cart status",
-                value={
-                    "status": (
-                        "Cart must be in ASSIGNED status to be collected. Current status: PENDING"
-                    )
-                },
+                value={"status": ("Cart must be in ASSIGNED status to be collected. Current status: PENDING")},
                 response_only=True,
                 status_codes=["400"],
             ),
@@ -478,9 +485,7 @@ class CartCollectView(APIView):
 
         # Get the cart or return 404
         try:
-            cart = Cart.objects.select_related("shop", "recipient", "recipient__user").get(
-                pk=cart_id
-            )
+            cart = Cart.objects.select_related("shop", "recipient", "recipient__user").get(pk=cart_id)
         except Cart.DoesNotExist:
             return Response(
                 {"error": "Cart not found."},
@@ -545,13 +550,19 @@ class CartDetailView(APIView):
                     "articles": [
                         {
                             "id": 1,
-                            "barcode": "3017620422003",
-                            "name": "Product Name",
+                            "barcode": 3017620422003,
+                            "name": "Coca-Cola 33cl",
+                            "img_url": "https://example.com/product1.jpg",
+                            "thumb_url": "https://example.com/thumb1.jpg",
+                            "brand_label": "Coca-Cola",
                         },
                         {
                             "id": 2,
-                            "barcode": "3564700013151",
-                            "name": "Another Product",
+                            "barcode": 3564700013151,
+                            "name": "KitKat",
+                            "img_url": "",
+                            "thumb_url": "",
+                            "brand_label": "Nestle",
                         },
                     ],
                 },
@@ -577,11 +588,7 @@ class CartDetailView(APIView):
         """Handle GET request to retrieve a cart by ID."""
         # Get the cart or return 404
         try:
-            cart = (
-                Cart.objects.select_related("shop", "recipient__user")
-                .prefetch_related("articles")
-                .get(pk=cart_id)
-            )
+            cart = Cart.objects.select_related("shop", "recipient__user").prefetch_related("articles").get(pk=cart_id)
         except Cart.DoesNotExist:
             return Response(
                 {"error": "Cart not found."},

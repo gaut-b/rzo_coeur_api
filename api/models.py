@@ -114,9 +114,7 @@ class SocialCenter(AddressLocationMixin):
 
 class SocialWorker(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, primary_key=True)
-    social_center = models.ForeignKey(
-        SocialCenter, on_delete=models.CASCADE, related_name="social_workers"
-    )
+    social_center = models.ForeignKey(SocialCenter, on_delete=models.CASCADE, related_name="social_workers")
 
     def __str__(self) -> str:
         return str(self.user)
@@ -124,9 +122,7 @@ class SocialWorker(models.Model):
 
 class Recipient(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, primary_key=True)
-    social_center = models.ForeignKey(
-        SocialCenter, on_delete=models.CASCADE, related_name="recipients"
-    )
+    social_center = models.ForeignKey(SocialCenter, on_delete=models.CASCADE, related_name="recipients")
 
     if TYPE_CHECKING:
         carts: "RelatedManager[Cart]"
@@ -154,9 +150,7 @@ class Cashier(models.Model):
 class Cart(models.Model):
     id: int  # type: ignore[assignment]
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name="carts")
-    recipient = models.ForeignKey(
-        Recipient, on_delete=models.CASCADE, related_name="carts", null=True, blank=True
-    )
+    recipient = models.ForeignKey(Recipient, on_delete=models.CASCADE, related_name="carts", null=True, blank=True)
     collected_at = models.DateTimeField(null=True, blank=True)
 
     if TYPE_CHECKING:
@@ -181,13 +175,16 @@ class Cart(models.Model):
 
 
 class Article(models.Model):
-    name = models.CharField(max_length=50)
+    name = models.CharField(max_length=50, blank=True, default="")
     barcode = models.BigIntegerField()
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name="articles")
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name="articles")
-    cart = models.ForeignKey(
-        Cart, null=True, blank=True, on_delete=models.CASCADE, related_name="articles"
-    )
+    cart = models.ForeignKey(Cart, null=True, blank=True, on_delete=models.CASCADE, related_name="articles")
+    img_url = models.URLField(max_length=500, blank=True, default="")
+    thumb_url = models.URLField(max_length=500, blank=True, default="")
+    brand_label = models.CharField(max_length=500, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         indexes = [models.Index(fields=["barcode"])]

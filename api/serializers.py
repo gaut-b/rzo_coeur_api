@@ -110,9 +110,11 @@ class ArticleInputSerializer(serializers.Serializer):
     Used as part of bulk article creation.
     """
 
-    barcode = serializers.IntegerField(
-        min_value=0, help_text="EAN-13 or similar product barcode (numeric only)"
-    )
+    barcode = serializers.IntegerField(min_value=0, help_text="EAN-13 or similar product barcode (numeric only)")
+    name = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    img_url = serializers.URLField(max_length=500, required=False, allow_blank=True)
+    thumb_url = serializers.URLField(max_length=500, required=False, allow_blank=True)
+    brand_label = serializers.CharField(max_length=500, required=False, allow_blank=True)
 
 
 class ArticleSerializer(serializers.ModelSerializer):
@@ -122,8 +124,20 @@ class ArticleSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Article
-        fields = ["id", "name", "barcode", "client", "shop", "cart"]
-        read_only_fields = ["id"]
+        fields = [
+            "id",
+            "name",
+            "barcode",
+            "client",
+            "shop",
+            "cart",
+            "img_url",
+            "thumb_url",
+            "brand_label",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
 
 
 class ArticleDetailSerializer(serializers.ModelSerializer):
@@ -138,8 +152,20 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Article
-        fields = ["id", "barcode", "name", "shop", "status", "cart"]
-        read_only_fields = ["id"]
+        fields = [
+            "id",
+            "barcode",
+            "name",
+            "img_url",
+            "thumb_url",
+            "brand_label",
+            "shop",
+            "status",
+            "cart",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
 
     def get_shop(self, obj):
         """Return shop information."""
@@ -230,9 +256,7 @@ class BulkArticleCreateSerializer(serializers.Serializer):
         shop = getattr(cashier, "shop", None)
 
         if shop is None:
-            raise serializers.ValidationError(
-                "Authenticated user does not have an associated shop."
-            )
+            raise serializers.ValidationError("Authenticated user does not have an associated shop.")
 
         # Cache the shop to avoid duplicate access in create()
         self._validated_shop = shop
@@ -258,11 +282,14 @@ class BulkArticleCreateSerializer(serializers.Serializer):
         # Prepare article objects for bulk creation
         articles_to_create = [
             Article(
-                name="",  # Name left empty for later enrichment
+                name=article_data.get("name", ""),  # Name from request or empty for later enrichment
                 barcode=article_data["barcode"],
                 client=client,
                 shop=shop,
                 cart=None,  # Articles are created without cart assignment
+                img_url=article_data.get("img_url", ""),
+                thumb_url=article_data.get("thumb_url", ""),
+                brand_label=article_data.get("brand_label", ""),
             )
             for article_data in articles_data
         ]
@@ -282,7 +309,7 @@ class ArticleCartSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Article
-        fields = ["id", "barcode", "name"]
+        fields = ["id", "barcode", "name", "img_url", "thumb_url", "brand_label"]
         read_only_fields = ["id"]
 
 
@@ -345,23 +372,14 @@ class CartCollectSerializer(serializers.Serializer):
 
         if cart.status != CartStatus.ASSIGNED.value:
             raise serializers.ValidationError(
-                {
-                    "status": (
-                        f"Cart must be in ASSIGNED status to be collected. "
-                        f"Current status: {cart.status}"
-                    )
-                }
+                {"status": (f"Cart must be in ASSIGNED status to be collected. Current status: {cart.status}")}
             )
         cashier = getattr(request.user, "cashier", None)
         if not cashier or cashier.shop != cart.shop:
-            raise serializers.ValidationError(
-                {"shop": "You can only collect carts from your shop."}
-            )
+            raise serializers.ValidationError({"shop": "You can only collect carts from your shop."})
 
         if cart.recipient != recipient:
-            raise serializers.ValidationError(
-                {"recipient": "The cart does not belong to this recipient."}
-            )
+            raise serializers.ValidationError({"recipient": "The cart does not belong to this recipient."})
 
         return attrs
 

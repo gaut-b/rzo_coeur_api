@@ -63,9 +63,7 @@ class AddressLocationAdminForm(forms.ModelForm):
 
         if self.instance.postal_code and self.instance.city:
             if address_line:
-                self.initial["address"] = (
-                    f"{address_line}, {self.instance.postal_code} {self.instance.city}"
-                )
+                self.initial["address"] = f"{address_line}, {self.instance.postal_code} {self.instance.city}"
             else:
                 self.initial["address"] = f"{self.instance.postal_code} {self.instance.city}"
         elif address_line:
@@ -327,4 +325,39 @@ class CartAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Cart, CartAdmin)
-admin.site.register(Article)
+
+
+class ArticleAdmin(admin.ModelAdmin):
+    list_display = ["id", "name", "barcode", "brand_label", "client", "shop", "cart", "created_at"]
+    list_filter = ["shop", "created_at", "cart"]
+    search_fields = ["barcode", "brand_label", "name", "client__user__email"]
+    readonly_fields = ["created_at", "updated_at"]
+    fieldsets = [
+        (
+            "Article Information",
+            {
+                "fields": ["name", "barcode", "brand_label"],
+            },
+        ),
+        (
+            "Images",
+            {
+                "fields": ["img_url", "thumb_url"],
+            },
+        ),
+        (
+            "Relationships",
+            {
+                "fields": ["client", "shop", "cart"],
+            },
+        ),
+        (
+            "Timestamps",
+            {
+                "fields": ["created_at", "updated_at"],
+            },
+        ),
+    ]
+
+
+admin.site.register(Article, ArticleAdmin)
