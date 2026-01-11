@@ -475,8 +475,8 @@ class CartCollectView(APIView):
         ],
         tags=["Carts"],
     )
-    def patch(self, request, recipient_id, cart_id):
-        """Handle PATCH request to mark cart as collected."""
+    def post(self, request, recipient_id, cart_id):
+        """Handle POST request to mark cart as collected."""
         # Get the recipient or return 404
         try:
             recipient = Recipient.objects.select_related("user").get(user__pk=recipient_id)

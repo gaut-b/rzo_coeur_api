@@ -800,7 +800,7 @@ class CartCollectViewTests(APITestCase):
         url = f"/api/recipients/{self.recipient.user.pk}/carts/{self.cart_assigned.id}/collect/"
         data = {}
 
-        response = self.api_client.patch(url, data, format="json")
+        response = self.api_client.post(url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
@@ -814,7 +814,7 @@ class CartCollectViewTests(APITestCase):
         url = f"/api/recipients/{self.recipient.user.pk}/carts/{self.cart_assigned.id}/collect/"
         data = {}
 
-        response = self.api_client.patch(url, data, format="json")
+        response = self.api_client.post(url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
@@ -824,7 +824,7 @@ class CartCollectViewTests(APITestCase):
         url = f"/api/recipients/{self.recipient.user.pk}/carts/{self.cart_assigned.id}/collect/"
         data = {}
 
-        response = self.api_client.patch(url, data, format="json")
+        response = self.api_client.post(url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -834,7 +834,7 @@ class CartCollectViewTests(APITestCase):
         url = f"/api/recipients/{self.recipient.user.pk}/carts/99999/collect/"
         data = {}
 
-        response = self.api_client.patch(url, data, format="json")
+        response = self.api_client.post(url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertIn("error", response.data)
@@ -845,7 +845,7 @@ class CartCollectViewTests(APITestCase):
         url = f"/api/recipients/{self.recipient.user.pk}/carts/{self.cart_pending.id}/collect/"
         data = {}
 
-        response = self.api_client.patch(url, data, format="json")
+        response = self.api_client.post(url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("status", response.data)
@@ -856,7 +856,7 @@ class CartCollectViewTests(APITestCase):
         url = f"/api/recipients/{self.recipient.user.pk}/carts/{self.cart_collected.id}/collect/"
         data = {}
 
-        response = self.api_client.patch(url, data, format="json")
+        response = self.api_client.post(url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("status", response.data)
@@ -867,7 +867,7 @@ class CartCollectViewTests(APITestCase):
         url = f"/api/recipients/{self.recipient.user.pk}/carts/{self.cart_shop2.id}/collect/"
         data = {}
 
-        response = self.api_client.patch(url, data, format="json")
+        response = self.api_client.post(url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("shop", response.data)
@@ -878,7 +878,7 @@ class CartCollectViewTests(APITestCase):
         url = f"/api/recipients/{self.recipient2.user.pk}/carts/{self.cart_assigned.id}/collect/"
         data = {}
 
-        response = self.api_client.patch(url, data, format="json")
+        response = self.api_client.post(url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("recipient", response.data)
@@ -889,7 +889,7 @@ class CartCollectViewTests(APITestCase):
         url = f"/api/recipients/99999/carts/{self.cart_assigned.id}/collect/"
         data = {}
 
-        response = self.api_client.patch(url, data, format="json")
+        response = self.api_client.post(url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertIn("error", response.data)
@@ -900,7 +900,7 @@ class CartCollectViewTests(APITestCase):
         url = f"/api/recipients/{self.recipient.user.pk}/carts/{self.cart_assigned.id}/collect/"
         data = {}
 
-        response = self.api_client.patch(url, data, format="json")
+        response = self.api_client.post(url, data, format="json")
 
         # Should succeed since recipient_id is now in URL
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
