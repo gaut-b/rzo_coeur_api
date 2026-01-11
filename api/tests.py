@@ -1969,9 +1969,7 @@ class ShopListViewTests(APITestCase):
     def test_list_shops_with_proximity_sorting(self):
         """Test shops sorted by proximity to given GPS coordinates."""
         # Test point: Paris nord area (48.8900, 2.3700) - close to shop2
-        response = self.api_client.get(
-            self.url, {"latitude": "48.8900", "longitude": "2.3700"}, format="json"
-        )
+        response = self.api_client.get(self.url, {"latitude": "48.8900", "longitude": "2.3700"}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         results = response.data["results"]
@@ -1991,9 +1989,7 @@ class ShopListViewTests(APITestCase):
     def test_list_shops_proximity_sorting_different_point(self):
         """Test proximity sorting with different reference point."""
         # Test point: Paris sud area (48.8217, 2.3583) - close to shop3
-        response = self.api_client.get(
-            self.url, {"latitude": "48.8217", "longitude": "2.3583"}, format="json"
-        )
+        response = self.api_client.get(self.url, {"latitude": "48.8217", "longitude": "2.3583"}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         results = response.data["results"]
@@ -2025,21 +2021,15 @@ class ShopListViewTests(APITestCase):
 
     def test_list_shops_invalid_latitude_format(self):
         """Test that error is returned for invalid latitude format."""
-        response = self.api_client.get(
-            self.url, {"latitude": "invalid", "longitude": "2.3522"}, format="json"
-        )
+        response = self.api_client.get(self.url, {"latitude": "invalid", "longitude": "2.3522"}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("coordinates", response.data)
-        self.assertEqual(
-            response.data["coordinates"], "Invalid coordinate values. Must be valid numbers."
-        )
+        self.assertEqual(response.data["coordinates"], "Invalid coordinate values. Must be valid numbers.")
 
     def test_list_shops_invalid_longitude_format(self):
         """Test that error is returned for invalid longitude format."""
-        response = self.api_client.get(
-            self.url, {"latitude": "48.8566", "longitude": "invalid"}, format="json"
-        )
+        response = self.api_client.get(self.url, {"latitude": "48.8566", "longitude": "invalid"}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("coordinates", response.data)
@@ -2047,18 +2037,14 @@ class ShopListViewTests(APITestCase):
     def test_list_shops_latitude_out_of_range(self):
         """Test that error is returned for latitude outside valid range."""
         # Test latitude > 90
-        response = self.api_client.get(
-            self.url, {"latitude": "95.0", "longitude": "2.3522"}, format="json"
-        )
+        response = self.api_client.get(self.url, {"latitude": "95.0", "longitude": "2.3522"}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("latitude", response.data)
         self.assertEqual(response.data["latitude"], "Latitude must be between -90 and 90 degrees.")
 
         # Test latitude < -90
-        response = self.api_client.get(
-            self.url, {"latitude": "-95.0", "longitude": "2.3522"}, format="json"
-        )
+        response = self.api_client.get(self.url, {"latitude": "-95.0", "longitude": "2.3522"}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("latitude", response.data)
@@ -2066,20 +2052,14 @@ class ShopListViewTests(APITestCase):
     def test_list_shops_longitude_out_of_range(self):
         """Test that error is returned for longitude outside valid range."""
         # Test longitude > 180
-        response = self.api_client.get(
-            self.url, {"latitude": "48.8566", "longitude": "185.0"}, format="json"
-        )
+        response = self.api_client.get(self.url, {"latitude": "48.8566", "longitude": "185.0"}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("longitude", response.data)
-        self.assertEqual(
-            response.data["longitude"], "Longitude must be between -180 and 180 degrees."
-        )
+        self.assertEqual(response.data["longitude"], "Longitude must be between -180 and 180 degrees.")
 
         # Test longitude < -180
-        response = self.api_client.get(
-            self.url, {"latitude": "48.8566", "longitude": "-185.0"}, format="json"
-        )
+        response = self.api_client.get(self.url, {"latitude": "48.8566", "longitude": "-185.0"}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("longitude", response.data)
