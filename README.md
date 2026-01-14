@@ -105,6 +105,36 @@ The following environment variables can be configured in your `.env` file:
 - `SECRET_KEY` - Django secret key
 - `ALLOWED_HOSTS` - Comma-separated list of allowed hosts
 
+### Email Configuration (Development)
+
+- `EMAIL_HOST` - SMTP host for email sending (default: `localhost` for local dev, `mailhog` for Docker)
+- `EMAIL_PORT` - SMTP port (default: `1025` for Mailhog)
+
+## 📧 Email Testing with Mailhog
+
+In development mode, emails are captured by [Mailhog](https://github.com/mailhog/MailHog) instead of being sent to real addresses. This allows you to test email functionality without worrying about accidentally sending emails.
+
+### Accessing Mailhog
+
+When running with Docker Compose, Mailhog is automatically started. Access the web interface at:
+
+**http://localhost:8025**
+
+All emails sent by the Django application will appear in this interface.
+
+### Configuration
+
+The email configuration is automatically handled:
+
+- **With Docker**: Uses `EMAIL_HOST=mailhog` (configured in `.env`)
+- **Without Docker**: Uses `EMAIL_HOST=localhost` and requires Mailhog running locally
+
+To run Mailhog standalone (without Docker):
+
+```sh
+docker run -d -p 1025:1025 -p 8025:8025 mailhog/mailhog
+```
+
 ## Contributors
 
 - [Clement Viel](https://github.com/ClementViel)
