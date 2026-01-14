@@ -78,9 +78,10 @@ SPECTACULAR_SETTINGS = {
     # OTHER SETTINGS
 }
 
-# Configure auth_kit to use our custom serializer
+# Configure auth_kit to use our custom serializers
 AUTH_KIT = {
     "USER_SERIALIZER": "api.serializers.CustomUserSerializer",
+    "REGISTER_SERIALIZER": "api.serializers.CustomRegisterSerializer",
     "USE_AUTH_COOKIE": True,
 }
 

@@ -1,3 +1,4 @@
+from auth_kit.serializers.registration import RegisterSerializer as AuthKitRegisterSerializer
 from auth_kit.serializers.user import UserSerializer as AuthKitUserSerializer
 from django.utils import timezone
 from rest_framework import serializers
@@ -18,6 +19,18 @@ class CustomUserSerializer(AuthKitUserSerializer):
     class Meta(AuthKitUserSerializer.Meta):
         model = CustomUser
         fields = AuthKitUserSerializer.Meta.fields + ("role",)
+
+
+class CustomRegisterSerializer(AuthKitRegisterSerializer):
+    """
+    Custom registration serializer that automatically creates a Client role
+    for newly registered users via the API registration endpoint.
+    Users created via admin or other methods will NOT have a Client created automatically.
+    """
+
+    def custom_signup(self, request, user):
+        """Override custom_signup to create Client role after user creation."""
+        Client.objects.create(user=user)
 
 
 class AddressLocationSerializerMixin:

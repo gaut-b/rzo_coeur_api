@@ -63,6 +63,36 @@ class UsersManagersTests(TestCase):
             )
 
 
+class UserRegistrationTests(APITestCase):
+    """Tests for user registration and automatic Client role assignment."""
+
+    def test_registration_creates_client_role(self):
+        """Test that registering a user via the API automatically creates a Client role."""
+        url = "/api/auth/registration/"
+        data = {
+            "email": "newclient@test.com",
+            "password1": "SecurePass123!",
+            "password2": "SecurePass123!",
+            "first_name": "New",
+            "last_name": "Client",
+        }
+
+        response = self.client.post(url, data, format="json")
+
+        # Verify successful registration
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Verify user was created
+        user = CustomUser.objects.get(email="newclient@test.com")
+        self.assertIsNotNone(user)
+
+        # Verify Client role was automatically created
+        self.assertTrue(Client.objects.filter(user=user).exists())
+
+        # Verify the user's role property returns CLIENT
+        self.assertEqual(user.role, UserRole.CLIENT.value)
+
+
 class CustomUserSerializerTests(APITestCase):
     """Tests for the CustomUserSerializer with role field."""
 
