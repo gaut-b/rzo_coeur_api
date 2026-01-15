@@ -89,5 +89,7 @@ target/
 **/__pycache__/
 local_settings.py
 
+.env.*
 .env
+!.env.example
 db.sqlite3

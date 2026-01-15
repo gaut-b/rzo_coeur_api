@@ -3,11 +3,12 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
-
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
+BASE_DIR = Path(__file__).resolve(strict=True).parent.parent
+
+# Load environment variables: .env.local takes precedence over .env
+load_dotenv(BASE_DIR / ".env")
+load_dotenv(BASE_DIR / ".env.local", override=True)
 BASE_DIR = Path(__file__).resolve(strict=True).parent.parent
 
 # GDAL configuration
@@ -78,9 +79,10 @@ SPECTACULAR_SETTINGS = {
     # OTHER SETTINGS
 }
 
-# Configure auth_kit to use our custom serializer
+# Configure auth_kit to use our custom serializers
 AUTH_KIT = {
     "USER_SERIALIZER": "api.serializers.CustomUserSerializer",
+    "REGISTER_SERIALIZER": "api.serializers.CustomRegisterSerializer",
     "USE_AUTH_COOKIE": True,
 }
 
@@ -172,10 +174,15 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Email configuration
-"""
-TODO: emails are currently printed to console
-We need to find a proper email backend for production:
-- either a self hosted SMTP server
-- either a third party service like SendGrid, Mailgun, etc.
-"""
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+if DEBUG:
+    # Use Mailhog for local development
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    # Use 'mailhog' when running in Docker, 'localhost' when running locally
+    EMAIL_HOST = os.environ.get("EMAIL_HOST", "localhost")
+    EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "1025"))
+    EMAIL_USE_TLS = False
+    EMAIL_USE_SSL = False
+else:
+    # Production email configuration
+    # TODO: Configure production email backend (SendGrid, Mailgun, etc.)
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
