@@ -25,6 +25,7 @@ from api.admin import social_admin_site
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("", include("api.urls")),
     path("social-admin/", social_admin_site.urls),
     path("api/auth/", include("auth_kit.urls")),
     path("api/", include("api.urls")),
@@ -34,7 +35,8 @@ urlpatterns = [
 if settings.DEBUG:
     urlpatterns += [
         path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
-        path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
+        path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"),
+             name="swagger-ui"),
         path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
         path("api/auth/ui/", AuthKitUIView.as_view(), name="auth_kit_ui"),
     ]

@@ -9,6 +9,7 @@ from .views import (
     RecipientCartListView,
     ShopDetailView,
     ShopListView,
+    AttributionsView,
 )
 
 urlpatterns = [
@@ -24,4 +25,5 @@ urlpatterns = [
     path("shops/", ShopListView.as_view(), name="shop-list"),
     path("shops/<int:shop_id>/", ShopDetailView.as_view(), name="shop-detail"),
     path("social-admin/", social_admin_site.urls),
+    path("attri/", AttributionsView.as_view(), name="attri"),
 ]

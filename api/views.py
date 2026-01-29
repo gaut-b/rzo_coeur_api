@@ -6,7 +6,7 @@ from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
+from django.http import HttpResponse
 from .enums import CartStatus
 from .models import Article, Cart, Recipient, Shop
 from .permissions import IsCashier, IsClient, IsRecipient
@@ -18,6 +18,18 @@ from .serializers import (
     CartSerializer,
     ShopSerializer,
 )
+from django.template import loader
+
+
+class AttributionsView(APIView):
+    def index(self, request):
+        template = loader.get_template("api/index.html")
+        return HttpResponse(template.render(request))
+
+    def get(self, request):
+        template = loader.get_template("api/index.html")
+        print(template)
+        return HttpResponse(template.render(context=None), content_type="text/html")
 
 
 class ArticleCreateView(APIView):
