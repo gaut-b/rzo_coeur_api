@@ -5,11 +5,13 @@ from drf_spectacular.utils import OpenApiExample, extend_schema
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
-from rest_framework.views import APIView
+from rest_framework.views import APIView, View
 from django.http import HttpResponse
 from .enums import CartStatus
-from .models import Article, Cart, Recipient, Shop
+from .models import Article, Cart, Recipient, Shop, SocialWorker
 from .permissions import IsCashier, IsClient, IsRecipient
+from django.contrib import messages
+from django.views.generic.edit import CreateView, DeleteView, UpdateView
 from .serializers import (
     ArticleDetailSerializer,
     ArticleSerializer,
@@ -18,18 +20,69 @@ from .serializers import (
     CartSerializer,
     ShopSerializer,
 )
+
+from .enums import UserRole
 from django.template import loader
+from .forms import CreateCartForm
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 
 
-class AttributionsView(APIView):
-    def index(self, request):
-        template = loader.get_template("api/index.html")
-        return HttpResponse(template.render(request))
+class CreateCartView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
+    model = Cart
+    fields = ["shop"]
+    form = CreateCartForm
+    template = "api/add_cart.html"
+    # specify where to redirect after a successful POST
+    success_url = "/attri"
+    login_url = "/attri/login"
+    redirect_field_name = "attri"
+
+    def has_permission(self):
+        return self.request.user.is_authenticated and self.request.user.role == UserRole.SOCIAL_WORKER.value
+
+
+    def form_valid(self, form):
+        form.instance.user = self.request.user
+        messages.success(self.request, "The cart was created successfully.")
+        return super(CreateCartView, self).form_valid(form)
+
+
+class AttributionsView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    login_url = "/attri/login"
+    redirect_field_name = "attri"
+
+    def get_social_center(self, user):
+        request_social_center="1"
+        for s in SocialWorker.objects.all():
+            if user == s.user:  # we're not going through this...FIXME
+                request_social_center = s.social_center
+        return request_social_center
+
+    def get_shops(self, social_center):
+        request_shops=[]
+        for s in Shop.objects.all():
+            if social_center == s.social_center:  # we're not going through this...FIXME
+                request_shops.append(s)
+        return request_shops
+ 
+ 
+    def has_permission(self):
+        return self.request.user.is_authenticated and self.request.user.role == UserRole.SOCIAL_WORKER.value
 
     def get(self, request):
+        articles = Article.objects.all()
+        paniers = Cart.objects.all()
+        recipients = Recipient.objects.all()
+        user = request.user
+        filter_social_center = self.get_social_center(user)
+        filter_shops=self.get_shops(filter_social_center)
+        print(filter_social_center)
+        print(filter_shops)
+        context = {"articles": articles, "paniers": paniers, "recipients": recipients, "filter_social_center": filter_social_center, "filter_shops": filter_shops}
+        """get a list of all scanned products"""
         template = loader.get_template("api/index.html")
-        print(template)
-        return HttpResponse(template.render(context=None), content_type="text/html")
+
+        return HttpResponse(template.render(context, request))
 
 
 class ArticleCreateView(APIView):

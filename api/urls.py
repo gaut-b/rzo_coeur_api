@@ -1,4 +1,5 @@
 from django.urls import path
+from django.contrib.auth import views as auth_views
 
 from .admin import social_admin_site
 from .views import (
@@ -10,6 +11,7 @@ from .views import (
     ShopDetailView,
     ShopListView,
     AttributionsView,
+    CreateCartView,
 )
 
 urlpatterns = [
@@ -26,4 +28,6 @@ urlpatterns = [
     path("shops/<int:shop_id>/", ShopDetailView.as_view(), name="shop-detail"),
     path("social-admin/", social_admin_site.urls),
     path("attri/", AttributionsView.as_view(), name="attri"),
+    path("attri/add_cart", CreateCartView.as_view(), name="attri-cart-add"),
+    path("attri/login/", auth_views.LoginView.as_view()),
 ]

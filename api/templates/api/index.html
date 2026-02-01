@@ -5,6 +5,43 @@
     <title>Cart Attribution</title>
   </head>
   <body>
-    <p>This is my page</p>
+    <p>Articles achetés</p>
+    <p>
+      {% for article in articles %}
+        {% for shop in filter_shops %}
+          {% if shop == article.shop %}
+            {{article.name}} | {{article.shop}} <br />
+          {% endif %}
+        {% endfor %}
+      {% endfor %}
+      <br />
+    </p>
   </body>
+  <form action="add_cart">
+    <input type="submit" value="Créer panier" />
+</form>
+
+  <body>
+    <p>Paniers</p>
+    <p>
+      {% for panier in paniers %}
+      _______________________________________________________________________________________ <br />
+      {{panier.id}} | {{panier.shop}} ---|--- {{panier.recipient}} ---|--- {{panier.status}} | <br />
+      _______________________________________________________________________________________ <br />
+      {% endfor %}
+    </p>
+  </body>
+
+    <body>
+    <p>bénéficiaires enregistr achetés</p>
+    <p>
+      {% for recipient in recipients %}
+      {% if recipient.social_center == filter_social_center %}
+        {{recipient.user}} <br />
+      {% endif %}
+      {% endfor %}
+      <br />
+    </p>
+  </body>
+
 </html>

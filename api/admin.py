@@ -52,7 +52,7 @@ class AddressLocationAdminForm(forms.ModelForm):
             "street_name",
             "city",
             "latitude",
-            "longitude",
+        "longitude",
         ]
 
     def __init__(self, *args, **kwargs):
@@ -318,9 +318,6 @@ class ShopSocialAdmin(AddressLocationAdminMixin, admin.ModelAdmin):
         )
 
     # redirect vers articles social admin
-
-    def get_list_display_links(self, obj):
-        pass
 
     def articles(self, obj):
         return ",".join([article.name for article in Article.objects.filter(shop_id=obj.id)])
