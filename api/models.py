@@ -79,7 +79,12 @@ class CustomUser(AbstractUser):
             if hasattr(self, "client"):
                 self._cached_role = UserRole.CLIENT.value
             elif hasattr(self, "socialworker"):
-                self._cached_role = UserRole.SOCIAL_WORKER.value
+                # Check if social worker is a social admin
+                if self.socialworker.is_social_admin:
+                    self._cached_role = UserRole.SOCIAL_ADMIN.value
+                else:
+                    self._cached_role = UserRole.SOCIAL_WORKER.value
+
             elif hasattr(self, "recipient"):
                 self._cached_role = UserRole.RECIPIENT.value
             elif hasattr(self, "cashier"):
@@ -95,7 +100,6 @@ class CustomUser(AbstractUser):
 
 class Client(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, primary_key=True)
-
     if TYPE_CHECKING:
         articles: "RelatedManager[Article]"
 
@@ -119,6 +123,9 @@ class SocialCenter(AddressLocationMixin):
 class SocialWorker(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, primary_key=True)
     social_center = models.ForeignKey(SocialCenter, on_delete=models.CASCADE, related_name="social_workers")
+    is_social_admin = models.BooleanField(
+        default=False, help_text="Designates whether this social worker can create users and shops."
+    )
 
     def __str__(self) -> str:
         return str(self.user)
