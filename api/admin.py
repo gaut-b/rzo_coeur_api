@@ -1,8 +1,15 @@
 from django import forms
 from django.contrib import admin
+from django.contrib.auth import authenticate
+from django.contrib.auth import login as auth_login
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.gis.geos import Point
+from django.shortcuts import redirect, render
+from django.urls import reverse
+from django.utils.decorators import method_decorator
 from django.utils.html import format_html
+from django.utils.http import url_has_allowed_host_and_scheme
+from django.views.decorators.cache import never_cache
 
 from .models import (
     Article,
@@ -308,10 +315,46 @@ class SocialCenterAdmin(AddressLocationAdminMixin, admin.ModelAdmin):
         )
 
 
+class CashierAdmin(admin.ModelAdmin):
+    """
+    Standard admin for Cashier (for superusers in main admin).
+    Allows full control including shop selection.
+    """
+
+    list_display = ["get_email", "get_first_name", "get_last_name", "shop", "is_shop_manager"]
+    list_filter = ["is_shop_manager", "shop"]
+    search_fields = ["user__email", "user__first_name", "user__last_name", "shop__name"]
+    raw_id_fields = ["user"]
+
+    fieldsets = (
+        ("User Information", {"fields": ("user",)}),
+        ("Shop Assignment", {"fields": ("shop",)}),
+        ("Role", {"fields": ("is_shop_manager",)}),
+    )
+
+    def get_email(self, obj):
+        return obj.user.email
+
+    get_email.short_description = "Email"
+    get_email.admin_order_field = "user__email"
+
+    def get_first_name(self, obj):
+        return obj.user.first_name
+
+    get_first_name.short_description = "First Name"
+    get_first_name.admin_order_field = "user__first_name"
+
+    def get_last_name(self, obj):
+        return obj.user.last_name
+
+    get_last_name.short_description = "Last Name"
+    get_last_name.admin_order_field = "user__last_name"
+
+
 admin.site.register(Shop, ShopAdmin)
 admin.site.register(SocialCenter, SocialCenterAdmin)
 admin.site.register(SocialWorker)
-admin.site.register(Cashier)
+admin.site.register(Cashier, CashierAdmin)
 admin.site.register(Recipient)
 admin.site.register(Client)
 admin.site.register(CustomUser, CustomUserAdmin)
@@ -361,3 +404,419 @@ class ArticleAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Article, ArticleAdmin)
+
+
+# ============================================
+# BASE CUSTOM ADMIN SITE (reusable for different admin interfaces)
+# ============================================
+
+
+class CustomAdminSite(admin.AdminSite):
+    """
+    Base custom admin site with reusable login logic that doesn't require is_staff.
+    Subclasses must implement check_user_permission() to define role-specific access.
+    """
+
+    login_template = "admin/custom_admin_login.html"
+
+    def check_user_permission(self, user):
+        """
+        Check if user has permission to access this admin site.
+        Must be implemented by subclasses.
+
+        Returns:
+            bool: True if user has permission, False otherwise
+        """
+        raise NotImplementedError("Subclasses must implement check_user_permission()")
+
+    def get_permission_denied_message(self):
+        """
+        Get the error message to display when user doesn't have permission.
+        Can be overridden by subclasses for custom messages.
+        """
+        return "You do not have permission to access this area."
+
+    @method_decorator(never_cache)
+    def login(self, request, extra_context=None):
+        """
+        Custom login that doesn't require is_staff.
+        Displays the login form and handles the login action.
+        """
+        if request.method == "POST":
+            username = request.POST.get("username")
+            password = request.POST.get("password")
+
+            # Authenticate user
+            user = authenticate(request, username=username, password=password)
+
+            if user is not None and user.is_active:
+                # Check if user has the required role
+                if self.check_user_permission(user):
+                    auth_login(request, user)
+                    # Validate and redirect to the page they were trying to access or index
+                    next_url = request.GET.get("next", request.POST.get("next", ""))
+                    if next_url and url_has_allowed_host_and_scheme(
+                        url=next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+                    ):
+                        return redirect(next_url)
+                    else:
+                        return redirect(reverse("admin:index", current_app=self.name))
+                else:
+                    # User doesn't have the required role
+                    context = {
+                        "title": f"{self.site_title} Login",
+                        "site_title": self.site_title,
+                        "site_header": self.site_header,
+                        "error_message": self.get_permission_denied_message(),
+                        "username": username,
+                    }
+                    return render(request, self.login_template, context)
+            else:
+                # Invalid credentials
+                context = {
+                    "title": f"{self.site_title} Login",
+                    "site_title": self.site_title,
+                    "site_header": self.site_header,
+                    "error_message": "Please enter a correct email and password.",
+                    "username": username,
+                }
+                return render(request, self.login_template, context)
+
+        # GET request - show login form
+        context = {
+            "title": f"{self.site_title} Login",
+            "site_title": self.site_title,
+            "site_header": self.site_header,
+            "site": self,
+        }
+        if extra_context:
+            context.update(extra_context)
+
+        return render(request, self.login_template, context)
+
+    def has_permission(self, request):
+        """
+        Allow access to users who pass the role-specific check.
+        Does NOT require is_staff=True.
+        """
+        return request.user.is_active and request.user.is_authenticated and self.check_user_permission(request.user)
+
+
+# ============================================
+# SHOP ADMIN SITE (for Cashiers and Managers)
+# ============================================
+
+
+class ShopAdminSite(CustomAdminSite):
+    """
+    Custom admin site for shop managers and cashiers.
+    Accessible at /shop-admin/
+    """
+
+    site_header = "Shop Management"
+    site_title = "Shop Admin"
+    index_title = "Welcome to Shop Administration"
+
+    def check_user_permission(self, user):
+        """Check if user has a cashier profile."""
+        return hasattr(user, "cashier")
+
+    def get_permission_denied_message(self):
+        """Custom message for shop admin access denied."""
+        return "You do not have permission to access the shop admin."
+
+
+class CashierCreationForm(forms.ModelForm):
+    """
+    Custom form for creating cashiers with role selection.
+    The shop field is automatically filled from the logged-in manager's shop.
+    """
+
+    email = forms.EmailField(required=True, help_text="Email address for the new user")
+    first_name = forms.CharField(required=True, max_length=150)
+    last_name = forms.CharField(required=True, max_length=150)
+    password = forms.CharField(widget=forms.PasswordInput, required=True, help_text="Password for the new user")
+    role = forms.TypedChoiceField(
+        choices=[
+            (True, "Shop Manager"),
+            (False, "Cashier"),
+        ],
+        coerce=lambda x: x == "True",
+        required=True,
+        help_text="Select role for this user",
+    )
+
+    class Meta:
+        model = Cashier
+        fields = ["email", "first_name", "last_name", "password", "role"]
+
+    def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop("request", None)
+        super().__init__(*args, **kwargs)
+        # Don't show shop field - it will be auto-filled
+
+    def save(self, commit=True):
+        # Validate that we can determine the shop
+        if not self.request or not hasattr(self.request.user, "cashier"):
+            raise forms.ValidationError("Unable to determine shop. You must be logged in as a shop manager.")
+
+        # Create the CustomUser first
+        user = CustomUser.objects.create_user(
+            email=self.cleaned_data["email"],
+            password=self.cleaned_data["password"],
+            first_name=self.cleaned_data["first_name"],
+            last_name=self.cleaned_data["last_name"],
+        )
+
+        # Create the Cashier instance
+        cashier = super().save(commit=False)
+        cashier.user = user
+        cashier.shop = self.request.user.cashier.shop
+
+        # Set is_shop_manager based on role selection
+        cashier.is_shop_manager = self.cleaned_data["role"]
+
+        if commit:
+            cashier.save()
+        return cashier
+
+
+class CashierShopAdmin(admin.ModelAdmin):
+    """
+    Admin for managing cashiers in the shop.
+    Only accessible to shop managers.
+    """
+
+    list_display = ["get_email", "get_first_name", "get_last_name", "get_role", "shop"]
+    list_filter = ["is_shop_manager", "shop"]
+    search_fields = ["user__email", "user__first_name", "user__last_name"]
+
+    # Fieldsets for editing existing cashiers
+    fieldsets = (
+        ("User Information", {"fields": ("user",)}),
+        ("Role", {"fields": ("is_shop_manager",)}),
+    )
+
+    # Fieldsets for creating new cashiers
+    add_fieldsets = (
+        (
+            "User Information",
+            {
+                "fields": ("email", "first_name", "last_name", "password"),
+            },
+        ),
+        (
+            "Role",
+            {
+                "fields": ("role",),
+                "description": "Select whether this user should be a regular cashier or a shop manager.",
+            },
+        ),
+    )
+
+    def get_email(self, obj):
+        return obj.user.email
+
+    get_email.short_description = "Email"
+    get_email.admin_order_field = "user__email"
+
+    def get_first_name(self, obj):
+        return obj.user.first_name
+
+    get_first_name.short_description = "First Name"
+    get_first_name.admin_order_field = "user__first_name"
+
+    def get_last_name(self, obj):
+        return obj.user.last_name
+
+    get_last_name.short_description = "Last Name"
+    get_last_name.admin_order_field = "user__last_name"
+
+    def get_role(self, obj):
+        return "Manager" if obj.is_shop_manager else "Cashier"
+
+    get_role.short_description = "Role"
+
+    def get_fieldsets(self, request, obj=None):
+        """Use different fieldsets for creation vs editing."""
+        if obj is None:  # Creating new cashier
+            return self.add_fieldsets
+        return super().get_fieldsets(request, obj)
+
+    def get_form(self, request, obj=None, **kwargs):
+        """Use custom form for creation, standard form for editing."""
+        if obj is None:  # Creating new cashier
+            kwargs["form"] = CashierCreationForm
+            form_class = super().get_form(request, obj, **kwargs)
+
+            # Create a wrapper that injects request into form instantiation
+            class FormWithRequest(form_class):
+                def __init__(self, *args, **form_kwargs):
+                    form_kwargs["request"] = request
+                    super().__init__(*args, **form_kwargs)
+
+            return FormWithRequest
+        return super().get_form(request, obj, **kwargs)
+
+    def get_queryset(self, request):
+        """Filter cashiers by the logged-in user's shop."""
+        qs = super().get_queryset(request)
+        if hasattr(request.user, "cashier"):
+            return qs.filter(shop=request.user.cashier.shop)
+        return qs.none()
+
+    def has_view_permission(self, request, obj=None):
+        """Only shop managers can view cashiers."""
+        if not request.user.is_authenticated:
+            return False
+        if obj is None:
+            return hasattr(request.user, "cashier") and request.user.cashier.is_shop_manager
+        # Check if viewing cashier from same shop
+        return (
+            hasattr(request.user, "cashier")
+            and request.user.cashier.is_shop_manager
+            and obj.shop == request.user.cashier.shop
+        )
+
+    def has_add_permission(self, request):
+        """Only shop managers can add cashiers."""
+        return (
+            request.user.is_authenticated and hasattr(request.user, "cashier") and request.user.cashier.is_shop_manager
+        )
+
+    def has_change_permission(self, request, obj=None):
+        """Only shop managers can edit cashiers (including themselves)."""
+        if not request.user.is_authenticated:
+            return False
+        if obj is None:
+            return hasattr(request.user, "cashier") and request.user.cashier.is_shop_manager
+        # Check if editing cashier from same shop
+        return (
+            hasattr(request.user, "cashier")
+            and request.user.cashier.is_shop_manager
+            and obj.shop == request.user.cashier.shop
+        )
+
+    def has_delete_permission(self, request, obj=None):
+        """Only shop managers can delete cashiers."""
+        if not request.user.is_authenticated:
+            return False
+        if obj is None:
+            return hasattr(request.user, "cashier") and request.user.cashier.is_shop_manager
+        # Prevent deleting yourself and check same shop
+        return (
+            hasattr(request.user, "cashier")
+            and request.user.cashier.is_shop_manager
+            and obj.shop == request.user.cashier.shop
+            and obj.user != request.user
+        )
+
+    def has_module_permission(self, request):
+        """Show module only to shop managers."""
+        return (
+            request.user.is_authenticated and hasattr(request.user, "cashier") and request.user.cashier.is_shop_manager
+        )
+
+
+class ArticleShopAdmin(admin.ModelAdmin):
+    """
+    Read-only admin for viewing articles in the shop.
+    Accessible to both cashiers and shop managers.
+    """
+
+    list_display = ["id", "name", "barcode", "brand_label", "get_status", "created_at"]
+    list_filter = ["created_at", "cart"]
+    search_fields = ["barcode", "brand_label", "name"]
+    readonly_fields = [
+        "name",
+        "barcode",
+        "brand_label",
+        "client",
+        "shop",
+        "cart",
+        "img_url",
+        "thumb_url",
+        "created_at",
+        "updated_at",
+        "get_status",
+    ]
+
+    fieldsets = [
+        (
+            "Article Information",
+            {
+                "fields": ["name", "barcode", "brand_label", "get_status"],
+            },
+        ),
+        (
+            "Images",
+            {
+                "fields": ["img_url", "thumb_url"],
+            },
+        ),
+        (
+            "Relationships",
+            {
+                "fields": ["client", "shop", "cart"],
+            },
+        ),
+        (
+            "Timestamps",
+            {
+                "fields": ["created_at", "updated_at"],
+            },
+        ),
+    ]
+
+    def get_status(self, obj):
+        """Display article status based on cart relationship."""
+        if obj.cart is None:
+            return format_html('<span style="color: green; font-weight: bold;">Available</span>')
+
+        cart_status = obj.cart.status
+        if cart_status == "COLLECTED":
+            return format_html('<span style="color: gray;">Collected</span>')
+        elif cart_status == "ASSIGNED":
+            return format_html('<span style="color: orange;">In Cart (Assigned)</span>')
+        else:  # PENDING
+            return format_html('<span style="color: blue;">In Cart (Pending)</span>')
+
+    get_status.short_description = "Status"
+
+    def get_queryset(self, request):
+        """Filter articles by the logged-in user's shop."""
+        qs = super().get_queryset(request)
+        if hasattr(request.user, "cashier"):
+            return qs.filter(shop=request.user.cashier.shop)
+        return qs.none()
+
+    def has_add_permission(self, request):
+        """No one can add articles through shop admin (done via mobile app)."""
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        """No one can edit articles through shop admin (read-only)."""
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        """No one can delete articles through shop admin."""
+        return False
+
+    def has_view_permission(self, request, obj=None):
+        """Both cashiers and managers can view articles."""
+        if not request.user.is_authenticated:
+            return False
+        if obj is None:
+            return hasattr(request.user, "cashier")
+        # Check if viewing article from same shop
+        return hasattr(request.user, "cashier") and obj.shop == request.user.cashier.shop
+
+    def has_module_permission(self, request):
+        """Show module to all shop users (cashiers and managers)."""
+        return request.user.is_authenticated and hasattr(request.user, "cashier")
+
+
+# Create shop admin site instance
+shop_admin_site = ShopAdminSite(name="shop_admin")
+shop_admin_site.register(Article, ArticleShopAdmin)
+shop_admin_site.register(Cashier, CashierShopAdmin)
