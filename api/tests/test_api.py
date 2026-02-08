@@ -4,9 +4,9 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
-from .constants import MAX_ARTICLES_PER_REQUEST
-from .enums import CartStatus, UserRole
-from .models import (
+from api.constants import MAX_ARTICLES_PER_REQUEST
+from api.enums import CartStatus, UserRole
+from api.models import (
     Article,
     Cart,
     Cashier,
@@ -99,7 +99,7 @@ class CustomUserSerializerTests(APITestCase):
     def setUp(self):
         """Set up test data for serializer tests."""
         # Import here to avoid circular import
-        from .serializers import CustomUserSerializer
+        from api.serializers import CustomUserSerializer
 
         self.CustomUserSerializer = CustomUserSerializer
 
@@ -1706,14 +1706,14 @@ class CartDetailViewTests(APITestCase):
 
         # Create articles for cart_assigned
         self.article1 = Article.objects.create(
-            barcode="3017620422003",
+            barcode=3017620422003,
             name="Product 1",
             shop=self.shop1,
             client=self.client,
             cart=self.cart_assigned,
         )
         self.article2 = Article.objects.create(
-            barcode="3564700013151",
+            barcode=3564700013151,
             name="Product 2",
             shop=self.shop1,
             client=self.client,

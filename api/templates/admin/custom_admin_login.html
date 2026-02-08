@@ -1,0 +1,67 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ title }} | {{ site_title }}</title>
+    <link rel="stylesheet" href="{% static 'admin/css/login.css' %}" />
+    <link rel="stylesheet" href="{% static 'admin/css/base.css' %}" />
+    <link rel="stylesheet" href="{% static 'admin/css/responsive.css' %}" />
+  </head>
+  <body class="login">
+    <div id="container">
+      <div id="header">
+        <div id="branding">
+          <h1 id="site-name">{{ site_header }}</h1>
+        </div>
+      </div>
+
+      <div id="content">
+        <div id="content-main">
+          {% if error_message %}
+          <p class="errornote">{{ error_message }}</p>
+          {% endif %}
+
+          <form method="post" id="login-form">
+            {% csrf_token %}
+
+            <div class="form-row">
+              <label for="id_username" class="required">Email:</label>
+              <input
+                type="email"
+                name="username"
+                id="id_username"
+                value="{{ username|default:'' }}"
+                required
+                autofocus
+              />
+            </div>
+
+            <div class="form-row">
+              <label for="id_password" class="required">Password:</label>
+              <input
+                type="password"
+                name="password"
+                id="id_password"
+                required
+              />
+            </div>
+
+            <input
+              type="hidden"
+              name="next"
+              value="{{ next|default:'/shop-admin/' }}"
+            />
+
+            <div class="submit-row">
+              <input type="submit" value="Log in" />
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div id="footer"></div>
+    </div>
+  </body>
+</html>

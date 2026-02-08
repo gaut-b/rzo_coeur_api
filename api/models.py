@@ -83,7 +83,11 @@ class CustomUser(AbstractUser):
             elif hasattr(self, "recipient"):
                 self._cached_role = UserRole.RECIPIENT.value
             elif hasattr(self, "cashier"):
-                self._cached_role = UserRole.CASHIER.value
+                # Check if cashier is a shop manager
+                if self.cashier.is_shop_manager:
+                    self._cached_role = UserRole.SHOP_MANAGER.value
+                else:
+                    self._cached_role = UserRole.CASHIER.value
             else:
                 self._cached_role = None
         return self._cached_role
@@ -141,10 +145,18 @@ class Shop(AddressLocationMixin):
 
 class Cashier(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, primary_key=True)
-    shop = models.OneToOneField(Shop, on_delete=models.CASCADE, related_name="cashier")
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name="cashiers")
+    is_shop_manager = models.BooleanField(
+        default=False, help_text="Designates whether this cashier can manage other cashiers."
+    )
 
     def __str__(self) -> str:
-        return str(self.user)
+        role = "Manager" if self.is_shop_manager else "Cashier"
+        return f"{self.user} ({role} at {self.shop.name})"
+
+    class Meta:
+        verbose_name = "Cashier"
+        verbose_name_plural = "Cashiers"
 
 
 class Cart(models.Model):
