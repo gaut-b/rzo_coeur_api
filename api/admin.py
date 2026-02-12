@@ -266,6 +266,69 @@ class ShopAdmin(AddressLocationAdminMixin, admin.ModelAdmin):
             "api/js/admin_shop_autocomplete.js",
         )
 
+    # Make sure we are only seeing the related shops whether user is social admin or superuser
+    def get_queryset(self, request):
+        if hasattr(request.user, "socialworker") and request.user.socialworker.is_social_admin:
+            request_social_center = "0"
+            qs = super(ShopAdmin, self).get_queryset(request)
+            for s in Shop.objects.all():
+                if hasattr(request.user, "socialworker"):  # we're not going through this...FIXME
+                    request_social_center = request.user.socialworker.social_center
+            return qs.filter(social_center=request_social_center)
+        else:
+            return super(ShopAdmin, self).get_queryset(request)
+
+    def is_from_same_social_center(self, request, obj):
+        return (
+            hasattr(request.user, "socialworker")
+            and request.user.socialworker.is_social_admin
+            and obj.social_center == request.user.socialworker.social_center
+            and obj.user != request.user
+        )
+
+    def has_view_permission(self, request, obj=None):
+        if not request.user.is_authenticated:
+            return False
+        if obj is None:
+            print(f"{Shop.objects.all()}")
+            return hasattr(request.user, "socialworker") and request.user.socialworker.is_social_admin
+        else:
+            return self.is_from_same_social_center(request, obj) or request.user.is_staff
+
+    def has_add_permission(self, request):
+        return request.user.is_staff or (
+            request.user.is_authenticated
+            and hasattr(request.user, "socialworker")
+            and request.user.socialworker.is_social_admin
+        )
+
+    def has_change_permission(self, request, obj=None):
+        if not request.user.is_authenticated:
+            return False
+        if obj is None:
+            return request.user.is_staff or (
+                hasattr(request.user, "socialworker") and request.user.socialworker.is_social_admin
+            )
+        else:
+            return self.is_from_same_social_center(request, obj) or request.user.is_staff
+
+    def has_delete_permission(self, request, obj=None):
+        if not request.user.is_authenticated:
+            return False
+        if obj is None:
+            return request.user.is_staff or (
+                hasattr(request.user, "socialworker") and request.user.socialworker.is_social_admin
+            )
+        else:
+            return self.is_from_same_social_center(request, obj) or request.user.is_staff
+
+    def has_module_permission(self, request):
+        return request.user.is_staff or (
+            request.user.is_authenticated
+            and hasattr(request.user, "socialworker")
+            and request.user.socialworker.is_social_admin
+        )
+
 
 class SocialCenterAdmin(AddressLocationAdminMixin, admin.ModelAdmin):
     """
@@ -514,7 +577,7 @@ class SocialAdminSite(CustomAdminSite):
 
     def check_user_permission(self, user):
         """Check if user has a social admin role."""
-        return user.role == UserRole.SOCIAL_ADMIN.value
+        return user.role == UserRole.SOCIAL_ADMIN.value or user.is_staff
 
     def get_permission_denied_message(self):
         """Custom message for social admin access denied."""
@@ -589,7 +652,7 @@ class RecipientCreationForm(forms.ModelForm):
         # Don't show shop field - it will be auto-filled
 
     def save(self, commit=True):
-        if not (self.request.user.is_staff or hasattr(self.request.user, "socialworker")) or not self.request:
+        if not self.request or not (self.request.user.is_staff or hasattr(self.request.user, "socialworker")):
             raise forms.ValidationError("Cannot create user, insufficient rights.")
 
         # Create the CustomUser first
@@ -685,7 +748,7 @@ class SocialWorkerAdmin(admin.ModelAdmin):
 
     def is_from_same_social_center(self, request, obj):
         return (
-            hasattr(request.user, "cashier")
+            hasattr(request.user, "socialworker")
             and request.user.socialworker.is_social_admin
             and obj.social_center == request.user.socialworker.social_center
             and obj.user != request.user
@@ -698,40 +761,52 @@ class SocialWorkerAdmin(admin.ModelAdmin):
         if not request.user.is_authenticated:
             return False
         if obj is None:
-            return hasattr(request.user, "socialworker") and request.user.socialworker.is_social_admin
+            return (
+                hasattr(request.user, "socialworker")
+                and request.user.socialworker.is_social_admin
+                or request.user.is_staff
+            )
         else:
-            return self.is_from_same_social_center(request, obj)
+            return self.is_from_same_social_center(request, obj) or request.user.is_staff
 
     def has_add_permission(self, request):
         return (
             request.user.is_authenticated
             and hasattr(request.user, "socialworker")
             and request.user.socialworker.is_social_admin
+            or request.user.is_staff
         )
 
     def has_change_permission(self, request, obj=None):
         if not request.user.is_authenticated:
             return False
         if obj is None:
-            return hasattr(request.user, "socialworker") and request.user.socialworker.is_social_admin
+            return (
+                hasattr(request.user, "socialworker")
+                and request.user.socialworker.is_social_admin
+                or request.user.is_staff
+            )
         else:
-            return self.is_from_same_social_center(request, obj)
+            return self.is_from_same_social_center(request, obj) or request.user.is_staff
 
     def has_delete_permission(self, request, obj=None):
-        """Only shop managers can delete cashiers."""
         if not request.user.is_authenticated:
             return False
         if obj is None:
-            return hasattr(request.user, "socialworker") and request.user.socialworker.is_social_admin
+            return (
+                hasattr(request.user, "socialworker")
+                and request.user.socialworker.is_social_admin
+                or request.user.is_staff
+            )
         else:
-            return self.is_from_same_social_center(request, obj)
+            return self.is_from_same_social_center(request, obj) or request.user.is_staff
 
     def has_module_permission(self, request):
-        """Show module only to shop managers."""
         return (
             request.user.is_authenticated
             and hasattr(request.user, "socialworker")
             and request.user.socialworker.is_social_admin
+            or request.user.is_staff
         )
 
 
@@ -853,9 +928,9 @@ class RecipientAdmin(admin.ModelAdmin):
 
 
 social_admin_site = SocialAdminSite(name="social_admin")
+social_admin_site.register(Shop, ShopAdmin)
 social_admin_site.register(SocialWorker, SocialWorkerAdmin)
 social_admin_site.register(Recipient, RecipientAdmin)
-social_admin_site.register(Shop, ShopAdmin)
 admin.site.register(Recipient, RecipientAdmin)
 
 # ============================================
@@ -912,7 +987,6 @@ class CashierCreationForm(forms.ModelForm):
         # Don't show shop field - it will be auto-filled
 
     def save(self, commit=True):
-        # Validate that we can determine the shop
         if not self.request or not hasattr(self.request.user, "cashier"):
             raise forms.ValidationError("Unable to determine shop. You must be logged in as a shop manager.")
 
