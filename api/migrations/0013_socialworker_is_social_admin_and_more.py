@@ -16,11 +16,4 @@ class Migration(migrations.Migration):
                 default=False, help_text="Designates whether this social worker can create users and shops."
             ),
         ),
-        migrations.AlterField(
-            model_name="cashier",
-            name="is_shop_manager",
-            field=models.BooleanField(
-                default=False, help_text="Designates whether this cashier can manage other cashiers."
-            ),
-        ),
     ]
