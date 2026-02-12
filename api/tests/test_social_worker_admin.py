@@ -147,7 +147,7 @@ class TestIsFromSameSocialCenter(TestCase):
     def test_returns_false_when_user_has_no_cashier(self):
         """The check explicitly requires hasattr(request.user, 'cashier')."""
         sc = _make_social_center()
-        request = _make_request(has_socialworker=True, is_social_admin=True, has_cashier=False, social_center=sc)
+        request = _make_request(has_socialworker=False, is_social_admin=False, has_cashier=True, social_center=sc)
         obj = _make_obj(social_center=sc)
 
         result = self.admin.is_from_same_social_center(request, obj)

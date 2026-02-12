@@ -23,12 +23,13 @@ class SocialAdminSiteTests(TestCase):
         """Test check_user_permission returns True for social admin users"""
         user = Mock()
         user.role = UserRole.SOCIAL_ADMIN.value
-
+        user.is_staff = False
         self.assertTrue(self.site.check_user_permission(user))
 
     def test_check_user_permission_with_non_social_admin(self):
         """Test check_user_permission returns False for non-social admin users"""
         user = Mock()
+        user.is_staff = False
         user.role = UserRole.CLIENT.value
 
         self.assertFalse(self.site.check_user_permission(user))
@@ -62,6 +63,7 @@ class SocialAdminSiteTests(TestCase):
         request = self.factory.get("/social-admin/")
         request.user = Mock()
         request.user.is_active = False
+        request.user.is_staff = False
         request.user.is_authenticated = True
         request.user.role = UserRole.SOCIAL_ADMIN.value
 
@@ -73,6 +75,7 @@ class SocialAdminSiteTests(TestCase):
         request.user = Mock()
         request.user.is_active = True
         request.user.is_authenticated = True
+        request.user.is_staff = False
         request.user.role = UserRole.CLIENT.value
 
         self.assertFalse(self.site.has_permission(request))
