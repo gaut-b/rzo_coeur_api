@@ -124,7 +124,7 @@ class CustomUserSerializerTests(APITestCase):
         )
 
     def test_serialize_user_without_role(self):
-        """Test serialization of a user without any role."""
+        """Test serialization of a user without any role returns UNKNOWN."""
         user = CustomUser.objects.create_user(  # type: ignore[call-arg]
             email="norole@test.com", password="testpass123", first_name="Sans", last_name="Role"
         )
@@ -135,7 +135,7 @@ class CustomUserSerializerTests(APITestCase):
         self.assertEqual(data["email"], "norole@test.com")
         self.assertEqual(data["first_name"], "Sans")
         self.assertEqual(data["last_name"], "Role")
-        self.assertIsNone(data["role"])
+        self.assertEqual(data["role"], "UNKNOWN")
 
     def test_serialize_client(self):
         """Test serialization of a user with CLIENT role."""
@@ -151,7 +151,7 @@ class CustomUserSerializerTests(APITestCase):
         self.assertEqual(data["role"], UserRole.CLIENT.value)
 
     def test_serialize_social_worker(self):
-        """Test serialization of a user with SOCIAL_WORKER role."""
+        """Test serialization of a user with SOCIAL_WORKER role returns UNKNOWN."""
         user = CustomUser.objects.create_user(  # type: ignore[call-arg]
             email="socialworker@test.com",
             password="testpass123",
@@ -164,7 +164,7 @@ class CustomUserSerializerTests(APITestCase):
         data = serializer.data
 
         self.assertEqual(data["email"], "socialworker@test.com")
-        self.assertEqual(data["role"], UserRole.SOCIAL_WORKER.value)
+        self.assertEqual(data["role"], "UNKNOWN")
 
     def test_serialize_recipient(self):
         """Test serialization of a user with RECIPIENT role."""
@@ -196,6 +196,23 @@ class CustomUserSerializerTests(APITestCase):
         data = serializer.data
 
         self.assertEqual(data["email"], "cashier@test.com")
+        self.assertEqual(data["role"], UserRole.CASHIER.value)
+
+    def test_serialize_shop_manager(self):
+        """Test serialization of a user with SHOP_MANAGER role returns CASHIER."""
+        user = CustomUser.objects.create_user(  # type: ignore[call-arg]
+            email="shopmanager@test.com",
+            password="testpass123",
+            first_name="Manager",
+            last_name="Shop",
+        )
+        Cashier.objects.create(user=user, shop=self.shop, is_shop_manager=True)
+
+        serializer = self.CustomUserSerializer(user)
+        data = serializer.data
+
+        self.assertEqual(data["email"], "shopmanager@test.com")
+        # Shop managers should be mapped to CASHIER for frontend compatibility
         self.assertEqual(data["role"], UserRole.CASHIER.value)
 
     def test_role_field_is_read_only(self):
