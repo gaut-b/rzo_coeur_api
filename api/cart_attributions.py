@@ -150,8 +150,12 @@ class ArticleToCartForm(ActionForm):
 
     def clean_cart(self):
         cart = self.cleaned_data["cart"]
+        if cart.status == "COLLECTED":
+            raise forms.ValidationError("Cart is already Collected")
         ref_shop = self.queryset.first().shop
         for article in self.queryset:
+            if article.cart is not None:
+                raise forms.ValidationError("An article is already assigned to a cart")
             if article.shop != ref_shop:
                 raise forms.ValidationError("Articles are not from same shop")
         if cart.shop != ref_shop:
@@ -160,7 +164,7 @@ class ArticleToCartForm(ActionForm):
 
 
 class ArticleAttrAdmin(AdminActionFormsMixin, admin.ModelAdmin):
-    list_display = ["id", "name", "shop", "brand_label", "get_status", "cart"]
+    list_display = ["id", "name", "shop", "brand_label", "get_status", "cart__id"]
     list_filter = ["cart"]
 
     @action_with_form(
@@ -173,11 +177,7 @@ class ArticleAttrAdmin(AdminActionFormsMixin, admin.ModelAdmin):
             article.cart = cart
             article.save()
 
-    @action_with_form(
-        ArticleToCartForm,
-        description="Remove Article from Cart",
-    )
-    def remove_from_cart(self, request, queryset, data):
+    def remove_from_cart(self, request, queryset):
         for article in queryset:
             article.cart = None
             article.save()
