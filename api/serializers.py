@@ -380,6 +380,48 @@ class CartSerializer(serializers.ModelSerializer):
         return f"{user.first_name} {user.last_name}"
 
 
+class PhotoUploadSerializer(serializers.Serializer):
+    """
+    Serializer for article photo uploads.
+
+    Validates that the uploaded file is an image of an accepted MIME type
+    (JPEG, PNG, or WebP) and does not exceed the maximum allowed size.
+    """
+
+    # 5 MB limit
+    MAX_SIZE_BYTES = 5 * 1024 * 1024
+    ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
+
+    image = serializers.ImageField(help_text="Image file to upload (JPEG, PNG or WebP, max 5 MB).")
+
+    def validate_image(self, value):
+        """
+        Validate image MIME type and file size.
+
+        Parameters:
+            value: The uploaded InMemoryUploadedFile or TemporaryUploadedFile.
+
+        Returns:
+            The validated file if all checks pass.
+
+        Raises:
+            serializers.ValidationError: If the file type or size is invalid.
+        """
+        if value.content_type not in self.ALLOWED_CONTENT_TYPES:
+            raise serializers.ValidationError(
+                f"Unsupported file type '{value.content_type}'. "
+                f"Accepted types: {', '.join(sorted(self.ALLOWED_CONTENT_TYPES))}."
+            )
+
+        if value.size > self.MAX_SIZE_BYTES:
+            max_mb = self.MAX_SIZE_BYTES / (1024 * 1024)
+            raise serializers.ValidationError(
+                f"File size {value.size / (1024 * 1024):.1f} MB exceeds the " f"{max_mb:.0f} MB limit."
+            )
+
+        return value
+
+
 class CartCollectSerializer(serializers.Serializer):
     """
     Serializer for marking a Cart as collected.

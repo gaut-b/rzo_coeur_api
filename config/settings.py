@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "allauth.account",
     "auth_kit",
     "django_admin_action_forms",
+    "storages",
 ]
 
 REST_FRAMEWORK = {
@@ -190,6 +191,48 @@ _script_name = os.environ.get("FORCE_SCRIPT_NAME", "").rstrip("/")
 STATIC_URL = f"{_script_name}/static/" if _script_name else "static/"
 MEDIA_URL = f"{_script_name}/media/" if _script_name else "media/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# ---------------------------------------------------------------------------
+# Media / Object Storage (MinIO / S3-compatible)
+# ---------------------------------------------------------------------------
+# When MINIO_ENDPOINT_URL is set (typically in Docker), uploaded files are
+# stored in the configured S3-compatible bucket and served publicly as a CDN.
+# When the variable is absent (e.g. running tests locally without MinIO), we
+# fall back to Django's default local filesystem storage so that tests don't
+# require a live MinIO instance.
+# ---------------------------------------------------------------------------
+
+STORAGES = {
+    "default": {
+        "BACKEND": (
+            "storages.backends.s3boto3.S3Boto3Storage"
+            if os.environ.get("MINIO_ENDPOINT_URL")
+            else "django.core.files.storage.FileSystemStorage"
+        ),
+    },
+    "staticfiles": {
+        # CompressedManifestStaticFilesStorage requires a pre-built manifest
+        # (collectstatic). Use it only in production; fall back to the plain
+        # Django storage in development and during tests.
+        "BACKEND": (
+            "whitenoise.storage.CompressedManifestStaticFilesStorage"
+            if not DEBUG
+            else "django.contrib.staticfiles.storage.StaticFilesStorage"
+        ),
+    },
+}
+
+# S3 / MinIO credentials – ignored when falling back to local storage
+AWS_S3_ENDPOINT_URL = os.environ.get("MINIO_ENDPOINT_URL", "")
+AWS_ACCESS_KEY_ID = os.environ.get("MINIO_ROOT_USER", "minioadmin")
+AWS_SECRET_ACCESS_KEY = os.environ.get("MINIO_ROOT_PASSWORD", "minioadmin")
+AWS_STORAGE_BUCKET_NAME = os.environ.get("MINIO_BUCKET_NAME", "articles-photos")
+AWS_S3_FILE_OVERWRITE = False
+AWS_DEFAULT_ACL = "public-read"
+# Use path-style URLs (required by MinIO): http://<host>/<bucket>/<key>
+AWS_S3_ADDRESSING_STYLE = "path"
+# Public base URL served to clients (same host as the API endpoint)
+AWS_S3_CUSTOM_DOMAIN = os.environ.get("MINIO_PUBLIC_URL", "")
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

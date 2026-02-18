@@ -1,9 +1,13 @@
+import uuid
+
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
+from django.core.files.storage import default_storage
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiExample, extend_schema
+from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -16,6 +20,7 @@ from .serializers import (
     BulkArticleCreateSerializer,
     CartCollectSerializer,
     CartSerializer,
+    PhotoUploadSerializer,
     ShopSerializer,
 )
 
@@ -825,3 +830,124 @@ class ShopListView(APIView):
         # Serialize and return paginated response
         serializer = ShopSerializer(paginated_shops, many=True)
         return paginator.get_paginated_response(serializer.data)
+
+
+class ArticleBarcodeView(APIView):
+    """
+    Retrieve the first article stored in our database for a given barcode.
+
+    Only accessible by authenticated Client users. This endpoint is intended
+    to be called before creating a new article: if the barcode already exists
+    in our database, the stored metadata (name, img_url, brand_label …) can
+    be reused instead of requiring the user to enter them manually.
+
+    GET /api/articles/barcode/<barcode>/
+    """
+
+    permission_classes = [IsClient]
+
+    @extend_schema(
+        summary="Get article by barcode from our database",
+        description=(
+            "Returns the first article found in our database for the given barcode. "
+            "Intended as a fallback when a third-party product database returns no "
+            "result: the client can reuse metadata already stored locally.\n\n"
+            "**Permissions:** Client role required."
+        ),
+        parameters=[
+            OpenApiParameter(
+                name="barcode",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.PATH,
+                description="EAN/UPC barcode number of the article.",
+            )
+        ],
+        responses={200: ArticleSerializer, 404: None},
+        tags=["Articles"],
+    )
+    def get(self, request, barcode: int):
+        """
+        Return the first article matching the given barcode.
+
+        Parameters:
+            request: The incoming HTTP request.
+            barcode (int): The barcode value extracted from the URL path.
+
+        Returns:
+            Response: 200 with serialized article data, or 404 if not found.
+        """
+        article = Article.objects.filter(barcode=barcode).first()
+        if article is None:
+            return Response(
+                {"detail": f"No article found with barcode {barcode}."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        serializer = ArticleSerializer(article)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class ArticlePhotoUploadView(APIView):
+    """
+    Upload a photo for an article and store it in object storage (MinIO/S3).
+
+    Returns the public URL of the uploaded image so the client can store it
+    in the ``img_url`` field when creating the article.
+
+    Only accessible by authenticated Client users.
+
+    POST /api/articles/photos/
+    Content-Type: multipart/form-data
+    """
+
+    permission_classes = [IsClient]
+    parser_classes = [MultiPartParser]
+
+    @extend_schema(
+        summary="Upload an article photo",
+        description=(
+            "Accepts a multipart image file (JPEG, PNG, or WebP, max 5 MB), "
+            "stores it in the object storage bucket, and returns the public "
+            "URL.\n\n"
+            "**Workflow:** call this endpoint first to obtain a URL, then pass "
+            "that URL as ``img_url`` when creating the article.\n\n"
+            "**Permissions:** Client role required."
+        ),
+        request=PhotoUploadSerializer,
+        responses={
+            201: {
+                "type": "object",
+                "properties": {"url": {"type": "string", "format": "uri"}},
+            },
+            400: None,
+        },
+        tags=["Articles"],
+    )
+    def post(self, request):
+        """
+        Validate and store an uploaded image file.
+
+        Generates a UUID-based filename to avoid collisions and path-injection
+        attacks, then delegates storage to Django's ``default_storage`` backend
+        (MinIO in Docker, local filesystem in tests).
+
+        Parameters:
+            request: The incoming HTTP request containing the multipart file.
+
+        Returns:
+            Response: 201 with ``{"url": "<public URL>"}`` on success,
+                      or 400 with validation errors.
+        """
+        serializer = PhotoUploadSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        image_file = serializer.validated_data["image"]
+
+        # Build a collision-safe filename: <uuid>.<original_extension>
+        original_extension = image_file.name.rsplit(".", 1)[-1].lower() if "." in image_file.name else "jpg"
+        filename = f"articles/{uuid.uuid4().hex}.{original_extension}"
+
+        saved_path = default_storage.save(filename, image_file)
+        url = default_storage.url(saved_path)
+
+        return Response({"url": url}, status=status.HTTP_201_CREATED)
