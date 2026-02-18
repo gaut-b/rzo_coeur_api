@@ -21,6 +21,7 @@ dependencies = [
     "pyjwt==2.10.1",
     "psycopg2-binary==2.9.11",
     "whitenoise==6.8.2",
+    "django-admin-action-forms>=2.2.1",
 ]
 
 [dependency-groups]

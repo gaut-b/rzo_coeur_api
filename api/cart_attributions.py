@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib import admin
 from django.utils.html import format_html
+from django_admin_action_forms import ActionForm, AdminActionFormsMixin, action_with_form
 
 from .admin import CustomAdminSite
 from .enums import UserRole
@@ -14,34 +15,32 @@ from .models import (
 
 class CartCreationForm(forms.ModelForm):
     shop = forms.ModelChoiceField(queryset=Shop.objects.none())
-    articles = forms.ModelChoiceField(queryset=Article.objects.none(), required=False)
 
     class Meta:
         model = Cart
-        fields = ["shop", "articles", "recipient"]
+        fields = ["shop", "recipient"]
 
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop("request", None)
-        print(self.request.user)
         self.base_fields["shop"] = forms.ModelChoiceField(
             queryset=Shop.objects.filter(social_center__name=self.request.user.socialworker.social_center)
         )
         super().__init__(*args, **kwargs)
 
-        def save(self, commit=True):
-            if not self.request or not (self.request.user.is_staff or hasattr(self.request.user, "socialworker")):
-                raise forms.ValidationError("Cannot create cart, insufficient rights.")
+    def save(self, commit=True):
+        if not self.request or not (self.request.user.is_staff or hasattr(self.request.user, "socialworker")):
+            raise forms.ValidationError("Cannot create cart, insufficient rights.")
 
-            cart = super().save(commit=False)
-            cart.shop = self.shop
+        cart = super().save(commit=False)
+        cart.shop = self.shop
 
-            if commit:
-                cart.save()
-            return cart
+        if commit:
+            cart.save()
+        return cart
 
 
 class CartAttribAdmin(admin.ModelAdmin):
-    list_display = ["shop", "status", "collected_at"]
+    list_display = ["id", "shop", "status", "collected_at"]
 
     # Cart should have a social center attribute as well as shop
     def get_form(self, request, obj=None, **kwargs):
@@ -59,8 +58,8 @@ class CartAttribAdmin(admin.ModelAdmin):
             return FormWithRequest
         return super().get_form(request, obj, **kwargs)
 
-    # Permissions are to check if social admin
-    # add, change, delete and view are reserved to social center admin or superuser
+    # Permissions are to check if user is social worker or superuser
+    # add, change, delete and view are reserved to social worker or superuser
     def has_view_permission(self, request, obj=None):
         if not request.user.is_authenticated:
             return False
@@ -151,9 +150,34 @@ class RecipientAttrAdmin(admin.ModelAdmin):
         )
 
 
-class ArticleAttrAdmin(admin.ModelAdmin):
-    list_display = ["id", "name", "brand_label", "get_status", "cart"]
+class ArticleToCartForm(ActionForm):
+    cart = forms.ModelChoiceField(queryset=Cart.objects.all())
+
+
+class ArticleAttrAdmin(AdminActionFormsMixin, admin.ModelAdmin):
+    list_display = ["id", "name", "shop", "brand_label", "get_status", "cart"]
     list_filter = ["cart"]
+
+    @action_with_form(
+        ArticleToCartForm,
+        description="Assign Article to Cart",
+    )
+    def assign_to_cart(self, request, queryset, data):
+        cart = data["cart"]
+        for article in queryset:
+            article.cart = cart
+            article.save()
+
+    @action_with_form(
+        ArticleToCartForm,
+        description="Remove Article from Cart",
+    )
+    def remove_from_cart(self, request, queryset, data):
+        for article in queryset:
+            article.cart = None
+            article.save()
+
+    actions = ["assign_to_cart", "remove_from_cart"]
 
     def get_status(self, obj):
         """Display article status based on cart relationship."""
