@@ -32,7 +32,7 @@ class CartCreationForm(forms.ModelForm):
             raise forms.ValidationError("Cannot create cart, insufficient rights.")
 
         cart = super().save(commit=False)
-        cart.shop = self.cleaned_data['shop']
+        cart.shop = self.cleaned_data["shop"]
 
         if commit:
             cart.save()
@@ -152,6 +152,16 @@ class RecipientAttrAdmin(admin.ModelAdmin):
 
 class ArticleToCartForm(ActionForm):
     cart = forms.ModelChoiceField(queryset=Cart.objects.all())
+
+    def clean_cart(self):
+        cart = self.cleaned_data["cart"]
+        ref_shop = self.queryset.first().shop
+        for article in self.queryset:
+            if article.shop != ref_shop:
+                raise forms.ValidationError("Articles are not from same shop")
+        if cart.shop != ref_shop:
+            raise forms.ValidationError("Cart and Articles are not from same shop")
+        return cart
 
 
 class ArticleAttrAdmin(AdminActionFormsMixin, admin.ModelAdmin):
