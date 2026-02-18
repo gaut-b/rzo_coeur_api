@@ -135,6 +135,18 @@ wheels = [
 ]
 
 [[package]]
+name = "django-admin-action-forms"
+version = "2.2.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "django" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4d/22/ea5897b32c8c3042f242ba694a55f7380de5668e98d2b73d219636daa30c/django_admin_action_forms-2.2.1.tar.gz", hash = "sha256:94ff59964ece5d6b8d2c9c307f22837863be173e3fb64fdcd64d6f301e1d0c9d", size = 31457, upload-time = "2025-10-28T23:10:45.619Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c2/6e/daad0e2f943578a07ee358e80dda4a24f558e0954f5866956a44d8a789fe/django_admin_action_forms-2.2.1-py3-none-any.whl", hash = "sha256:597d20d36fcb6cfbb0b5e0ed83df0c9dbd5af6b225f7af24f5b96a2ed84d4d35", size = 34312, upload-time = "2025-10-28T23:10:41.622Z" },
+]
+
+[[package]]
 name = "django-allauth"
 version = "65.10.0"
 source = { registry = "https://pypi.org/simple" }
@@ -741,6 +753,7 @@ version = "1.0.0"
 source = { virtual = "." }
 dependencies = [
     { name = "django" },
+    { name = "django-admin-action-forms" },
     { name = "django-allauth" },
     { name = "django-cors-headers" },
     { name = "django-extensions" },
@@ -771,6 +784,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "django", specifier = "==5.2.7" },
+    { name = "django-admin-action-forms", specifier = ">=2.2.1" },
     { name = "django-allauth", specifier = "==65.10.0" },
     { name = "django-cors-headers", specifier = "==4.6.0" },
     { name = "django-extensions", specifier = "==4.1" },

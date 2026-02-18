@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "allauth",
     "allauth.account",
     "auth_kit",
+    "django_admin_action_forms"
 ]
 
 REST_FRAMEWORK = {
