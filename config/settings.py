@@ -26,6 +26,7 @@ DEBUG = os.environ.get("DEBUG", "0").lower() in ("1", "true", "yes")
 
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")]
 
+
 AUTH_USER_MODEL = "api.CustomUser"
 
 GRAPH_MODELS = {
@@ -33,7 +34,7 @@ GRAPH_MODELS = {
     "group_models": True,
 }
 # Application definition
-
+CSRF_TRUSTED_ORIGINS = ["https://carie-tingly-saniyah.ngrok-free.dev"]
 INSTALLED_APPS = [
     "api.apps.ApiConfig",
     "django.contrib.admin",
@@ -49,6 +50,7 @@ INSTALLED_APPS = [
     "allauth",
     "allauth.account",
     "auth_kit",
+    "django_admin_action_forms",
 ]
 
 REST_FRAMEWORK = {
