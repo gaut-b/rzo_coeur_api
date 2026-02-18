@@ -11,9 +11,12 @@ load_dotenv(BASE_DIR / ".env")
 load_dotenv(BASE_DIR / ".env.local", override=True)
 BASE_DIR = Path(__file__).resolve(strict=True).parent.parent
 
-# GDAL configuration
-GDAL_LIBRARY_PATH = os.getenv("GDAL_LIBRARY_PATH")
-GEOS_LIBRARY_PATH = os.getenv("GEOS_LIBRARY_PATH")
+# Geospatial libraries — only set when explicitly provided (macOS/custom installs).
+# Leave unset inside Docker so that Django auto-discovers the system libraries.
+if _gdal_path := os.getenv("GDAL_LIBRARY_PATH"):
+    GDAL_LIBRARY_PATH = _gdal_path
+if _geos_path := os.getenv("GEOS_LIBRARY_PATH"):
+    GEOS_LIBRARY_PATH = _geos_path
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -205,7 +208,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STORAGES = {
     "default": {
         "BACKEND": (
-            "storages.backends.s3boto3.S3Boto3Storage"
+            "config.storage.MinIOPublicStorage"
             if os.environ.get("MINIO_ENDPOINT_URL")
             else "django.core.files.storage.FileSystemStorage"
         ),
@@ -229,10 +232,18 @@ AWS_SECRET_ACCESS_KEY = os.environ.get("MINIO_ROOT_PASSWORD", "minioadmin")
 AWS_STORAGE_BUCKET_NAME = os.environ.get("MINIO_BUCKET_NAME", "articles-photos")
 AWS_S3_FILE_OVERWRITE = False
 AWS_DEFAULT_ACL = "public-read"
+# Disable presigned URL query parameters (AWSAccessKeyId, Signature, Expires).
+# The bucket is public-read so no signing is needed, and query params break
+# the nginx /storage/ proxy rewrite.
+AWS_QUERYSTRING_AUTH = False
 # Use path-style URLs (required by MinIO): http://<host>/<bucket>/<key>
 AWS_S3_ADDRESSING_STYLE = "path"
-# Public base URL served to clients (same host as the API endpoint)
-AWS_S3_CUSTOM_DOMAIN = os.environ.get("MINIO_PUBLIC_URL", "")
+# Derive the public MinIO URL from API_URL so a single variable controls all
+# public-facing addresses:
+#   http://localhost/storage/articles-photos  (dev)
+#   https://api.example.com/storage/articles-photos  (prod)
+_api_url = os.environ.get("API_URL", "http://localhost").rstrip("/")
+MINIO_PUBLIC_URL = f"{_api_url}/storage/{AWS_STORAGE_BUCKET_NAME}"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
