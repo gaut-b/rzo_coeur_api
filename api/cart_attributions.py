@@ -68,8 +68,7 @@ class CartAttribAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
         return request.user.is_staff or (
             request.user.is_authenticated
-            and hasattr(request.user, "socialworker")
-            and request.user.socialworker.is_social_admin
+            and (hasattr(request.user, "socialworker") or request.user.socialworker.is_social_admin)
         )
 
     def has_change_permission(self, request, obj=None):
@@ -92,14 +91,12 @@ class CartAttributionAdminSite(CustomAdminSite):
     index_title = "Interface de création et attribution de paniers"
 
     def check_user_permission(self, user):
-        """Check if user has a social admin role."""
+        """Check if user has a social worker or a social admin role."""
         return user.role == UserRole.SOCIAL_ADMIN.value or user.role == UserRole.SOCIAL_WORKER
 
     def get_permission_denied_message(self):
         """Custom message for social admin access denied."""
         return "You do not have permission to access the social center admin page."
-
-    pass
 
 
 class RecipientAttrAdmin(admin.ModelAdmin):
@@ -126,19 +123,17 @@ class RecipientAttrAdmin(admin.ModelAdmin):
 
     def is_from_same_social_center(self, request, obj):
         return (
-            hasattr(request.user, "socialworker")
-            and request.user.socialworker.is_social_admin
-            and obj.social_center == request.user.socialworker.social_center
-            and obj.user != request.user
-        )
+            hasattr(request.user, "socialworker") or request.user.socialworker.is_social_admin
+        ) and obj.social_center == request.user.socialworker.social_center
 
-    # Permissions are to check if social admin
+    # Permissions are to check if social worker or social admin
     # add, change, delete and view are reserved to social center admin or superuser
     def has_view_permission(self, request, obj=None):
+        print("coucou")
         if not request.user.is_authenticated:
             return False
         if obj is None:
-            return hasattr(request.user, "socialworker") and request.user.socialworker.is_social_admin
+            return hasattr(request.user, "socialworker") or request.user.socialworker.is_social_admin
         else:
             return self.is_from_same_social_center(request, obj) or request.user.is_staff
 
@@ -146,7 +141,7 @@ class RecipientAttrAdmin(admin.ModelAdmin):
         return request.user.is_staff or (
             request.user.is_authenticated
             and hasattr(request.user, "socialworker")
-            and request.user.socialworker.is_social_admin
+            or request.user.socialworker.is_social_admin
         )
 
 
