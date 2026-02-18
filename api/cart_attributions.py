@@ -32,7 +32,7 @@ class CartCreationForm(forms.ModelForm):
             raise forms.ValidationError("Cannot create cart, insufficient rights.")
 
         cart = super().save(commit=False)
-        cart.shop = self.shop
+        cart.shop = self.cleaned_data['shop']
 
         if commit:
             cart.save()
