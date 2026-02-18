@@ -11,6 +11,7 @@ from django.utils.html import format_html
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
 
+from .enums import UserRole
 from .models import (
     Article,
     Cart,
@@ -265,6 +266,68 @@ class ShopAdmin(AddressLocationAdminMixin, admin.ModelAdmin):
             "api/js/admin_shop_autocomplete.js",
         )
 
+    # Make sure we are only seeing the related shops whether user is social admin or superuser
+    def get_queryset(self, request):
+        if hasattr(request.user, "socialworker") and request.user.socialworker.is_social_admin:
+            request_social_center = "0"
+            qs = super(ShopAdmin, self).get_queryset(request)
+            for s in Shop.objects.all():
+                if hasattr(request.user, "socialworker"):  # we're not going through this...FIXME
+                    request_social_center = request.user.socialworker.social_center
+            return qs.filter(social_center=request_social_center)
+        else:
+            return super(ShopAdmin, self).get_queryset(request)
+
+    def is_from_same_social_center(self, request, obj):
+        return (
+            hasattr(request.user, "socialworker")
+            and request.user.socialworker.is_social_admin
+            and obj.social_center == request.user.socialworker.social_center
+        )
+
+    def has_view_permission(self, request, obj=None):
+        if not request.user.is_authenticated:
+            return False
+        if obj is None:
+            print(f"{Shop.objects.all()}")
+            return hasattr(request.user, "socialworker") and request.user.socialworker.is_social_admin
+        else:
+            return self.is_from_same_social_center(request, obj) or request.user.is_staff
+
+    def has_add_permission(self, request):
+        return request.user.is_staff or (
+            request.user.is_authenticated
+            and hasattr(request.user, "socialworker")
+            and request.user.socialworker.is_social_admin
+        )
+
+    def has_change_permission(self, request, obj=None):
+        if not request.user.is_authenticated:
+            return False
+        if obj is None:
+            return request.user.is_staff or (
+                hasattr(request.user, "socialworker") and request.user.socialworker.is_social_admin
+            )
+        else:
+            return self.is_from_same_social_center(request, obj) or request.user.is_staff
+
+    def has_delete_permission(self, request, obj=None):
+        if not request.user.is_authenticated:
+            return False
+        if obj is None:
+            return request.user.is_staff or (
+                hasattr(request.user, "socialworker") and request.user.socialworker.is_social_admin
+            )
+        else:
+            return self.is_from_same_social_center(request, obj) or request.user.is_staff
+
+    def has_module_permission(self, request):
+        return request.user.is_staff or (
+            request.user.is_authenticated
+            and hasattr(request.user, "socialworker")
+            and request.user.socialworker.is_social_admin
+        )
+
 
 class SocialCenterAdmin(AddressLocationAdminMixin, admin.ModelAdmin):
     """
@@ -355,7 +418,6 @@ admin.site.register(Shop, ShopAdmin)
 admin.site.register(SocialCenter, SocialCenterAdmin)
 admin.site.register(SocialWorker)
 admin.site.register(Cashier, CashierAdmin)
-admin.site.register(Recipient)
 admin.site.register(Client)
 admin.site.register(CustomUser, CustomUserAdmin)
 
@@ -503,6 +565,374 @@ class CustomAdminSite(admin.AdminSite):
 
 
 # ============================================
+# SOCIAL ADMIN SITE (SOCIAL CENTER ADMIN)
+# ============================================
+
+
+class SocialAdminSite(CustomAdminSite):
+    site_header = "Social Center Admin"
+    site_title = "Social Center"
+    index_title = "Welcome to social center interface"
+
+    def check_user_permission(self, user):
+        """Check if user has a social admin role."""
+        return user.role == UserRole.SOCIAL_ADMIN.value or user.is_staff
+
+    def get_permission_denied_message(self):
+        """Custom message for social admin access denied."""
+        return "You do not have permission to access the social center admin page."
+
+
+class SocialWorkerCreationForm(forms.ModelForm):
+    """
+    Custom form for creating social worker.
+    The social center field is automatically filled from the logged-in admin's social center.
+    """
+
+    email = forms.EmailField(required=True, help_text="Email address for the new user")
+    first_name = forms.CharField(required=True, max_length=150)
+    last_name = forms.CharField(required=True, max_length=150)
+    password = forms.CharField(widget=forms.PasswordInput, required=True, help_text="Password for the new user")
+
+    class Meta:
+        model = SocialWorker
+        fields = ["email", "first_name", "last_name", "password"]
+
+    def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop("request", None)
+        super().__init__(*args, **kwargs)
+        # Don't show shop field - it will be auto-filled
+
+    def save(self, commit=True):
+        # Validate that we can determine the shop
+        if not self.request or not hasattr(self.request.user, "socialworker"):
+            raise forms.ValidationError("Cannot create user, insufficient rights.")
+
+        # Create the CustomUser first
+        user = CustomUser.objects.create_user(
+            email=self.cleaned_data["email"],
+            password=self.cleaned_data["password"],
+            first_name=self.cleaned_data["first_name"],
+            last_name=self.cleaned_data["last_name"],
+        )
+
+        # Create the SocialWorker instance
+        socialworker = super().save(commit=False)
+        socialworker.user = user
+        if self.request.user.socialworker:
+            socialworker.social_center = self.request.user.socialworker.social_center
+
+        # social admin is created by superuser
+        socialworker.is_social_admin = False
+
+        if commit:
+            socialworker.save()
+        return socialworker
+
+
+class RecipientCreationForm(forms.ModelForm):
+    """
+    Custom form for creating Recipient.
+    The social center field is automatically filled from the logged-in admin's social center.
+    """
+
+    email = forms.EmailField(required=True, help_text="Email address for the new user")
+    first_name = forms.CharField(required=True, max_length=150)
+    last_name = forms.CharField(required=True, max_length=150)
+    password = forms.CharField(widget=forms.PasswordInput, required=True, help_text="Password for the new user")
+
+    class Meta:
+        model = Recipient
+        fields = ["email", "first_name", "last_name", "password"]
+
+    def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop("request", None)
+        super().__init__(*args, **kwargs)
+        # Don't show shop field - it will be auto-filled
+
+    def save(self, commit=True):
+        if not self.request or not (self.request.user.is_staff or hasattr(self.request.user, "socialworker")):
+            raise forms.ValidationError("Cannot create user, insufficient rights.")
+
+        # Create the CustomUser first
+        user = CustomUser.objects.create_user(
+            email=self.cleaned_data["email"],
+            password=self.cleaned_data["password"],
+            first_name=self.cleaned_data["first_name"],
+            last_name=self.cleaned_data["last_name"],
+        )
+
+        # Create the Recipient instance
+        recipient = super().save(commit=False)
+        recipient.user = user
+        if hasattr(self.request.user, "socialworker"):
+            recipient.social_center = self.request.user.socialworker.social_center
+
+        if commit:
+            recipient.save()
+        return recipient
+
+
+class SocialWorkerAdmin(admin.ModelAdmin):
+    """
+    Admin for managing social workers in the social_center.
+    Only accessible to social admin.
+    """
+
+    list_display = ["get_email", "get_first_name", "get_last_name", "social_center"]
+    list_filter = ["is_social_admin", "social_center"]
+    search_fields = ["user__email", "user__first_name", "user__last_name"]
+
+    # Fieldsets for editing existing cashiers
+    fieldsets = (
+        ("User Information", {"fields": ("user",)}),
+        ("Role", {"fields": ("is_social_admin",)}),
+    )
+
+    # Fieldsets for creating new cashiers
+    add_fieldsets = (
+        (
+            "User Information",
+            {
+                "fields": ("email", "first_name", "last_name", "password"),
+            },
+        ),
+    )
+
+    def get_email(self, obj):
+        return obj.user.email
+
+    get_email.short_description = "Email"
+    get_email.admin_order_field = "user__email"
+
+    def get_first_name(self, obj):
+        return obj.user.first_name
+
+    get_first_name.short_description = "First Name"
+    get_first_name.admin_order_field = "user__first_name"
+
+    def get_last_name(self, obj):
+        return obj.user.last_name
+
+    get_last_name.short_description = "Last Name"
+    get_last_name.admin_order_field = "user__last_name"
+
+    def get_fieldsets(self, request, obj=None):
+        """Use different fieldsets for creation vs editing."""
+        if obj is None:  # Creating new social worker
+            return self.add_fieldsets
+        return super().get_fieldsets(request, obj)
+
+    def get_form(self, request, obj=None, **kwargs):
+        """Use custom form for creation, standard form for editing."""
+        if obj is None:  # Creating new social worker
+            kwargs["form"] = SocialWorkerCreationForm
+            form_class = super().get_form(request, obj, **kwargs)
+
+            # Create a wrapper that injects request into form instantiation
+            class FormWithRequest(form_class):
+                def __init__(self, *args, **form_kwargs):
+                    form_kwargs["request"] = request
+                    super().__init__(*args, **form_kwargs)
+
+            return FormWithRequest
+        return super().get_form(request, obj, **kwargs)
+
+    def get_queryset(self, request):
+        """Filter social workers by the logged-in user's social center."""
+        qs = super().get_queryset(request)
+        if hasattr(request.user, "socialworker"):
+            return qs.filter(social_center=request.user.socialworker.social_center)
+        return qs.none()
+
+    def is_from_same_social_center(self, request, obj):
+        return (
+            hasattr(request.user, "socialworker")
+            and request.user.socialworker.is_social_admin
+            and obj.social_center == request.user.socialworker.social_center
+            and obj.user != request.user
+        )
+
+    # Permissions are to check if social admin
+    #  view, add, change, delete needs the is_social_admin field or superuser status
+
+    def has_view_permission(self, request, obj=None):
+        if not request.user.is_authenticated:
+            return False
+        if obj is None:
+            return (
+                hasattr(request.user, "socialworker")
+                and request.user.socialworker.is_social_admin
+                or request.user.is_staff
+            )
+        else:
+            return self.is_from_same_social_center(request, obj) or request.user.is_staff
+
+    def has_add_permission(self, request):
+        return (
+            request.user.is_authenticated
+            and hasattr(request.user, "socialworker")
+            and request.user.socialworker.is_social_admin
+            or request.user.is_staff
+        )
+
+    def has_change_permission(self, request, obj=None):
+        if not request.user.is_authenticated:
+            return False
+        if obj is None:
+            return (
+                hasattr(request.user, "socialworker")
+                and request.user.socialworker.is_social_admin
+                or request.user.is_staff
+            )
+        else:
+            return self.is_from_same_social_center(request, obj) or request.user.is_staff
+
+    def has_delete_permission(self, request, obj=None):
+        if not request.user.is_authenticated:
+            return False
+        if obj is None:
+            return (
+                hasattr(request.user, "socialworker")
+                and request.user.socialworker.is_social_admin
+                or request.user.is_staff
+            )
+        else:
+            return self.is_from_same_social_center(request, obj) or request.user.is_staff
+
+    def has_module_permission(self, request):
+        return (
+            request.user.is_authenticated
+            and hasattr(request.user, "socialworker")
+            and request.user.socialworker.is_social_admin
+            or request.user.is_staff
+        )
+
+
+class RecipientAdmin(admin.ModelAdmin):
+    list_display = ["get_email", "get_first_name", "get_last_name", "social_center"]
+    list_filter = ["social_center"]
+    search_fields = ["user__email", "user__first_name", "user__last_name"]
+
+    # Fieldsets for editing existing cashiers
+    fieldsets = (("User Information", {"fields": ("user",)}),)
+
+    # Fieldsets for creating new cashiers
+    add_fieldsets = (
+        (
+            "User Information",
+            {
+                "fields": ("email", "first_name", "last_name", "password"),
+            },
+        ),
+    )
+
+    def get_email(self, obj):
+        return obj.user.email
+
+    get_email.short_description = "Email"
+    get_email.admin_order_field = "user__email"
+
+    def get_first_name(self, obj):
+        return obj.user.first_name
+
+    get_first_name.short_description = "First Name"
+    get_first_name.admin_order_field = "user__first_name"
+
+    def get_last_name(self, obj):
+        return obj.user.last_name
+
+    get_last_name.short_description = "Last Name"
+    get_last_name.admin_order_field = "user__last_name"
+
+    def get_fieldsets(self, request, obj=None):
+        """Use different fieldsets for creation vs editing."""
+        if obj is None:  # Creating new Recipient
+            return self.add_fieldsets
+        return super().get_fieldsets(request, obj)
+
+    def get_form(self, request, obj=None, **kwargs):
+        """Use custom form for creation, standard form for editing."""
+        if obj is None:  # Creating new Recipient
+            kwargs["form"] = RecipientCreationForm
+            form_class = super().get_form(request, obj, **kwargs)
+
+            # Create a wrapper that injects request into form instantiation
+            class FormWithRequest(form_class):
+                def __init__(self, *args, **form_kwargs):
+                    form_kwargs["request"] = request
+                    super().__init__(*args, **form_kwargs)
+
+            return FormWithRequest
+        return super().get_form(request, obj, **kwargs)
+
+    def get_queryset(self, request):
+        """Filter social workers by the logged-in user's social center."""
+        qs = super().get_queryset(request)
+        if hasattr(request.user, "socialworker"):
+            return qs.filter(social_center=request.user.socialworker.social_center)
+        return qs.none()
+
+    def is_from_same_social_center(self, request, obj):
+        return (
+            hasattr(request.user, "socialworker")
+            and request.user.socialworker.is_social_admin
+            and obj.social_center == request.user.socialworker.social_center
+            and obj.user != request.user
+        )
+
+    # Permissions are to check if social admin
+    # add, change, delete and view are reserved to social center admin or superuser
+    def has_view_permission(self, request, obj=None):
+        if not request.user.is_authenticated:
+            return False
+        if obj is None:
+            return hasattr(request.user, "socialworker") and request.user.socialworker.is_social_admin
+        else:
+            return self.is_from_same_social_center(request, obj) or request.user.is_staff
+
+    def has_add_permission(self, request):
+        return request.user.is_staff or (
+            request.user.is_authenticated
+            and hasattr(request.user, "socialworker")
+            and request.user.socialworker.is_social_admin
+        )
+
+    def has_change_permission(self, request, obj=None):
+        if not request.user.is_authenticated:
+            return False
+        if obj is None:
+            return request.user.is_staff or (
+                hasattr(request.user, "socialworker") and request.user.socialworker.is_social_admin
+            )
+        else:
+            return self.is_from_same_social_center(request, obj) or request.user.is_staff
+
+    def has_delete_permission(self, request, obj=None):
+        if not request.user.is_authenticated:
+            return False
+        if obj is None:
+            return request.user.is_staff or (
+                hasattr(request.user, "socialworker") and request.user.socialworker.is_social_admin
+            )
+        else:
+            return self.is_from_same_social_center(request, obj) or request.user.is_staff
+
+    def has_module_permission(self, request):
+        return request.user.is_staff or (
+            request.user.is_authenticated
+            and hasattr(request.user, "socialworker")
+            and request.user.socialworker.is_social_admin
+        )
+
+
+social_admin_site = SocialAdminSite(name="social_admin")
+social_admin_site.register(Shop, ShopAdmin)
+social_admin_site.register(SocialWorker, SocialWorkerAdmin)
+social_admin_site.register(Recipient, RecipientAdmin)
+admin.site.register(Recipient, RecipientAdmin)
+
+# ============================================
 # SHOP ADMIN SITE (for Cashiers and Managers)
 # ============================================
 
@@ -556,7 +986,6 @@ class CashierCreationForm(forms.ModelForm):
         # Don't show shop field - it will be auto-filled
 
     def save(self, commit=True):
-        # Validate that we can determine the shop
         if not self.request or not hasattr(self.request.user, "cashier"):
             raise forms.ValidationError("Unable to determine shop. You must be logged in as a shop manager.")
 
