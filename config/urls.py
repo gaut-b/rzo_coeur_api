@@ -28,7 +28,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("shop-admin/", shop_admin_site.urls),
     path("social-admin/", social_admin_site.urls),
-    path("cart-attr/", cart_attrib_admin_site.urls),
+    path("cart-admin/", cart_attrib_admin_site.urls),
     path("api/auth/", include("auth_kit.urls")),
     path("api/", include("api.urls")),
 ]
