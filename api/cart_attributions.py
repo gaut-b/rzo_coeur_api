@@ -93,7 +93,7 @@ class CartAttributionAdminSite(CustomAdminSite):
 
     def check_user_permission(self, user):
         """Check if user has a social admin role."""
-        return user.role == UserRole.SOCIAL_ADMIN.value or user.role == UserRole.SOCIALWORKER
+        return user.role == UserRole.SOCIAL_ADMIN.value or user.role == UserRole.SOCIAL_WORKER
 
     def get_permission_denied_message(self):
         """Custom message for social admin access denied."""
