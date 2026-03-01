@@ -173,7 +173,11 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = "static/"
+# When deployed under a sub-path (FORCE_SCRIPT_NAME=/rzo-coeur), prefix
+# STATIC_URL and MEDIA_URL accordingly so browsers request the right URLs.
+_script_name = os.environ.get("FORCE_SCRIPT_NAME", "").rstrip("/")
+STATIC_URL = f"{_script_name}/static/" if _script_name else "static/"
+MEDIA_URL = f"{_script_name}/media/" if _script_name else "media/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Default primary key field type

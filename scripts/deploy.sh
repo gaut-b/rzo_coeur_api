@@ -4,6 +4,9 @@
 
 set -e
 
+# Use the deploy user's Docker credentials even when running as root/sudo
+export DOCKER_CONFIG=/home/deploy/.docker
+
 COMPOSE_FILE="/opt/rzo_coeur_api/docker-compose.prod.yml"
 REGISTRY="ghcr.io"
 IMAGE="ghcr.io/gaut-b/rzo_coeur_api"
