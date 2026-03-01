@@ -40,7 +40,7 @@ GRAPH_MODELS = {
     "group_models": True,
 }
 # Application definition
-CSRF_TRUSTED_ORIGINS = ["https://carie-tingly-saniyah.ngrok-free.dev"]
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ.get("CSRF_TRUSTED_ORIGINS", "http://localhost").split(",")]
 INSTALLED_APPS = [
     "api.apps.ApiConfig",
     "django.contrib.admin",

@@ -14,4 +14,4 @@ COPY hooks.json /etc/webhook/hooks.json.tpl
 
 # Generate hooks.json from template at startup using envsubst,
 # then start the webhook server
-CMD ["/bin/sh", "-c", "envsubst < /etc/webhook/hooks.json.tpl > /etc/webhook/hooks.json && webhook -hooks=/etc/webhook/hooks.json -verbose"]
+CMD ["/bin/sh", "-c", "envsubst < /etc/webhook/hooks.json.tpl > /tmp/hooks.json && webhook -hooks=/tmp/hooks.json -verbose"]
