@@ -1,0 +1,18 @@
+[
+  {
+    "id": "deploy-rzo",
+    "execute-command": "/opt/rzo_coeur_api/scripts/deploy.sh",
+    "command-working-directory": "/opt/rzo_coeur_api",
+    "response-message": "Deploy triggered",
+    "trigger-rule": {
+      "match": {
+        "type": "value",
+        "value": "${WEBHOOK_SECRET}",
+        "parameter": {
+          "source": "header",
+          "name": "X-Deploy-Token"
+        }
+      }
+    }
+  }
+]

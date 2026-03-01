@@ -5,6 +5,19 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual deployment'
+        required: false
+        default: 'Manual deployment'
+
+env:
+  REGISTRY: ghcr.io
+  # IMAGE_NAME resolves to 'gaut-b/rzo_coeur_api'
+  IMAGE_NAME: ${{ github.repository }}
+  # IMAGE_BASE is the full registry path used as prefix for all service images
+  IMAGE_BASE: ghcr.io/${{ github.repository }}
 
 jobs:
   test:
@@ -88,9 +101,13 @@ jobs:
         run: |
           uv run ruff format --check .
 
-  build:
+  build-and-push:
     runs-on: ubuntu-latest
     needs: [test, lint]
+    # Push to GHCR only on main branch, not on pull requests
+    permissions:
+      contents: read
+      packages: write
 
     steps:
       - uses: actions/checkout@v4
@@ -98,11 +115,63 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker image
+      - name: Log in to GHCR
+        # Authenticate only on push events and manual triggers, not on pull requests
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend image
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: false
-          tags: rzo-coeur-api:latest
+          # Push only on main branch or manual trigger, build only on pull requests
+          push: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
+          tags: |
+            ${{ env.IMAGE_BASE }}/backend:latest
+            ${{ env.IMAGE_BASE }}/backend:sha-${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Build and push nginx image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./nginx
+          dockerfile: ./nginx/Dockerfile
+          push: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
+          tags: |
+            ${{ env.IMAGE_BASE }}/nginx:latest
+            ${{ env.IMAGE_BASE }}/nginx:sha-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push webhook image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./webhook
+          dockerfile: ./webhook/Dockerfile
+          push: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
+          tags: |
+            ${{ env.IMAGE_BASE }}/webhook:latest
+            ${{ env.IMAGE_BASE }}/webhook:sha-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    # Only deploy on manual trigger
+    if: github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Trigger deploy via webhook
+        run: |
+          curl -X POST \
+            https://${{ secrets.VPS_HOST }}:9000/hooks/deploy-rzo \
+            -H "X-Deploy-Token: ${{ secrets.WEBHOOK_SECRET }}" \
+            --fail \
+            --max-time 300 \
+            --proto '=https'

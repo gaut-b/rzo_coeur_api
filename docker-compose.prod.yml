@@ -1,0 +1,84 @@
+services:
+  nginx:
+    image: ghcr.io/gaut-b/rzo_coeur_api/nginx:latest
+    ports:
+      # Expose only on localhost, nginx host will proxy to this port
+      - '127.0.0.1:8080:80'
+    volumes:
+      # Config is baked into the image via nginx/Dockerfile — no bind mount needed
+      - static_files:/app/src/staticfiles:ro
+      - media_files:/app/src/media:ro
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  backend:
+    image: ghcr.io/gaut-b/rzo_coeur_api/backend:latest
+    env_file:
+      - ./.env
+    environment:
+      - SQL_HOST=db
+    volumes:
+      - static_files:/app/src/staticfiles
+      - media_files:/app/src/media
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgis/postgis:17-3.5
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    env_file:
+      - ./.env
+    environment:
+      - POSTGRES_DB=${SQL_DATABASE}
+      - POSTGRES_USER=${SQL_USER}
+      - POSTGRES_PASSWORD=${SQL_PASSWORD}
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${SQL_USER} -d ${SQL_DATABASE}']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  docker-proxy:
+    image: tecnativa/docker-socket-proxy
+    environment:
+      # Allow only the commands needed for deployment
+      CONTAINERS: 1
+      IMAGES: 1
+      NETWORKS: 1
+      POST: 1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+
+  webhook:
+    image: ghcr.io/gaut-b/rzo_coeur_api/webhook:latest
+    ports:
+      - '127.0.0.1:9000:9000'
+    volumes:
+      - ./scripts:/opt/rzo_coeur_api/scripts:ro
+      # Required by deploy.sh to run docker compose commands
+      - ./docker-compose.prod.yml:/opt/rzo_coeur_api/docker-compose.prod.yml:ro
+      - ./.env:/opt/rzo_coeur_api/.env:ro
+    environment:
+      - DOCKER_HOST=tcp://docker-proxy:2375
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+    restart: unless-stopped
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    ports:
+      - '127.0.0.1:3001:3001'
+    volumes:
+      - uptime-kuma-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  db-data:
+  static_files:
+  media_files:
+  uptime-kuma-data:
