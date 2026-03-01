@@ -75,6 +75,8 @@ services:
       - '127.0.0.1:3001:3001'
     volumes:
       - uptime-kuma-data:/app/data
+    environment:
+      - BASE_PATH=/dashboard
     restart: unless-stopped
 
 volumes:
