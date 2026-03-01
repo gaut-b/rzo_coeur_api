@@ -140,6 +140,17 @@ DATABASES = {
         "PORT": os.environ.get("SQL_PORT", "5432"),
     }
 }
+# Password hashers
+# Use scrypt as the primary hasher (memory-hard, OWASP recommended, built into
+# Python 3.9+ stdlib — no extra dependency required). PBKDF2 is kept as a
+# fallback so existing password hashes remain valid and are transparently
+# upgraded to scrypt on the user's next successful login.
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.ScryptPasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+]
+
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [

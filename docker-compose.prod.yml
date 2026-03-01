@@ -69,18 +69,7 @@ services:
       - WEBHOOK_SECRET=${WEBHOOK_SECRET}
     restart: unless-stopped
 
-  uptime-kuma:
-    image: louislam/uptime-kuma:1
-    ports:
-      - '127.0.0.1:3001:3001'
-    volumes:
-      - uptime-kuma-data:/app/data
-    environment:
-      - BASE_PATH=/dashboard
-    restart: unless-stopped
-
 volumes:
   db-data:
   static_files:
   media_files:
-  uptime-kuma-data:
