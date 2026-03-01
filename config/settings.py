@@ -26,6 +26,12 @@ DEBUG = os.environ.get("DEBUG", "0").lower() in ("1", "true", "yes")
 
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")]
 
+# When served under a sub-path (e.g. /rzo-coeur/), set this so Django
+# generates correct URLs in redirects, admin, etc.
+_script_name = os.environ.get("FORCE_SCRIPT_NAME", "")
+if _script_name:
+    FORCE_SCRIPT_NAME = _script_name
+
 
 AUTH_USER_MODEL = "api.CustomUser"
 
