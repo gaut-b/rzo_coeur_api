@@ -140,7 +140,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./nginx
-          dockerfile: ./nginx/Dockerfile
+          file: ./nginx/Dockerfile
           push: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
           tags: |
             ${{ env.IMAGE_BASE }}/nginx:latest
@@ -152,7 +152,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./webhook
-          dockerfile: ./webhook/Dockerfile
+          file: ./webhook/Dockerfile
           push: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
           tags: |
             ${{ env.IMAGE_BASE }}/webhook:latest
