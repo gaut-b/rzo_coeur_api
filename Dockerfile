@@ -66,6 +66,14 @@ apt-get clean
 rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 EOT
 
+# Create version-agnostic symlinks so GDAL_LIBRARY_PATH=/usr/lib/libgdal.so works
+RUN GDAL_LIB="$(find /usr/lib -name 'libgdal.so.*' | sort | tail -1)"; \
+    if [ -z "$GDAL_LIB" ]; then echo "Error: libgdal.so.* not found under /usr/lib"; exit 1; fi; \
+    ln -sf "$GDAL_LIB" /usr/lib/libgdal.so; \
+    GEOS_LIB="$(find /usr/lib -name 'libgeos_c.so.*' | sort | tail -1)"; \
+    if [ -z "$GEOS_LIB" ]; then echo "Error: libgeos_c.so.* not found under /usr/lib"; exit 1; fi; \
+    ln -sf "$GEOS_LIB" /usr/lib/libgeos_c.so
+
 # Copy entrypoint script
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
@@ -75,6 +83,11 @@ COPY --from=builder --chown=appuser:appuser /app /app
 
 # Copy application source code from build stage
 COPY --from=builder --chown=appuser:appuser /src/ /app/src/
+
+# Ensure writable directories exist with correct ownership
+# (named Docker volumes are initialized from image content, preserving permissions)
+RUN mkdir -p /app/src/staticfiles /app/media \
+    && chown appuser:appuser /app/src/staticfiles /app/media
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
