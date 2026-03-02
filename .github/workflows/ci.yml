@@ -60,6 +60,13 @@ jobs:
         run: |
           uv sync --frozen
 
+      - name: Collect static files
+        env:
+          SECRET_KEY: test-secret-key-for-ci
+          DEBUG: 'False'
+        run: |
+          uv run python manage.py collectstatic --noinput
+
       - name: Run tests
         env:
           SQL_ENGINE: django.contrib.gis.db.backends.postgis
