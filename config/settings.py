@@ -11,9 +11,12 @@ load_dotenv(BASE_DIR / ".env")
 load_dotenv(BASE_DIR / ".env.local", override=True)
 BASE_DIR = Path(__file__).resolve(strict=True).parent.parent
 
-# GDAL configuration
-GDAL_LIBRARY_PATH = os.getenv("GDAL_LIBRARY_PATH")
-GEOS_LIBRARY_PATH = os.getenv("GEOS_LIBRARY_PATH")
+# Geospatial libraries — only set when explicitly provided (macOS/custom installs).
+# Leave unset inside Docker so that Django auto-discovers the system libraries.
+if _gdal_path := os.getenv("GDAL_LIBRARY_PATH"):
+    GDAL_LIBRARY_PATH = _gdal_path
+if _geos_path := os.getenv("GEOS_LIBRARY_PATH"):
+    GEOS_LIBRARY_PATH = _geos_path
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -57,6 +60,7 @@ INSTALLED_APPS = [
     "allauth.account",
     "auth_kit",
     "django_admin_action_forms",
+    "storages",
 ]
 
 REST_FRAMEWORK = {
@@ -190,6 +194,56 @@ _script_name = os.environ.get("FORCE_SCRIPT_NAME", "").rstrip("/")
 STATIC_URL = f"{_script_name}/static/" if _script_name else "static/"
 MEDIA_URL = f"{_script_name}/media/" if _script_name else "media/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# ---------------------------------------------------------------------------
+# Media / Object Storage (MinIO / S3-compatible)
+# ---------------------------------------------------------------------------
+# When MINIO_ENDPOINT_URL is set (typically in Docker), uploaded files are
+# stored in the configured S3-compatible bucket and served publicly as a CDN.
+# When the variable is absent (e.g. running tests locally without MinIO), we
+# fall back to Django's default local filesystem storage so that tests don't
+# require a live MinIO instance.
+# ---------------------------------------------------------------------------
+
+STORAGES = {
+    "default": {
+        "BACKEND": (
+            "config.storage.MinIOPublicStorage"
+            if os.environ.get("MINIO_ENDPOINT_URL")
+            else "django.core.files.storage.FileSystemStorage"
+        ),
+    },
+    "staticfiles": {
+        # CompressedManifestStaticFilesStorage requires a pre-built manifest
+        # (collectstatic). Use it only in production; fall back to the plain
+        # Django storage in development and during tests.
+        "BACKEND": (
+            "whitenoise.storage.CompressedManifestStaticFilesStorage"
+            if not DEBUG
+            else "django.contrib.staticfiles.storage.StaticFilesStorage"
+        ),
+    },
+}
+
+# S3 / MinIO credentials – ignored when falling back to local storage
+AWS_S3_ENDPOINT_URL = os.environ.get("MINIO_ENDPOINT_URL", "")
+AWS_ACCESS_KEY_ID = os.environ.get("MINIO_ROOT_USER", "minioadmin")
+AWS_SECRET_ACCESS_KEY = os.environ.get("MINIO_ROOT_PASSWORD", "minioadmin")
+AWS_STORAGE_BUCKET_NAME = os.environ.get("MINIO_BUCKET_NAME", "articles-photos")
+AWS_S3_FILE_OVERWRITE = False
+AWS_DEFAULT_ACL = "public-read"
+# Disable presigned URL query parameters (AWSAccessKeyId, Signature, Expires).
+# The bucket is public-read so no signing is needed, and query params break
+# the nginx /storage/ proxy rewrite.
+AWS_QUERYSTRING_AUTH = False
+# Use path-style URLs (required by MinIO): http://<host>/<bucket>/<key>
+AWS_S3_ADDRESSING_STYLE = "path"
+# Derive the public MinIO URL from API_URL so a single variable controls all
+# public-facing addresses:
+#   http://localhost/storage/articles-photos  (dev)
+#   https://api.example.com/storage/articles-photos  (prod)
+_api_url = os.environ.get("API_URL", "http://localhost").rstrip("/")
+MINIO_PUBLIC_URL = f"{_api_url}/storage/{AWS_STORAGE_BUCKET_NAME}"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

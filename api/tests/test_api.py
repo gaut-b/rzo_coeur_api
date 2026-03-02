@@ -2144,3 +2144,101 @@ class ShopListViewTests(APITestCase):
 
         for field in expected_fields:
             self.assertIn(field, shop)
+
+
+class ArticleBarcodeViewTests(APITestCase):
+    """Tests for GET /api/articles/barcode/<barcode>/."""
+
+    BARCODE = 3017620422003
+    URL = f"/api/articles/barcode/{BARCODE}/"
+
+    def setUp(self) -> None:
+        """Create shared fixtures: social center, shop, client user, and one article."""
+        self.social_center = SocialCenter.objects.create(
+            name="Centre Barcode Test",
+            street_number="1",
+            street_name="Rue Test",
+            postal_code="75001",
+            city="Paris",
+            mail="barcode@test.com",
+        )
+        self.shop = Shop.objects.create(
+            name="Magasin Barcode Test",
+            street_number="2",
+            street_name="Avenue Test",
+            postal_code="75002",
+            city="Paris",
+            social_center=self.social_center,
+        )
+        self.client_user = CustomUser.objects.create_user(  # type: ignore[attr-defined]
+            email="barcode_client@test.com",
+            password="SecurePass123!",
+            first_name="Client",
+            last_name="Barcode",
+        )
+        self.client_obj = Client.objects.create(user=self.client_user)
+        self.cashier_user = CustomUser.objects.create_user(  # type: ignore[attr-defined]
+            email="barcode_cashier@test.com",
+            password="SecurePass123!",
+            first_name="Cashier",
+            last_name="Barcode",
+        )
+        Cashier.objects.create(user=self.cashier_user, shop=self.shop)
+        self.article = Article.objects.create(
+            name="Nutella 400g",
+            barcode=self.BARCODE,
+            client=self.client_obj,
+            shop=self.shop,
+            img_url="https://cdn.example.com/nutella.jpg",
+            brand_label="Ferrero",
+        )
+
+    def test_returns_article_when_barcode_exists(self) -> None:
+        """200 response with article data for a known barcode."""
+        self.client.force_authenticate(user=self.client_user)
+        response = self.client.get(self.URL)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["barcode"], self.BARCODE)
+        self.assertEqual(response.data["name"], "Nutella 400g")
+        self.assertEqual(response.data["brand_label"], "Ferrero")
+
+    def test_returns_404_when_barcode_does_not_exist(self) -> None:
+        """404 when no article matches the given barcode."""
+        self.client.force_authenticate(user=self.client_user)
+        response = self.client.get("/api/articles/barcode/9999999999999/")
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertIn("detail", response.data)
+
+    def test_unauthenticated_returns_401(self) -> None:
+        """401 when the request has no authentication credentials."""
+        response = self.client.get(self.URL)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_cashier_returns_403(self) -> None:
+        """403 when a Cashier (non-client) tries to access the endpoint."""
+        self.client.force_authenticate(user=self.cashier_user)
+        response = self.client.get(self.URL)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_returns_first_article_when_multiple_share_barcode(self) -> None:
+        """The endpoint returns the first (oldest) article for a duplicated barcode."""
+        client_user2 = CustomUser.objects.create_user(  # type: ignore[attr-defined]
+            email="barcode_client2@test.com",
+            password="SecurePass123!",
+            first_name="Client2",
+            last_name="Barcode",
+        )
+        client_obj2 = Client.objects.create(user=client_user2)
+        Article.objects.create(
+            name="Nutella 400g (copy)",
+            barcode=self.BARCODE,
+            client=client_obj2,
+            shop=self.shop,
+        )
+        self.client.force_authenticate(user=self.client_user)
+        response = self.client.get(self.URL)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["id"], self.article.pk)
