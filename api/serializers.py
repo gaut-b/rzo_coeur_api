@@ -416,7 +416,7 @@ class PhotoUploadSerializer(serializers.Serializer):
         if value.size > self.MAX_SIZE_BYTES:
             max_mb = self.MAX_SIZE_BYTES / (1024 * 1024)
             raise serializers.ValidationError(
-                f"File size {value.size / (1024 * 1024):.1f} MB exceeds the " f"{max_mb:.0f} MB limit."
+                f"File size {value.size / (1024 * 1024):.1f} MB exceeds the {max_mb:.0f} MB limit."
             )
 
         return value

@@ -54,5 +54,5 @@ class MinIOPublicStorage(S3Boto3Storage):
             return internal_url
 
         # Internal URL pattern (path-style): http://minio:9000/<bucket>/<key>
-        internal_base = f"{settings.AWS_S3_ENDPOINT_URL.rstrip('/')}" f"/{settings.AWS_STORAGE_BUCKET_NAME}"
+        internal_base = f"{settings.AWS_S3_ENDPOINT_URL.rstrip('/')}/{settings.AWS_STORAGE_BUCKET_NAME}"
         return internal_url.replace(internal_base, public_base, 1)
