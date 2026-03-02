@@ -50,12 +50,14 @@ services:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
     ports:
-      - '127.0.0.1:9001:9001' # MinIO web console (accessible via SSH tunnel)
+      - '127.0.0.1:9001:9001' # MinIO web console (proxied via host nginx at /minio/)
     volumes:
       - minio-data:/data
     environment:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+      # Required for the console to work behind a reverse proxy at a sub-path
+      - MINIO_BROWSER_REDIRECT_URL=${MINIO_BROWSER_REDIRECT_URL}
     healthcheck:
       test: ['CMD', 'mc', 'ready', 'local']
       interval: 10s
