@@ -250,6 +250,44 @@ MINIO_PUBLIC_URL = f"{_api_url}/storage/{AWS_STORAGE_BUCKET_NAME}"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# ---------------------------------------------------------------------------
+# Logging — output errors and warnings to stdout so Docker captures them.
+# In DEBUG mode all SQL queries are also logged to the console.
+# ---------------------------------------------------------------------------
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "WARNING",
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "DEBUG" if DEBUG else "WARNING",
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["console"],
+            # Always log 500 errors even in production
+            "level": "ERROR",
+            "propagate": False,
+        },
+    },
+}
+
 # Email configuration
 if DEBUG:
     # Use Mailhog for local development
