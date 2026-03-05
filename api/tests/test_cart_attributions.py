@@ -318,6 +318,56 @@ class CartAttribAdminPermissionsTests(TestCase):
         request = self._request(self.sw.user)
         self.assertTrue(self.admin.has_add_permission(request))
 
+    def test_collected_cart_has_all_readonly_fields(self):
+        """A COLLECTED cart must expose all fields as readonly."""
+        cart = make_cart(
+            self.shop,
+            recipient=make_recipient(self.center, "r3@t.com"),
+            collected=True,
+        )
+        request = self._request(self.sw.user)
+        readonly = self.admin.get_readonly_fields(request, cart)
+        self.assertIn("shop", readonly)
+        self.assertIn("recipient", readonly)
+        self.assertIn("collected_at", readonly)
+        self.assertIn("get_articles_display", readonly)
+
+    def test_collected_cart_fields_use_display_method(self):
+        """get_fields for a COLLECTED cart must use get_articles_display, not articles."""
+        cart = make_cart(
+            self.shop,
+            recipient=make_recipient(self.center, "r4@t.com"),
+            collected=True,
+        )
+        request = self._request(self.sw.user)
+        fields = self.admin.get_fields(request, cart)
+        self.assertIn("get_articles_display", fields)
+        self.assertNotIn("articles", fields)
+
+    def test_pending_cart_fields_use_articles_widget(self):
+        """get_fields for a PENDING cart must use the articles widget."""
+        cart = make_cart(self.shop)
+        request = self._request(self.sw.user)
+        fields = self.admin.get_fields(request, cart)
+        self.assertIn("articles", fields)
+        self.assertNotIn("get_articles_display", fields)
+
+    def test_get_articles_display_with_articles(self):
+        """get_articles_display must return a comma-separated list of article names."""
+        client_obj = make_client("c@t.com")
+        cart = make_cart(self.shop)
+        make_article(self.shop, client_obj, "Pommes", "Bio", cart=cart)
+        make_article(self.shop, client_obj, "Lait", "", cart=cart)
+        display = self.admin.get_articles_display(cart)
+        self.assertIn("Pommes (Bio)", display)
+        self.assertIn("Lait", display)
+
+    def test_get_articles_display_empty_cart(self):
+        """get_articles_display must return '—' for an empty cart."""
+        cart = make_cart(self.shop)
+        display = self.admin.get_articles_display(cart)
+        self.assertEqual(display, "—")
+
 
 # ---------------------------------------------------------------------------
 # CartAttribAdmin.save_model (article assignment)

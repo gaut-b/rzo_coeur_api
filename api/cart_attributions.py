@@ -82,16 +82,46 @@ class CartChangeForm(forms.ModelForm):
 class CartAttribAdmin(admin.ModelAdmin):
     list_display = ["id", "shop", "status", "collected_at"]
 
+    def get_articles_display(self, obj: "Cart") -> str:
+        """
+        Render the list of articles in a collected cart as a
+        comma-separated read-only string.
+        """
+        articles = obj.articles.order_by("name")
+        if not articles.exists():
+            return "—"
+        items = [f"{a.name} ({a.brand_label})" if a.brand_label else a.name for a in articles]
+        return ", ".join(items)
+
+    get_articles_display.short_description = "Articles dans le panier"
+
     def get_fields(self, request, obj=None):
-        """Different fields for creation vs editing."""
+        """
+        Different fields for creation vs editing.
+
+        For a COLLECTED cart, replace the editable ``articles`` widget
+        with the read-only ``get_articles_display`` method so that
+        Django admin can render every field as plain text.
+        """
         if obj is None:
             return ["shop", "recipient"]
+        if obj.status == "COLLECTED":
+            return ["shop", "recipient", "collected_at", "get_articles_display"]
         return ["shop", "recipient", "collected_at", "articles"]
 
     def get_readonly_fields(self, request, obj=None):
-        """Shop and collected_at are readonly when editing."""
+        """
+        Shop and collected_at are readonly when editing.
+
+        For COLLECTED carts all fields are readonly so that the
+        change view opens in pure view-only mode without any editable
+        widget (which Django admin cannot reliably render as readonly
+        for custom ModelMultipleChoiceField widgets).
+        """
         if obj is None:
             return []
+        if obj.status == "COLLECTED":
+            return ["shop", "recipient", "collected_at", "get_articles_display"]
         return ["shop", "collected_at"]
 
     # Cart should have a social center attribute as well as shop
