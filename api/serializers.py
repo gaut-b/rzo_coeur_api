@@ -60,7 +60,7 @@ class AddressLocationSerializerMixin:
     Provides common methods for constructing full addresses and extracting coordinates.
     """
 
-    def get_full_address(self, obj):
+    def get_full_address(self, obj) -> str:
         """Construct full address from structured fields."""
         parts = []
         if obj.street_number:
@@ -77,11 +77,11 @@ class AddressLocationSerializerMixin:
             return address_line
         return ""
 
-    def get_latitude(self, obj):
+    def get_latitude(self, obj) -> float | None:
         """Extract latitude from location Point."""
         return obj.latitude
 
-    def get_longitude(self, obj):
+    def get_longitude(self, obj) -> float | None:
         """Extract longitude from location Point."""
         return obj.longitude
 
@@ -201,14 +201,14 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
 
-    def get_shop(self, obj):
+    def get_shop(self, obj) -> dict:
         """Return shop information."""
         return {
             "id": obj.shop.id,
             "name": obj.shop.name,
         }
 
-    def get_cart(self, obj):
+    def get_cart(self, obj) -> dict | None:
         """Return cart information if article is assigned to a cart."""
         if obj.cart:
             return {
@@ -217,7 +217,7 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
             }
         return None
 
-    def get_status(self, obj):
+    def get_status(self, obj) -> str:
         """
         Calculate article status based on cart assignment.
         - AVAILABLE: No cart assigned
@@ -372,7 +372,7 @@ class CartSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "collected_at"]
 
-    def get_recipient_name(self, obj):
+    def get_recipient_name(self, obj) -> str | None:
         """Return the full name of the recipient."""
         if obj.recipient is None:
             return None

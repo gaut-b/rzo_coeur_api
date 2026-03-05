@@ -14,11 +14,22 @@ fi
 python manage.py migrate
 python manage.py collectstatic --no-input
 
-# Set default workers if GUNICORN_WORKERS is not set
-WORKERS=${GUNICORN_WORKERS:-3}
+# Workers: (2 × CPU cores) + 1, overridable via GUNICORN_WORKERS.
+# Threads per worker: 4 by default, overridable via GUNICORN_THREADS.
+# gthread worker class allows each worker to serve multiple requests
+# concurrently, avoiding blocking on I/O (DB queries, network, etc.).
+WORKERS=${GUNICORN_WORKERS:-$(( 2 * $(nproc) + 1 ))}
+THREADS=${GUNICORN_THREADS:-4}
 
 if [ "$#" -eq 0 ]; then
-    exec gunicorn --bind 0.0.0.0:8000 --workers "$WORKERS" --timeout 60 --graceful-timeout 60 config.wsgi:application
+    exec gunicorn \
+        --bind 0.0.0.0:8000 \
+        --workers "$WORKERS" \
+        --worker-class gthread \
+        --threads "$THREADS" \
+        --timeout 60 \
+        --graceful-timeout 60 \
+        config.wsgi:application
 else
     exec "$@"
 fi

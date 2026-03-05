@@ -25,19 +25,16 @@ The application uses the following Django models:
 We distinguish the following different types of users:
 
 - **Client**:
-
   - Can create an account via the mobile application
   - Can retrieve the list of shops available in the application
   - Can purchase articles in one of the shops using the application during checkout
 
 - **Recipient**:
-
   - Account is created by a social worker
   - Linked to a social center
   - Can retrieve carts assigned to them in a shop
 
 - **Cashier**:
-
   - Linked to a shop
   - If shop admin, they can:
     - Create other cashier accounts linked to this shop via the admin interface
@@ -64,22 +61,38 @@ We distinguish the following different types of users:
 
 ## Prerequisites
 
-- Python 3.8+
-- Django 4.x
+- Python 3.13+
+- [uv](https://docs.astral.sh/uv/) (package and project manager)
+- Django 5.x
 - PostgreSQL
 
 ## Setup
 
 ```bash
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate
+# Install dependencies and create virtualenv (uv handles both)
+uv sync
 
-# Install dependencies
-pip install -r requirements.txt
+# Run management commands via uv
+uv run python manage.py migrate
+uv run python manage.py runserver
+```
 
-# Database configuration
-python manage.py migrate
+## Package Management
+
+Dependencies are declared in `pyproject.toml` and locked in `uv.lock`. Always use `uv` to manage them — never `pip` directly.
+
+```bash
+# Add a production dependency
+uv add <package>
+
+# Add a development-only dependency
+uv add --dev <package>
+
+# Remove a dependency
+uv remove <package>
+
+# Run any command inside the project virtualenv
+uv run <command>
 ```
 
 ## Python Instructions

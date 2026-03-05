@@ -1,6 +1,8 @@
 # Created by https://www.gitignore.io
 
 .vscode
+.agents
+skills-lock.json
 
 ### OSX ###
 .DS_Store
