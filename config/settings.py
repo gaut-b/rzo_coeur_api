@@ -265,6 +265,10 @@ MINIO_PUBLIC_URL = f"{_api_url}/storage/{AWS_STORAGE_BUCKET_NAME}"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Use a custom test runner that disables SECURE_SSL_REDIRECT automatically.
+# The test client uses plain HTTP, so the redirect would break all tests.
+TEST_RUNNER = "config.test_runner.TestRunner"
+
 # ---------------------------------------------------------------------------
 # Logging — output errors and warnings to stdout so Docker captures them.
 # In DEBUG mode all SQL queries are also logged to the console.
@@ -294,6 +298,14 @@ LOGGING = {
             "level": "DEBUG" if DEBUG else "WARNING",
             "propagate": False,
         },
+        # Django's template engine logs a DEBUG entry for every missing
+        # variable, even those handled by |default or {% if %}. This is
+        # extremely noisy and does not indicate a real error.
+        "django.template": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
         "django.request": {
             "handlers": ["console"],
             # Always log 500 errors even in production
@@ -313,7 +325,7 @@ LOGGING = {
 if not DEBUG:
     # Trust X-Forwarded-Proto set by the host-level nginx reverse proxy.
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-    # Redirect all HTTP requests to HTTPS (nginx also does this, belt+braces).
+    # Redirect HTTP → HTTPS at the Django level (nginx also does this).
     SECURE_SSL_REDIRECT = True
     # Enable HSTS: browsers will only connect via HTTPS for 1 year.
     SECURE_HSTS_SECONDS = 31536000
