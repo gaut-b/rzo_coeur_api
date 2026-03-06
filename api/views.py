@@ -295,23 +295,21 @@ class RecipientCartListView(APIView):
         - `page` (optional): Page number for pagination
         """,
         parameters=[
-            {
-                "name": "status",
-                "in": "query",
-                "description": "Filter carts by status",
-                "required": False,
-                "schema": {
-                    "type": "string",
-                    "enum": ["PENDING", "ASSIGNED", "COLLECTED"],
-                },
-            },
-            {
-                "name": "page",
-                "in": "query",
-                "description": "Page number",
-                "required": False,
-                "schema": {"type": "integer"},
-            },
+            OpenApiParameter(
+                name="status",
+                location=OpenApiParameter.QUERY,
+                description="Filter carts by status",
+                required=False,
+                type=str,
+                enum=["PENDING", "ASSIGNED", "COLLECTED"],
+            ),
+            OpenApiParameter(
+                name="page",
+                location=OpenApiParameter.QUERY,
+                description="Page number",
+                required=False,
+                type=int,
+            ),
         ],
         responses={200: CartSerializer(many=True)},
         examples=[
@@ -696,27 +694,27 @@ class ShopListView(APIView):
        **Note**: Both latitude and longitude must be provided together for proximity sorting.
        """,
         parameters=[
-            {
-                "name": "latitude",
-                "in": "query",
-                "description": "Latitude in decimal degrees (e.g., 48.8566 for Paris)",
-                "required": False,
-                "schema": {"type": "number", "format": "float"},
-            },
-            {
-                "name": "longitude",
-                "in": "query",
-                "description": "Longitude in decimal degrees (e.g., 2.3522 for Paris)",
-                "required": False,
-                "schema": {"type": "number", "format": "float"},
-            },
-            {
-                "name": "page",
-                "in": "query",
-                "description": "Page number",
-                "required": False,
-                "schema": {"type": "integer"},
-            },
+            OpenApiParameter(
+                name="latitude",
+                location=OpenApiParameter.QUERY,
+                description="Latitude in decimal degrees (e.g., 48.8566 for Paris)",
+                required=False,
+                type=float,
+            ),
+            OpenApiParameter(
+                name="longitude",
+                location=OpenApiParameter.QUERY,
+                description="Longitude in decimal degrees (e.g., 2.3522 for Paris)",
+                required=False,
+                type=float,
+            ),
+            OpenApiParameter(
+                name="page",
+                location=OpenApiParameter.QUERY,
+                description="Page number",
+                required=False,
+                type=int,
+            ),
         ],
         responses={200: ShopSerializer(many=True)},
         examples=[

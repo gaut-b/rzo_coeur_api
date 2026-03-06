@@ -27,6 +27,17 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-m$k=iw56r4-nqz8c2q5=j
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("DEBUG", "0").lower() in ("1", "true", "yes")
 
+# Prevent accidental deploy with an insecure default key.
+if not DEBUG and SECRET_KEY.startswith("django-insecure-"):
+    from django.core.exceptions import ImproperlyConfigured
+
+    raise ImproperlyConfigured(
+        "SECRET_KEY must be set to a secure value in production. "
+        'Generate one with: python -c "'
+        "from django.core.management.utils import get_random_secret_key; "
+        'print(get_random_secret_key())"'
+    )
+
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")]
 
 # When served under a sub-path (e.g. /rzo-coeur/), set this so Django
@@ -142,6 +153,10 @@ DATABASES = {
         "PASSWORD": os.environ.get("SQL_PASSWORD", "password"),
         "HOST": os.environ.get("SQL_HOST", "localhost"),
         "PORT": os.environ.get("SQL_PORT", "5432"),
+        # Keep connections open for 60 s instead of closing after every request.
+        # CONN_HEALTH_CHECKS avoids reusing stale connections after a DB restart.
+        "CONN_MAX_AGE": int(os.environ.get("DB_CONN_MAX_AGE", "60")),
+        "CONN_HEALTH_CHECKS": True,
     }
 }
 # Password hashers
@@ -250,6 +265,10 @@ MINIO_PUBLIC_URL = f"{_api_url}/storage/{AWS_STORAGE_BUCKET_NAME}"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Use a custom test runner that disables SECURE_SSL_REDIRECT automatically.
+# The test client uses plain HTTP, so the redirect would break all tests.
+TEST_RUNNER = "config.test_runner.TestRunner"
+
 # ---------------------------------------------------------------------------
 # Logging — output errors and warnings to stdout so Docker captures them.
 # In DEBUG mode all SQL queries are also logged to the console.
@@ -279,6 +298,14 @@ LOGGING = {
             "level": "DEBUG" if DEBUG else "WARNING",
             "propagate": False,
         },
+        # Django's template engine logs a DEBUG entry for every missing
+        # variable, even those handled by |default or {% if %}. This is
+        # extremely noisy and does not indicate a real error.
+        "django.template": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
         "django.request": {
             "handlers": ["console"],
             # Always log 500 errors even in production
@@ -287,6 +314,25 @@ LOGGING = {
         },
     },
 }
+
+# ---------------------------------------------------------------------------
+# Production security settings.
+# nginx (on the host) terminates TLS and forwards X-Forwarded-Proto: https.
+# The inner Docker nginx must pass this header through (not override with
+# $scheme which is always 'http' inside Docker), so Django can correctly
+# identify HTTPS connections and enforce secure cookies.
+# ---------------------------------------------------------------------------
+if not DEBUG:
+    # Trust X-Forwarded-Proto set by the host-level nginx reverse proxy.
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    # Redirect HTTP → HTTPS at the Django level (nginx also does this).
+    SECURE_SSL_REDIRECT = True
+    # Enable HSTS: browsers will only connect via HTTPS for 1 year.
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    # Prevent cookies from being sent over HTTP.
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 # Email configuration
 if DEBUG:
