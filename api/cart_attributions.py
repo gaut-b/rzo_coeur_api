@@ -1,6 +1,5 @@
 from django import forms
 from django.contrib import admin
-from django.db.models import Q
 from django.urls import reverse
 from django.utils.html import format_html, mark_safe
 from django_admin_action_forms import ActionForm, AdminActionFormsMixin, action_with_form
@@ -16,29 +15,11 @@ from .models import (
 
 
 class CartCreationForm(forms.ModelForm):
-    shop = forms.ModelChoiceField(queryset=Shop.objects.none())
+    """Minimal creation form; queryset filtering is handled by CartAttribAdmin."""
 
     class Meta:
         model = Cart
         fields = ["shop", "recipient"]
-
-    def __init__(self, *args, **kwargs):
-        self.request = kwargs.pop("request", None)
-        super().__init__(*args, **kwargs)
-        social_center = self.request.user.socialworker.social_center
-        self.fields["shop"].queryset = Shop.objects.filter(social_center=social_center)
-        self.fields["recipient"].queryset = Recipient.objects.filter(social_center=social_center)
-
-    def save(self, commit=True):
-        if not self.request or not (self.request.user.is_staff or hasattr(self.request.user, "socialworker")):
-            raise forms.ValidationError("Cannot create cart, insufficient rights.")
-
-        cart = super().save(commit=False)
-        cart.shop = self.cleaned_data["shop"]
-
-        if commit:
-            cart.save()
-        return cart
 
 
 class ArticleChoiceField(forms.ModelMultipleChoiceField):
@@ -73,14 +54,14 @@ class CartChangeForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.instance and self.instance.pk:
-            shop = self.instance.shop
-            qs = Article.objects.filter(Q(cart=self.instance) | Q(shop=shop, cart=None)).order_by("name")
+            qs = Article.objects.filter(cart=self.instance).order_by("name")
             self.fields["articles"].queryset = qs
-            self.initial["articles"] = Article.objects.filter(cart=self.instance)
+            self.initial["articles"] = qs
 
 
 class CartAttribAdmin(admin.ModelAdmin):
     list_display = ["id", "shop", "status", "collected_at"]
+    autocomplete_fields = ["shop", "recipient"]
 
     def get_articles_display(self, obj: "Cart") -> str:
         """
@@ -124,21 +105,24 @@ class CartAttribAdmin(admin.ModelAdmin):
             return ["shop", "recipient", "collected_at", "get_articles_display"]
         return ["shop", "collected_at"]
 
-    # Cart should have a social center attribute as well as shop
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """
+        Restrict shop/recipient choices to the social worker's social center.
+
+        Staff users see all records; social workers see only records linked to
+        their own social center.
+        """
+        if not request.user.is_staff and hasattr(request.user, "socialworker"):
+            sc = request.user.socialworker.social_center
+            if db_field.name == "shop":
+                kwargs["queryset"] = Shop.objects.filter(social_center=sc)
+            elif db_field.name == "recipient":
+                kwargs["queryset"] = Recipient.objects.filter(social_center=sc)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
     def get_form(self, request, obj=None, **kwargs):
-        """Use custom form for creation, standard form for editing."""
-        if obj is None:  # Creating new cart
-            kwargs["form"] = CartCreationForm
-            form_class = super().get_form(request, obj, **kwargs)
-
-            # Create a wrapper that injects request into form instantiation
-            class FormWithRequest(form_class):
-                def __init__(self, *args, **form_kwargs):
-                    form_kwargs["request"] = request
-                    super().__init__(*args, **form_kwargs)
-
-            return FormWithRequest
-        kwargs["form"] = CartChangeForm
+        """Use CartCreationForm for new carts, CartChangeForm for editing."""
+        kwargs["form"] = CartCreationForm if obj is None else CartChangeForm
         return super().get_form(request, obj, **kwargs)
 
     def save_model(self, request, obj, form, change):
@@ -191,12 +175,33 @@ class CartAttributionAdminSite(CustomAdminSite):
     index_title = "Interface de création et attribution de paniers"
 
     def check_user_permission(self, user):
-        """Check if user has a social worker or a social admin role."""
-        return user.role == UserRole.SOCIAL_ADMIN.value or user.role == UserRole.SOCIAL_WORKER.value
+        """Check if user has a social worker, social admin role, or is staff."""
+        return user.is_staff or user.role == UserRole.SOCIAL_ADMIN.value or user.role == UserRole.SOCIAL_WORKER.value
 
     def get_permission_denied_message(self):
         """Custom message for social admin access denied."""
         return "You do not have permission to access the social center admin page."
+
+
+class HiddenShopAttrAdmin(admin.ModelAdmin):
+    """Hidden admin registered solely to support autocomplete on Cart forms."""
+
+    search_fields = ["name"]
+
+    def get_queryset(self, request):
+        """Restrict shops to the social worker's social center."""
+        qs = super().get_queryset(request)
+        if request.user.is_staff:
+            return qs
+        if hasattr(request.user, "socialworker"):
+            return qs.filter(social_center=request.user.socialworker.social_center)
+        return qs.none()
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_authenticated and (request.user.is_staff or hasattr(request.user, "socialworker"))
+
+    def has_module_permission(self, request):
+        return False
 
 
 class RecipientAttrAdmin(admin.ModelAdmin):
@@ -220,6 +225,15 @@ class RecipientAttrAdmin(admin.ModelAdmin):
 
     get_last_name.short_description = "Last Name"
     get_last_name.admin_order_field = "user__last_name"
+
+    def get_queryset(self, request):
+        """Restrict recipients to the social worker's social center."""
+        qs = super().get_queryset(request)
+        if request.user.is_staff:
+            return qs
+        if hasattr(request.user, "socialworker"):
+            return qs.filter(social_center=request.user.socialworker.social_center)
+        return qs.none()
 
     def is_from_same_social_center(self, request, obj):
         return hasattr(request.user, "socialworker") and obj.social_center == request.user.socialworker.social_center
@@ -359,6 +373,7 @@ class ArticleAttrAdmin(AdminActionFormsMixin, admin.ModelAdmin):
 
 
 cart_attrib_admin_site = CartAttributionAdminSite(name="cart_attrib_admin")
+cart_attrib_admin_site.register(Shop, HiddenShopAttrAdmin)
 cart_attrib_admin_site.register(Recipient, RecipientAttrAdmin)
 cart_attrib_admin_site.register(Article, ArticleAttrAdmin)
 cart_attrib_admin_site.register(Cart, CartAttribAdmin)
