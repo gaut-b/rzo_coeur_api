@@ -47,7 +47,7 @@ SUPPORTED_ENVS = ("dev", "e2e")
 class Command(BaseCommand):
     """Seed the database with fixtures for development or E2E testing."""
 
-    help = "Seed the database with fixtures (idempotent). " "Use --env to choose between 'dev' (default) and 'e2e'."
+    help = "Seed the database with fixtures (idempotent). Use --env to choose between 'dev' (default) and 'e2e'."
 
     def add_arguments(self, parser: CommandParser) -> None:
         """Register the --env argument."""
@@ -56,9 +56,7 @@ class Command(BaseCommand):
             choices=SUPPORTED_ENVS,
             default="dev",
             help=(
-                "Fixture environment to load: "
-                "'dev' for development data (default), "
-                "'e2e' for Playwright E2E test data."
+                "Fixture environment to load: 'dev' for development data (default), 'e2e' for Playwright E2E test data."
             ),
         )
 
