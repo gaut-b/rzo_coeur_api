@@ -1,0 +1,23 @@
+[
+  {
+    "email": "admin.leslilas@rzo.local",
+    "first_name": "Isabelle",
+    "last_name": "Moreau",
+    "social_center": "Centre Social Les Lilas",
+    "is_social_admin": true
+  },
+  {
+    "email": "travailleur.leslilas@rzo.local",
+    "first_name": "Marc",
+    "last_name": "Dupont",
+    "social_center": "Centre Social Les Lilas",
+    "is_social_admin": false
+  },
+  {
+    "email": "admin.belleville@rzo.local",
+    "first_name": "Sophie",
+    "last_name": "Bernard",
+    "social_center": "Maison de Solidarité Belleville",
+    "is_social_admin": true
+  }
+]

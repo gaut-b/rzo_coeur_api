@@ -135,6 +135,88 @@ To run Mailhog standalone (without Docker):
 docker run -d -p 1025:1025 -p 8025:8025 mailhog/mailhog
 ```
 
+## Tests
+
+### Unit tests (Django)
+
+The unit test suite runs against the Django ORM directly via `manage.py test`.
+
+```sh
+uv run python manage.py test
+```
+
+### E2E tests (Playwright)
+
+The E2E test suite exercises the four admin interfaces in a real browser using [Playwright](https://playwright.dev/python/) and [pytest-playwright](https://playwright.dev/python/docs/test-runners).
+
+**Covered flows**
+
+| Interface        | Flows tested                                                                                                                        |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `/admin/`        | Non-staff users are denied access                                                                                                   |
+| `/social-admin/` | Social admin can log in; social worker is denied; creation of recipients and social workers                                         |
+| `/cart-admin/`   | Social admin and social workers can log in; view available articles; create a cart; assign/remove articles                          |
+| `/shop-admin/`   | Non-cashiers are denied; cashiers can view articles but cannot manage cashiers; shop managers can view articles and create cashiers |
+
+#### Prerequisites
+
+Install dev dependencies (includes Playwright) and the Chromium browser:
+
+```sh
+uv sync --group dev
+uv run playwright install chromium
+```
+
+#### Running the tests
+
+```sh
+uv run pytest e2e/ -p no:django -v
+```
+
+The `django_server` fixture starts the Django development server automatically and seeds the database with E2E test data before the session begins. If a server is already running on port 8000, it is reused.
+
+To watch the tests run in a real browser window, add `--headed` (and optionally `--slowmo` in milliseconds):
+
+```sh
+uv run pytest e2e/ -p no:django -v --headed --slowmo=500
+```
+
+To target a specific running server:
+
+```sh
+E2E_BASE_URL=http://127.0.0.1:8000 uv run pytest e2e/ -p no:django -v
+```
+
+#### E2E test data
+
+The seed command creates a fixed, idempotent set of users and data:
+
+| Role          | Email                          |
+| ------------- | ------------------------------ |
+| Social admin  | `e2e-social-admin@test.local`  |
+| Social worker | `e2e-social-worker@test.local` |
+| Shop manager  | `e2e-shop-manager@test.local`  |
+| Cashier       | `e2e-cashier@test.local`       |
+| Recipient     | `e2e-recipient@test.local`     |
+
+It can also be run independently:
+
+```sh
+uv run python manage.py seed_data --env e2e
+```
+
+#### Development data
+
+To populate the database with realistic sample data for local development:
+
+```sh
+uv run python manage.py seed_data          # defaults to --env dev
+uv run python manage.py seed_data --env dev
+```
+
+Fixture files live in `api/fixtures/dev/` (one JSON file per entity type).
+Add or edit entries in those files to extend the dataset without touching Python code.
+
 ## Contributors
 
 - [Clement Viel](https://github.com/ClementViel)

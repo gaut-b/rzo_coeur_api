@@ -80,6 +80,120 @@ jobs:
         run: |
           uv run python manage.py test
 
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [test]
+
+    services:
+      postgres:
+        image: postgis/postgis:17-3.5
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: e2e_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gdal-bin
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Install Python dependencies
+        run: |
+          uv sync --frozen --group dev
+
+      - name: Install Playwright browsers
+        run: |
+          uv run playwright install --with-deps chromium
+
+      - name: Collect static files
+        env:
+          SECRET_KEY: test-secret-key-for-ci
+          DEBUG: 'True'
+          SQL_ENGINE: django.contrib.gis.db.backends.postgis
+          SQL_DATABASE: e2e_db
+          SQL_USER: postgres
+          SQL_PASSWORD: postgres
+          SQL_HOST: localhost
+          SQL_PORT: 5432
+        run: |
+          uv run python manage.py collectstatic --noinput
+
+      - name: Run database migrations
+        env:
+          SECRET_KEY: test-secret-key-for-ci
+          DEBUG: 'True'
+          SQL_ENGINE: django.contrib.gis.db.backends.postgis
+          SQL_DATABASE: e2e_db
+          SQL_USER: postgres
+          SQL_PASSWORD: postgres
+          SQL_HOST: localhost
+          SQL_PORT: 5432
+        run: |
+          uv run python manage.py migrate
+
+      - name: Start Django server
+        env:
+          SECRET_KEY: test-secret-key-for-ci
+          DEBUG: 'True'
+          SQL_ENGINE: django.contrib.gis.db.backends.postgis
+          SQL_DATABASE: e2e_db
+          SQL_USER: postgres
+          SQL_PASSWORD: postgres
+          SQL_HOST: localhost
+          SQL_PORT: 5432
+          ALLOWED_HOSTS: 'localhost,127.0.0.1'
+        run: |
+          uv run python manage.py runserver 127.0.0.1:8000 --noreload &
+          # Wait until the server accepts connections
+          timeout 30 bash -c 'until curl -s http://127.0.0.1:8000/admin/ > /dev/null; do sleep 1; done'
+
+      - name: Run Playwright E2E tests
+        env:
+          SECRET_KEY: test-secret-key-for-ci
+          DEBUG: 'True'
+          SQL_ENGINE: django.contrib.gis.db.backends.postgis
+          SQL_DATABASE: e2e_db
+          SQL_USER: postgres
+          SQL_PASSWORD: postgres
+          SQL_HOST: localhost
+          SQL_PORT: 5432
+          E2E_BASE_URL: http://127.0.0.1:8000
+          DJANGO_SETTINGS_MODULE: config.settings
+        run: |
+          uv run pytest e2e/ -p no:django --browser chromium \
+            --output=test-results \
+            --html=playwright-report/report.html \
+            --self-contained-html \
+            -v
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+
   lint:
     runs-on: ubuntu-latest
 

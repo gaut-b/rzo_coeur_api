@@ -550,6 +550,7 @@ class CustomAdminSite(admin.AdminSite):
             "site_title": self.site_title,
             "site_header": self.site_header,
             "site": self,
+            "next": request.GET.get("next", ""),
         }
         if extra_context:
             context.update(extra_context)

@@ -95,3 +95,8 @@ local_settings.py
 .env
 !.env.example
 db.sqlite3
+
+### Playwright E2E ###
+playwright-report/
+test-results/
+e2e/.auth/

@@ -1,0 +1,16 @@
+[
+  {
+    "email": "e2e-social-admin@test.local",
+    "first_name": "Social",
+    "last_name": "Admin",
+    "social_center": "E2E Test Center",
+    "is_social_admin": true
+  },
+  {
+    "email": "e2e-social-worker@test.local",
+    "first_name": "Social",
+    "last_name": "Worker",
+    "social_center": "E2E Test Center",
+    "is_social_admin": false
+  }
+]

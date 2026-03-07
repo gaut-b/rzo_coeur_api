@@ -1,0 +1,20 @@
+[
+  {
+    "email": "beneficiaire1@rzo.local",
+    "first_name": "Ahmed",
+    "last_name": "Benali",
+    "social_center": "Centre Social Les Lilas"
+  },
+  {
+    "email": "beneficiaire2@rzo.local",
+    "first_name": "Marie",
+    "last_name": "Nguyen",
+    "social_center": "Centre Social Les Lilas"
+  },
+  {
+    "email": "beneficiaire3@rzo.local",
+    "first_name": "Fatou",
+    "last_name": "Diallo",
+    "social_center": "Maison de Solidarité Belleville"
+  }
+]

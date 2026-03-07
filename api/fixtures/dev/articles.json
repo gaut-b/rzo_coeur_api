@@ -1,0 +1,44 @@
+[
+  {
+    "barcode": 3017620429484,
+    "name": "Nutella 400g",
+    "brand_label": "Ferrero",
+    "shop": "Carrefour Market République",
+    "client": "client1@rzo.local"
+  },
+  {
+    "barcode": 3155250330028,
+    "name": "Pâtes Penne 500g",
+    "brand_label": "Barilla",
+    "shop": "Carrefour Market République",
+    "client": "client1@rzo.local"
+  },
+  {
+    "barcode": 3270190022534,
+    "name": "Lait demi-écrémé 1L",
+    "brand_label": "Lactel",
+    "shop": "Carrefour Market République",
+    "client": "client2@rzo.local"
+  },
+  {
+    "barcode": 3045320094084,
+    "name": "Céréales Miel Pops 375g",
+    "brand_label": "Kellogg's",
+    "shop": "Monoprix Gambetta",
+    "client": "client1@rzo.local"
+  },
+  {
+    "barcode": 3560070976478,
+    "name": "Huile d'olive vierge extra 75cl",
+    "brand_label": "Carrefour",
+    "shop": "Monoprix Gambetta",
+    "client": "client2@rzo.local"
+  },
+  {
+    "barcode": 3038350021233,
+    "name": "Yaourts nature x8",
+    "brand_label": "Danone",
+    "shop": "Franprix Nation",
+    "client": "client2@rzo.local"
+  }
+]

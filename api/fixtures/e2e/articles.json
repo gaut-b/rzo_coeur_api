@@ -1,0 +1,23 @@
+[
+  {
+    "barcode": 3000000000001,
+    "name": "E2E Yogurt",
+    "brand_label": "E2E Brand A",
+    "shop": "E2E Test Shop",
+    "client": "e2e-client@test.local"
+  },
+  {
+    "barcode": 3000000000002,
+    "name": "E2E Pasta",
+    "brand_label": "E2E Brand B",
+    "shop": "E2E Test Shop",
+    "client": "e2e-client@test.local"
+  },
+  {
+    "barcode": 3000000000003,
+    "name": "E2E Tomato Sauce",
+    "brand_label": "E2E Brand C",
+    "shop": "E2E Test Shop",
+    "client": "e2e-client@test.local"
+  }
+]

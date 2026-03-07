@@ -1,0 +1,30 @@
+[
+  {
+    "email": "manager.carrefour@rzo.local",
+    "first_name": "Thomas",
+    "last_name": "Lefebvre",
+    "shop": "Carrefour Market République",
+    "is_shop_manager": true
+  },
+  {
+    "email": "caissier.carrefour@rzo.local",
+    "first_name": "Julie",
+    "last_name": "Martin",
+    "shop": "Carrefour Market République",
+    "is_shop_manager": false
+  },
+  {
+    "email": "manager.monoprix@rzo.local",
+    "first_name": "Nicolas",
+    "last_name": "Petit",
+    "shop": "Monoprix Gambetta",
+    "is_shop_manager": true
+  },
+  {
+    "email": "manager.franprix@rzo.local",
+    "first_name": "Claire",
+    "last_name": "Rousseau",
+    "shop": "Franprix Nation",
+    "is_shop_manager": true
+  }
+]
