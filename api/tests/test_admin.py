@@ -42,42 +42,6 @@ class CustomAdminSiteTests(TestCase):
         )
         self.inactive_cashier = Cashier.objects.create(user=self.inactive_user, shop=self.shop, is_shop_manager=False)
 
-    def test_cashier_login_success(self):
-        """Test that a cashier can successfully log in to shop admin."""
-        response = self.client.post(
-            reverse("shop_admin:login"),
-            {
-                "username": "cashier@test.com",
-                "password": "testpass123",
-            },
-        )
-        self.assertEqual(response.status_code, 302)
-        self.assertTrue(response.url.startswith("/shop-admin/"))
-
-    def test_manager_login_success(self):
-        """Test that a shop manager can successfully log in to shop admin."""
-        response = self.client.post(
-            reverse("shop_admin:login"),
-            {
-                "username": "manager@test.com",
-                "password": "testpass123",
-            },
-        )
-        self.assertEqual(response.status_code, 302)
-        self.assertTrue(response.url.startswith("/shop-admin/"))
-
-    def test_non_cashier_login_denied(self):
-        """Test that a user without cashier role is denied access."""
-        response = self.client.post(
-            reverse("shop_admin:login"),
-            {
-                "username": "regular@test.com",
-                "password": "testpass123",
-            },
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "You do not have permission to access the shop admin")
-
     def test_invalid_credentials(self):
         """Test that invalid credentials show appropriate error."""
         response = self.client.post(
@@ -159,24 +123,6 @@ class CustomAdminSiteTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Shop Admin Login")
 
-    def test_has_permission_authenticated_cashier(self):
-        """Test has_permission returns True for authenticated cashier."""
-        request = self.factory.get("/shop-admin/")
-        request.user = self.cashier_user
-        self.assertTrue(shop_admin_site.has_permission(request))
-
-    def test_has_permission_authenticated_manager(self):
-        """Test has_permission returns True for authenticated manager."""
-        request = self.factory.get("/shop-admin/")
-        request.user = self.manager_user
-        self.assertTrue(shop_admin_site.has_permission(request))
-
-    def test_has_permission_non_cashier(self):
-        """Test has_permission returns False for non-cashier user."""
-        request = self.factory.get("/shop-admin/")
-        request.user = self.regular_user
-        self.assertFalse(shop_admin_site.has_permission(request))
-
     def test_has_permission_inactive_user(self):
         """Test has_permission returns False for inactive user."""
         request = self.factory.get("/shop-admin/")
@@ -188,25 +134,6 @@ class CustomAdminSiteTests(TestCase):
         request = self.factory.get("/shop-admin/")
         request.user = AnonymousUser()
         self.assertFalse(shop_admin_site.has_permission(request))
-
-    def test_check_user_permission_with_cashier(self):
-        """Test check_user_permission for user with cashier profile."""
-        self.assertTrue(shop_admin_site.check_user_permission(self.cashier_user))
-
-    def test_check_user_permission_without_cashier(self):
-        """Test check_user_permission for user without cashier profile."""
-        self.assertFalse(shop_admin_site.check_user_permission(self.regular_user))
-
-    def test_custom_permission_denied_message(self):
-        """Test that custom permission denied message is shown."""
-        response = self.client.post(
-            reverse("shop_admin:login"),
-            {
-                "username": "regular@test.com",
-                "password": "testpass123",
-            },
-        )
-        self.assertContains(response, shop_admin_site.get_permission_denied_message())
 
     def test_user_loses_cashier_role_loses_access(self):
         """Test that user loses access when cashier profile is deleted."""

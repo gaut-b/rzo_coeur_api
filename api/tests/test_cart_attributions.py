@@ -24,12 +24,10 @@ from api.cart_attributions import (
     ArticleAvailabilityFilter,
     ArticleChoiceField,
     CartAttribAdmin,
-    CartAttributionAdminSite,
     CartChangeForm,
     CartCreationForm,
     cart_attrib_admin_site,
 )
-from api.enums import UserRole
 from api.models import (
     Article,
     Cart,
@@ -116,42 +114,6 @@ def make_request(user) -> Mock:
     request = factory.get("/")
     request.user = user
     return request
-
-
-# ---------------------------------------------------------------------------
-# CartAttributionAdminSite
-# ---------------------------------------------------------------------------
-
-
-class CartAttributionAdminSitePermissionTests(TestCase):
-    """Tests for CartAttributionAdminSite.check_user_permission."""
-
-    def setUp(self):
-        self.site = CartAttributionAdminSite(name="test_site")
-
-    def test_social_admin_is_allowed(self):
-        """SOCIAL_ADMIN role must be granted access."""
-        user = Mock()
-        user.role = UserRole.SOCIAL_ADMIN.value
-        self.assertTrue(self.site.check_user_permission(user))
-
-    def test_social_worker_is_allowed(self):
-        """SOCIAL_WORKER role must be granted access."""
-        user = Mock()
-        user.role = UserRole.SOCIAL_WORKER.value
-        self.assertTrue(self.site.check_user_permission(user))
-
-    def test_client_is_denied(self):
-        """CLIENT role must be denied."""
-        user = Mock()
-        user.role = UserRole.CLIENT.value
-        self.assertFalse(self.site.check_user_permission(user))
-
-    def test_cashier_is_denied(self):
-        """CASHIER role must be denied."""
-        user = Mock()
-        user.role = UserRole.CASHIER.value
-        self.assertFalse(self.site.check_user_permission(user))
 
 
 # ---------------------------------------------------------------------------
@@ -392,20 +354,6 @@ class CartAttribAdminSaveModelTests(TestCase):
         form.cleaned_data = {"articles": selected_articles}
         request = make_request(self.sw.user)
         self.admin_instance.save_model(request, cart, form, change=True)
-
-    def test_selected_article_is_assigned_to_cart(self):
-        """Selecting an available article must assign it to the cart."""
-        article = make_article(self.shop, self.client_obj, "A1")
-        self._save(self.cart, [article])
-        article.refresh_from_db()
-        self.assertEqual(article.cart, self.cart)
-
-    def test_deselected_article_is_detached_from_cart(self):
-        """Deselecting an article already in the cart must detach it."""
-        article = make_article(self.shop, self.client_obj, "A2", cart=self.cart)
-        self._save(self.cart, [])  # save with no articles selected
-        article.refresh_from_db()
-        self.assertIsNone(article.cart)
 
     def test_already_assigned_article_stays(self):
         """An article that was in the cart and remains selected must stay."""

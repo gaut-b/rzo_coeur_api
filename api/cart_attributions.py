@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib import admin
+from django.db.models import Q
 from django.urls import reverse
 from django.utils.html import format_html, mark_safe
 from django_admin_action_forms import ActionForm, AdminActionFormsMixin, action_with_form
@@ -15,11 +16,26 @@ from .models import (
 
 
 class CartCreationForm(forms.ModelForm):
-    """Minimal creation form; queryset filtering is handled by CartAttribAdmin."""
+    """
+    Creation form for a new cart.
+
+    Accepts an optional ``request`` kwarg.  When provided and the requesting
+    user has a social worker profile, the shop and recipient querysets are
+    restricted to the worker's social center.  This filtering is also applied
+    by ``CartAttribAdmin.formfield_for_foreignkey`` in the admin context.
+    """
 
     class Meta:
         model = Cart
         fields = ["shop", "recipient"]
+
+    def __init__(self, *args, **kwargs):
+        request = kwargs.pop("request", None)
+        super().__init__(*args, **kwargs)
+        if request is not None and hasattr(request.user, "socialworker"):
+            sc = request.user.socialworker.social_center
+            self.fields["shop"].queryset = Shop.objects.filter(social_center=sc)
+            self.fields["recipient"].queryset = Recipient.objects.filter(social_center=sc)
 
 
 class ArticleChoiceField(forms.ModelMultipleChoiceField):
@@ -54,9 +70,12 @@ class CartChangeForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.instance and self.instance.pk:
-            qs = Article.objects.filter(cart=self.instance).order_by("name")
+            # Selectable articles: those already in this cart, or available
+            # (cart=None) articles from the same shop.
+            qs = Article.objects.filter(Q(cart=self.instance) | Q(cart=None, shop=self.instance.shop)).order_by("name")
             self.fields["articles"].queryset = qs
-            self.initial["articles"] = qs
+            # Pre-check only the articles currently in this cart.
+            self.initial["articles"] = Article.objects.filter(cart=self.instance)
 
 
 class CartAttribAdmin(admin.ModelAdmin):

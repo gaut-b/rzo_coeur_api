@@ -36,6 +36,7 @@ def _make_request(
     request = MagicMock()
     user = MagicMock() if user_obj is None else user_obj
     user.is_authenticated = authenticated
+    user.is_staff = False
 
     if social_center is None:
         social_center = _make_social_center()

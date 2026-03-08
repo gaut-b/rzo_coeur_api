@@ -69,7 +69,27 @@ sudo apt-get install gdal-bin libgdal-dev libgeos-dev
 
 4. Set up your `.env` file with the required environment variables (see below)
 
-5. Run migrations and start the server:
+5. Start a PostGIS database independently with Docker (optional, recommended):
+
+If you don't want to run the full Docker stack but still need a PostgreSQL/PostGIS database, you can spin up only the `db` service:
+
+```sh
+docker compose up db -d
+```
+
+This starts the PostGIS container in the background using the credentials defined in your `.env` file (port `5432` on `localhost`). Stop it with:
+
+```sh
+docker compose stop db
+```
+
+To destroy the container and its data volume:
+
+```sh
+docker compose down db -v
+```
+
+6. Run migrations and start the server:
 
 ```sh
 uv run python manage.py migrate
