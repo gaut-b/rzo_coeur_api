@@ -9,16 +9,12 @@ Covers the /shop-admin/ interface:
   - A shop manager can create a new cashier
 """
 
-import os
-
 import pytest
 from playwright.sync_api import Page, expect
 
-from e2e.conftest import E2E_PASSWORD
+from e2e.conftest import BASE_URL, E2E_PASSWORD
 from e2e.pages.admin_login_page import AdminLoginPage
 from e2e.pages.shop_admin_page import ShopAdminPage
-
-BASE_URL = os.environ.get("E2E_BASE_URL", "http://127.0.0.1:8000")
 
 
 @pytest.mark.usefixtures("django_server")

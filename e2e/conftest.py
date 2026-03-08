@@ -2,23 +2,24 @@
 conftest.py — Playwright E2E fixtures for the Django admin test suite.
 
 Provides:
-  - django_server: session-scoped fixture that starts the Django dev server
-    and seeds E2E data before the test session begins.
+  - django_server: session-scoped fixture that builds and starts the complete
+    application stack (nginx + backend/gunicorn + PostGIS + MinIO) via
+    docker-compose.e2e.yml, seeds E2E data, and tears everything down (with
+    volume removal) at the end of the session.  Skipped when
+    E2E_EXTERNAL_STACK=1 (CI mode where the stack is provided externally).
   - Authenticated page fixtures for each role (social_admin, social_worker,
     shop_manager, cashier). Each re-uses a stored browser-context state so
     the login round-trip only happens once per session.
 
 Environment variables (with defaults suitable for local dev):
-  E2E_BASE_URL      http://127.0.0.1:8000
-  DJANGO_SETTINGS_MODULE  config.settings
+  E2E_BASE_URL            http://127.0.0.1:8001
+  E2E_EXTERNAL_STACK      set to "1" to skip Docker lifecycle (CI mode)
 """
 
 from __future__ import annotations
 
 import os
-import socket
 import subprocess
-import time
 from collections.abc import Generator
 
 import pytest
@@ -26,9 +27,13 @@ from playwright.sync_api import Browser, BrowserContext, Page
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 
-BASE_URL = os.environ.get("E2E_BASE_URL", "http://127.0.0.1:8000")
+BASE_URL = os.environ.get("E2E_BASE_URL", "http://127.0.0.1:8001")
 AUTH_DIR = os.path.join(os.path.dirname(__file__), ".auth")
 os.makedirs(AUTH_DIR, exist_ok=True)
+
+# Absolute path to the e2e docker-compose file (one level up from this file).
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+E2E_COMPOSE_FILE = os.path.join(_REPO_ROOT, "docker-compose.e2e.yml")
 
 E2E_PASSWORD = "E2eTestPass123!"
 
@@ -37,6 +42,7 @@ USERS = {
     "social_worker": "e2e-social-worker@test.local",
     "shop_manager": "e2e-shop-manager@test.local",
     "cashier": "e2e-cashier@test.local",
+    "staff": "e2e-staff@test.local",
 }
 
 # Each role logs into its "home" admin site for the auth-setup step.
@@ -45,84 +51,68 @@ LOGIN_URLS: dict[str, str] = {
     "social_worker": f"{BASE_URL}/cart-admin/login/",
     "shop_manager": f"{BASE_URL}/shop-admin/login/",
     "cashier": f"{BASE_URL}/shop-admin/login/",
+    "staff": f"{BASE_URL}/admin/login/",
 }
 
 
-# ─── Server management ────────────────────────────────────────────────────────
-
-
-def _wait_for_port(host: str, port: int, timeout: float = 30.0) -> None:
-    """Block until the given TCP port is accepting connections."""
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        try:
-            with socket.create_connection((host, port), timeout=1):
-                return
-        except OSError:
-            time.sleep(0.2)
-    raise RuntimeError(f"Server at {host}:{port} did not start within {timeout}s")
+# ─── Stack management ────────────────────────────────────────────────────────
 
 
 @pytest.fixture(scope="session")
 def django_server() -> Generator[str, None, None]:
     """
-    Start the Django development server and seed E2E data.
+    Build and start the full application stack, seed E2E data, then tear
+    everything down at the end of the session.
 
-    When the E2E_BASE_URL env var points to an already-running server
-    (e.g. in CI where the server is started separately), we skip launching
-    a new process and only run the seed command.
+    The stack is defined in docker-compose.e2e.yml and mirrors production:
+    nginx + backend (gunicorn) + PostGIS + MinIO.  docker compose --wait
+    blocks until every healthcheck passes, so the server is guaranteed to be
+    ready before any test runs.
 
-    Yields the base URL string.
+    Set E2E_EXTERNAL_STACK=1 to skip the Docker lifecycle entirely (CI mode
+    where the stack is already running).
     """
-    host = "127.0.0.1"
-    port = 8000
-    server_process: subprocess.Popen | None = None
-
-    # Try to connect to an already-running server first.
-    already_running = False
-    try:
-        with socket.create_connection((host, port), timeout=1):
-            already_running = True
-    except OSError:
-        pass
-
-    if not already_running:
-        env = {
-            **os.environ,
-            "DJANGO_SETTINGS_MODULE": os.environ.get("DJANGO_SETTINGS_MODULE", "config.settings"),
-        }
-        server_process = subprocess.Popen(
-            [
-                "uv",
-                "run",
-                "python",
-                "manage.py",
-                "runserver",
-                f"{host}:{port}",
-                "--noreload",
-            ],
-            env=env,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+    if os.environ.get("E2E_EXTERNAL_STACK") != "1":
+        # Start the main stack (db, backend, nginx, minio) and wait for all
+        # healthchecks to pass.  minio-init is in the 'init' profile so it
+        # is excluded from --wait (it exits 0 which would otherwise cause
+        # --wait to return a non-zero exit code).
+        compose_up = ["docker", "compose", "-f", E2E_COMPOSE_FILE, "up", "-d"]
+        if os.environ.get("E2E_NO_BUILD") != "1":
+            compose_up.append("--build")
+        compose_up.append("--wait")
+        subprocess.run(compose_up, check=True)
+        # Run the MinIO bucket initialisation separately.
+        subprocess.run(
+            ["docker", "compose", "-f", E2E_COMPOSE_FILE, "--profile", "init", "run", "--rm", "minio-init"],
+            check=True,
         )
-        _wait_for_port(host, port)
 
-    # Seed test data (idempotent — safe to call every run).
-    seed_env = {
-        **os.environ,
-        "DJANGO_SETTINGS_MODULE": os.environ.get("DJANGO_SETTINGS_MODULE", "config.settings"),
-    }
+    # Seed test data inside the running backend container (idempotent).
     subprocess.run(
-        ["uv", "run", "python", "manage.py", "seed_data", "--env", "e2e"],
-        env=seed_env,
+        [
+            "docker",
+            "compose",
+            "-f",
+            E2E_COMPOSE_FILE,
+            "exec",
+            "backend",
+            "python",
+            "manage.py",
+            "seed_data",
+            "--env",
+            "e2e",
+        ],
         check=True,
     )
 
     yield BASE_URL
 
-    if server_process is not None:
-        server_process.terminate()
-        server_process.wait(timeout=10)
+    if os.environ.get("E2E_EXTERNAL_STACK") != "1":
+        subprocess.run(
+            ["docker", "compose", "-f", E2E_COMPOSE_FILE, "down", "-v"],
+            check=True,
+        )
 
 
 # ─── Auth-state helpers ───────────────────────────────────────────────────────
@@ -183,7 +173,7 @@ def social_admin_page(browser: Browser, authenticated_states: dict[str, str]) ->
 
 
 @pytest.fixture
-def social_worker_page(browser: Browser, authenticated_states: dict[str, str]) -> Generator[Page, None, None]:
+def cart_admin_page(browser: Browser, authenticated_states: dict[str, str]) -> Generator[Page, None, None]:
     """Authenticated page for the social worker role."""
     context, page = _make_authed_page(browser, authenticated_states["social_worker"])
     yield page
@@ -202,6 +192,14 @@ def shop_manager_page(browser: Browser, authenticated_states: dict[str, str]) ->
 def cashier_page(browser: Browser, authenticated_states: dict[str, str]) -> Generator[Page, None, None]:
     """Authenticated page for the regular cashier role."""
     context, page = _make_authed_page(browser, authenticated_states["cashier"])
+    yield page
+    context.close()
+
+
+@pytest.fixture
+def staff_page(browser: Browser, authenticated_states: dict[str, str]) -> Generator[Page, None, None]:
+    """Authenticated page for the staff role."""
+    context, page = _make_authed_page(browser, authenticated_states["staff"])
     yield page
     context.close()
 

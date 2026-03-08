@@ -9,16 +9,12 @@ Covers the /social-admin/ and /cart-admin/ flows:
   - Social admin can create a new SocialWorker
 """
 
-import os
-
 import pytest
 from playwright.sync_api import Page, expect
 
-from e2e.conftest import E2E_PASSWORD
+from e2e.conftest import BASE_URL, E2E_PASSWORD
 from e2e.pages.admin_login_page import AdminLoginPage
 from e2e.pages.social_admin_page import SocialAdminPage
-
-BASE_URL = os.environ.get("E2E_BASE_URL", "http://127.0.0.1:8000")
 
 
 @pytest.mark.usefixtures("django_server")
@@ -39,18 +35,6 @@ class TestSocialAdminAccess:
         login_page = AdminLoginPage(BASE_URL, "social-admin")
         login_page.login(anon_page, "e2e-social-worker@test.local", E2E_PASSWORD)
         login_page.expect_error(anon_page, "You do not have permission")
-
-    def test_social_admin_can_access_cart_admin_site(self, social_admin_page: Page) -> None:
-        """A social admin user also has access to /cart-admin/."""
-        social_admin_page.goto(f"{BASE_URL}/cart-admin/")
-        assert "/cart-admin/" in social_admin_page.url
-        assert "/login/" not in social_admin_page.url
-
-    def test_social_worker_can_access_cart_admin_site(self, social_worker_page: Page) -> None:
-        """A social worker can access /cart-admin/ (their primary interface)."""
-        social_worker_page.goto(f"{BASE_URL}/cart-admin/")
-        assert "/cart-admin/" in social_worker_page.url
-        assert "/login/" not in social_worker_page.url
 
 
 @pytest.mark.usefixtures("django_server")

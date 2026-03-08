@@ -1,0 +1,118 @@
+{
+  "users": [
+    {
+      "email": "client1@rzo.local",
+      "first_name": "Pierre",
+      "last_name": "Lambert"
+    },
+    {
+      "email": "client2@rzo.local",
+      "first_name": "Camille",
+      "last_name": "Fontaine"
+    },
+    {
+      "email": "admin.leslilas@rzo.local",
+      "first_name": "Isabelle",
+      "last_name": "Moreau"
+    },
+    {
+      "email": "travailleur.leslilas@rzo.local",
+      "first_name": "Marc",
+      "last_name": "Dupont"
+    },
+    {
+      "email": "admin.belleville@rzo.local",
+      "first_name": "Sophie",
+      "last_name": "Bernard"
+    },
+    {
+      "email": "manager.carrefour@rzo.local",
+      "first_name": "Thomas",
+      "last_name": "Lefebvre"
+    },
+    {
+      "email": "caissier.carrefour@rzo.local",
+      "first_name": "Julie",
+      "last_name": "Martin"
+    },
+    {
+      "email": "manager.monoprix@rzo.local",
+      "first_name": "Nicolas",
+      "last_name": "Petit"
+    },
+    {
+      "email": "manager.franprix@rzo.local",
+      "first_name": "Claire",
+      "last_name": "Rousseau"
+    },
+    {
+      "email": "beneficiaire1@rzo.local",
+      "first_name": "Ahmed",
+      "last_name": "Benali"
+    },
+    {
+      "email": "beneficiaire2@rzo.local",
+      "first_name": "Marie",
+      "last_name": "Nguyen"
+    },
+    {
+      "email": "beneficiaire3@rzo.local",
+      "first_name": "Fatou",
+      "last_name": "Diallo"
+    }
+  ],
+  "clients": [{ "user": "client1@rzo.local" }, { "user": "client2@rzo.local" }],
+  "social_workers": [
+    {
+      "user": "admin.leslilas@rzo.local",
+      "social_center": "Centre Social Les Lilas",
+      "is_social_admin": true
+    },
+    {
+      "user": "travailleur.leslilas@rzo.local",
+      "social_center": "Centre Social Les Lilas",
+      "is_social_admin": false
+    },
+    {
+      "user": "admin.belleville@rzo.local",
+      "social_center": "Maison de Solidarité Belleville",
+      "is_social_admin": true
+    }
+  ],
+  "recipients": [
+    {
+      "user": "beneficiaire1@rzo.local",
+      "social_center": "Centre Social Les Lilas"
+    },
+    {
+      "user": "beneficiaire2@rzo.local",
+      "social_center": "Centre Social Les Lilas"
+    },
+    {
+      "user": "beneficiaire3@rzo.local",
+      "social_center": "Maison de Solidarité Belleville"
+    }
+  ],
+  "cashiers": [
+    {
+      "user": "manager.carrefour@rzo.local",
+      "shop": "Carrefour Market République",
+      "is_shop_manager": true
+    },
+    {
+      "user": "caissier.carrefour@rzo.local",
+      "shop": "Carrefour Market République",
+      "is_shop_manager": false
+    },
+    {
+      "user": "manager.monoprix@rzo.local",
+      "shop": "Monoprix Gambetta",
+      "is_shop_manager": true
+    },
+    {
+      "user": "manager.franprix@rzo.local",
+      "shop": "Franprix Nation",
+      "is_shop_manager": true
+    }
+  ]
+}

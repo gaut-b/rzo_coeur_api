@@ -69,7 +69,27 @@ sudo apt-get install gdal-bin libgdal-dev libgeos-dev
 
 4. Set up your `.env` file with the required environment variables (see below)
 
-5. Run migrations and start the server:
+5. Start a PostGIS database independently with Docker (optional, recommended):
+
+If you don't want to run the full Docker stack but still need a PostgreSQL/PostGIS database, you can spin up only the `db` service:
+
+```sh
+docker compose up db -d
+```
+
+This starts the PostGIS container in the background using the credentials defined in your `.env` file (port `5432` on `localhost`). Stop it with:
+
+```sh
+docker compose stop db
+```
+
+To destroy the container and its data volume:
+
+```sh
+docker compose down db -v
+```
+
+6. Run migrations and start the server:
 
 ```sh
 uv run python manage.py migrate
@@ -173,7 +193,13 @@ uv run playwright install chromium
 uv run pytest e2e/ -p no:django -v
 ```
 
-The `django_server` fixture starts the Django development server automatically and seeds the database with E2E test data before the session begins. If a server is already running on port 8000, it is reused.
+The test session is fully self-contained and runs against a production-like stack:
+
+1. The full application is built and started via `docker-compose.e2e.yml`: **nginx + backend (gunicorn) + PostGIS + MinIO** — identical to production.
+2. `docker compose --wait` blocks until every healthcheck passes (backend ready, DB ready, MinIO ready).
+3. E2E seed data is loaded directly into the running backend container (`docker compose exec`).
+4. All tests run against nginx on port **8001**.
+5. The entire stack (containers + volumes) is destroyed when the session ends.
 
 To watch the tests run in a real browser window, add `--headed` (and optionally `--slowmo` in milliseconds):
 
@@ -181,10 +207,18 @@ To watch the tests run in a real browser window, add `--headed` (and optionally 
 uv run pytest e2e/ -p no:django -v --headed --slowmo=500
 ```
 
-To target a specific running server:
+To target a pre-running stack (skips Docker lifecycle):
 
 ```sh
-E2E_BASE_URL=http://127.0.0.1:8000 uv run pytest e2e/ -p no:django -v
+E2E_EXTERNAL_STACK=1 E2E_BASE_URL=http://127.0.0.1:8001 uv run pytest e2e/ -p no:django -v
+```
+
+#### CI mode
+
+In CI pipelines that build and start the stack as a separate step, set `E2E_EXTERNAL_STACK=1` to skip the Docker lifecycle management:
+
+```sh
+E2E_EXTERNAL_STACK=1 uv run pytest e2e/ -p no:django -v
 ```
 
 #### E2E test data

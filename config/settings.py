@@ -270,50 +270,50 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 TEST_RUNNER = "config.test_runner.TestRunner"
 
 # ---------------------------------------------------------------------------
-# Logging — output errors and warnings to stdout so Docker captures them.
-# In DEBUG mode all SQL queries are also logged to the console.
+# Logging — structured logging to stdout so Docker captures all output.
+# The console handler covers all environments; a file handler is omitted
+# because the app runs inside Docker where stdout is the canonical log sink.
+# Only active in production; Django's default logging is used in development.
 # ---------------------------------------------------------------------------
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "verbose": {
-            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
-            "style": "{",
+if not DEBUG:
+    LOGGING = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "verbose": {
+                "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+                "style": "{",
+            },
         },
-    },
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "verbose",
+        "handlers": {
+            "console": {
+                "level": "INFO",
+                "class": "logging.StreamHandler",
+                "formatter": "verbose",
+            },
         },
-    },
-    "root": {
-        "handlers": ["console"],
-        "level": "WARNING",
-    },
-    "loggers": {
-        "django": {
-            "handlers": ["console"],
-            "level": "DEBUG" if DEBUG else "WARNING",
-            "propagate": False,
+        "loggers": {
+            "django": {
+                "handlers": ["console"],
+                "level": "INFO",
+                "propagate": False,
+            },
+            # Django's template engine logs a DEBUG entry for every missing
+            # variable, even those handled by |default or {% if %}. This is
+            # extremely noisy and does not indicate a real error.
+            "django.template": {
+                "handlers": ["console"],
+                "level": "WARNING",
+                "propagate": False,
+            },
+            "api": {
+                "handlers": ["console"],
+                "level": "INFO",
+                "propagate": False,
+            },
         },
-        # Django's template engine logs a DEBUG entry for every missing
-        # variable, even those handled by |default or {% if %}. This is
-        # extremely noisy and does not indicate a real error.
-        "django.template": {
-            "handlers": ["console"],
-            "level": "WARNING",
-            "propagate": False,
-        },
-        "django.request": {
-            "handlers": ["console"],
-            # Always log 500 errors even in production
-            "level": "ERROR",
-            "propagate": False,
-        },
-    },
-}
+    }
+
 
 # ---------------------------------------------------------------------------
 # Production security settings.
