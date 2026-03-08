@@ -40,6 +40,36 @@ class CartAdminPage:
         # Django admin renders results in a <table id="result_list">
         expect(page.locator("#result_list tbody tr").first).to_be_visible(timeout=10_000)
 
+    def _select_autocomplete(self, page: Page, field_id: str, search_text: str = "") -> None:
+        """
+        Interact with a Django Select2 autocomplete field.
+
+        Clicks the Select2 trigger for *field_id*, optionally types
+        *search_text* to filter results, waits for results to load via AJAX
+        and clicks the first selectable option.
+
+        Parameters
+        ----------
+        field_id:
+            The HTML ``id`` attribute of the underlying ``<select>`` element
+            (e.g. ``"id_shop"``).  The Select2 trigger is the
+            ``select2-selection--single`` span that immediately follows the
+            hidden ``<select>`` in the DOM.
+        search_text:
+            Optional text typed into the search input to narrow results.
+        """
+        # Use the hidden <select> as an anchor to find its adjacent Select2
+        # widget, then click the combobox trigger (role="combobox").
+        page.locator(f"#{field_id} + .select2-container .select2-selection--single").click()
+        if search_text:
+            page.locator(".select2-search__field").fill(search_text)
+        # Disabled options are used by Select2 as non-selectable placeholders
+        # (e.g. the "Searching…" spinner shown while AJAX loads).  Wait until
+        # at least one real, selectable result is visible before clicking.
+        first_result = page.locator(".select2-results__option:not(.select2-results__option--disabled)").first
+        expect(first_result).to_be_visible(timeout=5_000)
+        first_result.click()
+
     def create_cart(self, page: Page, recipient_display: str) -> int:
         """
         Fill and submit the Cart creation form.
@@ -48,17 +78,18 @@ class CartAdminPage:
         ----------
         recipient_display:
             The string representation of the recipient as it appears in the
-            select widget (e.g. ``"Test Recipient"``).
+            autocomplete widget (e.g. ``"Test Recipient"``).
 
         Returns the Django id of the created cart (parsed from the redirect URL).
         """
         page.goto(self.add_cart_url)
 
-        # Select shop — only one shop exists in E2E data
-        page.locator("#id_shop").select_option(index=1)
+        # Select shop — only one shop exists in E2E data; open the autocomplete
+        # dropdown and pick the first result without filtering.
+        self._select_autocomplete(page, "id_shop")
 
-        # Select recipient by visible label
-        page.locator("#id_recipient").select_option(label=recipient_display)
+        # Select recipient by searching their display name.
+        self._select_autocomplete(page, "id_recipient", recipient_display)
 
         page.locator('[name="_continue"]').click()
 

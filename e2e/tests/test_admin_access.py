@@ -6,20 +6,24 @@ A recipient (regular user with no is_staff flag) must not be able to
 log in and should see an authentication error or be kept on the login page.
 """
 
-import os
-
 import pytest
 from playwright.sync_api import Page
 
-from e2e.conftest import E2E_PASSWORD
+from e2e.conftest import BASE_URL, E2E_PASSWORD
 from e2e.pages.admin_login_page import AdminLoginPage
-
-BASE_URL = os.environ.get("E2E_BASE_URL", "http://127.0.0.1:8000")
 
 
 @pytest.mark.usefixtures("django_server")
 class TestMainAdminAccess:
     """Tests for the main /admin/ site access control."""
+
+    def test_staff_user_can_access_main_admin(self, staff_page: Page) -> None:
+        """
+        A staff user must be able to log into /admin/.
+        """
+        staff_page.goto(f"{BASE_URL}/admin/")
+        assert "/admin/login/" not in staff_page.url
+        assert "admin/" in staff_page.url
 
     def test_non_staff_user_cannot_access_main_admin(self, anon_page: Page) -> None:
         """

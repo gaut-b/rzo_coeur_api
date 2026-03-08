@@ -69,17 +69,14 @@ class Command(BaseCommand):
 
         social_centers = self._seed_social_centers()
         shops = self._seed_shops(social_centers)
-        self._seed_social_workers(social_centers)
-        self._seed_cashiers(shops)
-        self._seed_recipients(social_centers)
-        clients = self._seed_clients()
+        clients = self._seed_users(social_centers, shops)
         self._seed_articles(shops, clients)
 
         self.stdout.write(self.style.SUCCESS(f"'{env}' seed data ready."))
 
     # ─── Fixture loader ───────────────────────────────────────────────────────
 
-    def _load_fixture(self, filename: str) -> list[dict[str, Any]]:
+    def _load_fixture(self, filename: str) -> Any:
         """Load and return parsed JSON from a fixture file."""
         path = self.fixtures_dir / filename
         with path.open(encoding="utf-8") as f:
@@ -92,6 +89,7 @@ class Command(BaseCommand):
         email: str,
         first_name: str,
         last_name: str,
+        is_staff: bool = False,
     ) -> CustomUser:
         """
         Return an existing user by email, or create a new one with SEED_PASSWORD.
@@ -100,10 +98,18 @@ class Command(BaseCommand):
         """
         user, _ = CustomUser.objects.get_or_create(
             email=email,
-            defaults={"first_name": first_name, "last_name": last_name},
+            defaults={
+                "first_name": first_name,
+                "last_name": last_name,
+                "is_staff": is_staff,
+            },
         )
         user.set_password(SEED_PASSWORD)
-        user.save(update_fields=["password"])
+        update_fields = ["password"]
+        if user.is_staff != is_staff:
+            user.is_staff = is_staff
+            update_fields.append("is_staff")
+        user.save(update_fields=update_fields)
         return user
 
     # ─── Seeders (one per entity type) ───────────────────────────────────────
@@ -136,11 +142,54 @@ class Command(BaseCommand):
             self.stdout.write(f"  Shop          : {shop.name}")
         return shops
 
-    def _seed_social_workers(self, social_centers: dict[str, SocialCenter]) -> None:
-        """Create social worker / social admin users."""
-        for data in self._load_fixture("social_workers.json"):
+    def _seed_users(
+        self,
+        social_centers: dict[str, SocialCenter],
+        shops: dict[str, Shop],
+    ) -> dict[str, Client]:
+        """
+        Create all users and their role profiles from ``users.json``.
+
+        The file contains one top-level object with the following sections,
+        each mirroring the corresponding DB table:
+
+        - ``users``         — ``CustomUser`` rows (email, first_name, last_name,
+          optional is_staff)
+        - ``clients``       — ``Client`` profiles; each entry references a user
+          by ``user`` (email)
+        - ``social_workers``— ``SocialWorker`` profiles with social_center and
+          is_social_admin
+        - ``recipients``    — ``Recipient`` profiles with social_center
+        - ``cashiers``      — ``Cashier`` profiles with shop and is_shop_manager
+
+        Returns an email → ``Client`` mapping used later by ``_seed_articles``.
+        """
+        fixture: dict[str, list[dict[str, Any]]] = self._load_fixture("users.json")
+
+        # 1. Create CustomUser rows first so FKs in role sections resolve.
+        user_map: dict[str, CustomUser] = {}
+        for data in fixture.get("users", []):
+            user = self._get_or_create_user(
+                data["email"],
+                data["first_name"],
+                data["last_name"],
+                is_staff=data.get("is_staff", False),
+            )
+            user_map[user.email] = user
+            self.stdout.write(f"  User          : {user.email}")
+
+        # 2. Client profiles.
+        clients: dict[str, Client] = {}
+        for data in fixture.get("clients", []):
+            user = user_map[data["user"]]
+            client, _ = Client.objects.get_or_create(user=user)
+            clients[user.email] = client
+            self.stdout.write(f"  Client        : {user.email}")
+
+        # 3. SocialWorker profiles.
+        for data in fixture.get("social_workers", []):
+            user = user_map[data["user"]]
             social_center = social_centers[data["social_center"]]
-            user = self._get_or_create_user(data["email"], data["first_name"], data["last_name"])
             is_admin: bool = data.get("is_social_admin", False)
             sw, _ = SocialWorker.objects.get_or_create(
                 user=user,
@@ -155,11 +204,23 @@ class Command(BaseCommand):
                 sw.save(update_fields=["is_social_admin", "social_center"])
             self.stdout.write(f"  Social Worker : {user.email}")
 
-    def _seed_cashiers(self, shops: dict[str, Shop]) -> None:
-        """Create cashier / shop manager users."""
-        for data in self._load_fixture("cashiers.json"):
+        # 4. Recipient profiles.
+        for data in fixture.get("recipients", []):
+            user = user_map[data["user"]]
+            social_center = social_centers[data["social_center"]]
+            recipient, _ = Recipient.objects.get_or_create(
+                user=user,
+                defaults={"social_center": social_center},
+            )
+            if recipient.social_center != social_center:
+                recipient.social_center = social_center
+                recipient.save(update_fields=["social_center"])
+            self.stdout.write(f"  Recipient     : {user.email}")
+
+        # 5. Cashier profiles.
+        for data in fixture.get("cashiers", []):
+            user = user_map[data["user"]]
             shop = shops[data["shop"]]
-            user = self._get_or_create_user(data["email"], data["first_name"], data["last_name"])
             is_manager: bool = data.get("is_shop_manager", False)
             cashier, _ = Cashier.objects.get_or_create(
                 user=user,
@@ -171,27 +232,6 @@ class Command(BaseCommand):
                 cashier.save(update_fields=["is_shop_manager", "shop"])
             self.stdout.write(f"  Cashier       : {user.email}")
 
-    def _seed_recipients(self, social_centers: dict[str, SocialCenter]) -> None:
-        """Create recipient users."""
-        for data in self._load_fixture("recipients.json"):
-            social_center = social_centers[data["social_center"]]
-            user = self._get_or_create_user(data["email"], data["first_name"], data["last_name"])
-            recipient, _ = Recipient.objects.get_or_create(
-                user=user,
-                defaults={"social_center": social_center},
-            )
-            if recipient.social_center != social_center:
-                recipient.social_center = social_center
-                recipient.save(update_fields=["social_center"])
-            self.stdout.write(f"  Recipient     : {user.email}")
-
-    def _seed_clients(self) -> dict[str, Client]:
-        """Create client users; return an email→Client instance mapping."""
-        clients: dict[str, Client] = {}
-        for data in self._load_fixture("clients.json"):
-            user = self._get_or_create_user(data["email"], data["first_name"], data["last_name"])
-            client, _ = Client.objects.get_or_create(user=user)
-            clients[user.email] = client
         return clients
 
     def _seed_articles(self, shops: dict[str, Shop], clients: dict[str, Client]) -> None:

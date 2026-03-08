@@ -1,0 +1,73 @@
+{
+  "users": [
+    {
+      "email": "e2e-staff@test.local",
+      "first_name": "Test",
+      "last_name": "Staff",
+      "is_staff": true
+    },
+    {
+      "email": "e2e-client@test.local",
+      "first_name": "Test",
+      "last_name": "Client"
+    },
+    {
+      "email": "e2e-social-admin@test.local",
+      "first_name": "Social",
+      "last_name": "Admin"
+    },
+    {
+      "email": "e2e-social-worker@test.local",
+      "first_name": "Social",
+      "last_name": "Worker"
+    },
+    {
+      "email": "e2e-recipient@test.local",
+      "first_name": "Test",
+      "last_name": "Recipient"
+    },
+    {
+      "email": "e2e-shop-manager@test.local",
+      "first_name": "Shop",
+      "last_name": "Manager"
+    },
+    {
+      "email": "e2e-cashier@test.local",
+      "first_name": "Regular",
+      "last_name": "Cashier"
+    }
+  ],
+  "clients": [
+    { "user": "e2e-client@test.local" }
+  ],
+  "social_workers": [
+    {
+      "user": "e2e-social-admin@test.local",
+      "social_center": "E2E Test Center",
+      "is_social_admin": true
+    },
+    {
+      "user": "e2e-social-worker@test.local",
+      "social_center": "E2E Test Center",
+      "is_social_admin": false
+    }
+  ],
+  "recipients": [
+    {
+      "user": "e2e-recipient@test.local",
+      "social_center": "E2E Test Center"
+    }
+  ],
+  "cashiers": [
+    {
+      "user": "e2e-shop-manager@test.local",
+      "shop": "E2E Test Shop",
+      "is_shop_manager": true
+    },
+    {
+      "user": "e2e-cashier@test.local",
+      "shop": "E2E Test Shop",
+      "is_shop_manager": false
+    }
+  ]
+}

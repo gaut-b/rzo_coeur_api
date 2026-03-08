@@ -538,21 +538,21 @@ class ArticleToCartFormCartQuerysetTests(TestCase):
         """Replicate the filter applied by ArticleToCartForm.__init__."""
         return Cart.objects.filter(
             shop__social_center=social_center,
-            recipient=None,
+            collected_at=None,
         )
 
-    def test_only_pending_carts_from_own_center(self):
-        """Filter must return PENDING carts from the given social center."""
+    def test_pending_cart_included(self):
+        """PENDING carts (no recipient) from the given center must appear."""
         qs = self._cart_qs(self.center_a)
         self.assertIn(self.pending_a, qs)
 
-    def test_assigned_cart_excluded(self):
-        """ASSIGNED carts (recipient set) must be excluded."""
+    def test_assigned_cart_included(self):
+        """ASSIGNED carts (recipient set, not yet collected) must be included."""
         qs = self._cart_qs(self.center_a)
-        self.assertNotIn(self.assigned_a, qs)
+        self.assertIn(self.assigned_a, qs)
 
     def test_collected_cart_excluded(self):
-        """COLLECTED carts must be excluded (recipient is set)."""
+        """COLLECTED carts (collected_at set) must be excluded."""
         qs = self._cart_qs(self.center_a)
         self.assertNotIn(self.collected_a, qs)
 

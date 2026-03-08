@@ -261,7 +261,7 @@ class ArticleToCartForm(ActionForm):
             social_center = self.request.user.socialworker.social_center
             self.fields["cart"].queryset = Cart.objects.filter(
                 shop__social_center=social_center,
-                recipient=None,
+                collected_at=None,
             )
 
     def clean_cart(self):
