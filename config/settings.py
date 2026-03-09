@@ -335,6 +335,14 @@ if not DEBUG:
     CSRF_COOKIE_SECURE = True
 
 # Email configuration
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@reseauxducoeur.fr")
+
+# Password-reset links are valid for 24 hours.
+PASSWORD_RESET_TIMEOUT = 86400
+
+# Deep-link used as callbackUrl for recipient welcome emails (mobile app).
+MOBILE_APP_CALLBACK_URL = os.environ.get("MOBILE_APP_CALLBACK_URL", "rzo://activate")
+
 if DEBUG:
     # Use Mailhog for local development
     EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"

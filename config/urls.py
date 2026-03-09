@@ -18,13 +18,18 @@ Including another URLconf
 from auth_kit.views import AuthKitUIView
 from django.conf import settings
 from django.contrib import admin
+from django.contrib.auth import views as auth_views
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
+from api.auth_views import CustomPasswordResetConfirmView, CustomPasswordResetView
 from api.carts.admin import cart_attrib_admin_site
 from api.shops.admin import shop_admin_site
 from api.social.admin import social_admin_site
 
+# Password reset views shared across all custom admin sites (social-admin,
+# shop-admin, cart-admin).  Django's built-in views handle token generation,
+# validation and expiry; we only need to supply templates.
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("shop-admin/", shop_admin_site.urls),
@@ -32,6 +37,41 @@ urlpatterns = [
     path("cart-admin/", cart_attrib_admin_site.urls),
     path("api/auth/", include("auth_kit.urls")),
     path("api/", include("api.urls")),
+    # Shared password-reset flow (used by the "Mot de passe oublié?" link on
+    # every custom admin login page).
+    path(
+        "auth/password_reset/",
+        CustomPasswordResetView.as_view(
+            template_name="registration/password_reset_form.html",
+            email_template_name="registration/password_reset_email.txt",
+            html_email_template_name="registration/password_reset_email.html",
+            subject_template_name="registration/password_reset_subject.txt",
+            success_url="/auth/password_reset/done/",
+        ),
+        name="password_reset",
+    ),
+    path(
+        "auth/password_reset/done/",
+        auth_views.PasswordResetDoneView.as_view(
+            template_name="registration/password_reset_done.html",
+        ),
+        name="password_reset_done",
+    ),
+    path(
+        "auth/reset/<uidb64>/<token>/",
+        CustomPasswordResetConfirmView.as_view(
+            template_name="registration/password_reset_confirm.html",
+            success_url="/auth/reset/done/",
+        ),
+        name="password_reset_confirm",
+    ),
+    path(
+        "auth/reset/done/",
+        auth_views.PasswordResetCompleteView.as_view(
+            template_name="registration/password_reset_complete.html",
+        ),
+        name="password_reset_complete",
+    ),
 ]
 
 # Include UI testing view only in DEBUG mode

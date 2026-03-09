@@ -28,6 +28,7 @@ from playwright.sync_api import Browser, BrowserContext, Page
 # ─── Constants ────────────────────────────────────────────────────────────────
 
 BASE_URL = os.environ.get("E2E_BASE_URL", "http://127.0.0.1:8001")
+MAILHOG_API_URL = os.environ.get("E2E_MAILHOG_URL", "http://localhost:8025")
 AUTH_DIR = os.path.join(os.path.dirname(__file__), ".auth")
 os.makedirs(AUTH_DIR, exist_ok=True)
 

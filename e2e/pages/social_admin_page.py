@@ -56,7 +56,6 @@ class SocialAdminPage:
         page.locator("#id_email").fill(email)
         page.locator("#id_first_name").fill(first_name)
         page.locator("#id_last_name").fill(last_name)
-        page.locator("#id_password").fill("TestPass123!")
 
         page.locator('[name="_save"]').click()
 
@@ -86,7 +85,6 @@ class SocialAdminPage:
         page.locator("#id_email").fill(email)
         page.locator("#id_first_name").fill(first_name)
         page.locator("#id_last_name").fill(last_name)
-        page.locator("#id_password").fill("TestPass123!")
 
         page.locator('[name="_save"]').click()
 

@@ -1,4 +1,7 @@
+import secrets
+
 from django import forms
+from django.conf import settings
 from django.contrib import admin
 
 from api.admin_sites import (
@@ -6,6 +9,7 @@ from api.admin_sites import (
     AddressLocationAdminMixin,
     CustomAdminSite,
 )
+from api.emails import send_account_welcome_email
 from api.enums import UserRole
 from api.models import CustomUser, Recipient, Shop, SocialCenter, SocialWorker
 from api.shops.admin import SocialShopAdmin
@@ -44,15 +48,10 @@ class SocialWorkerCreationForm(forms.ModelForm):
     email = forms.EmailField(required=True, help_text="Email address for the new user")
     first_name = forms.CharField(required=True, max_length=150)
     last_name = forms.CharField(required=True, max_length=150)
-    password = forms.CharField(
-        widget=forms.PasswordInput,
-        required=True,
-        help_text="Password for the new user",
-    )
 
     class Meta:
         model = SocialWorker
-        fields = ["email", "first_name", "last_name", "password"]
+        fields = ["email", "first_name", "last_name"]
 
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop("request", None)
@@ -62,9 +61,10 @@ class SocialWorkerCreationForm(forms.ModelForm):
         if not self.request or not hasattr(self.request.user, "socialworker"):
             raise forms.ValidationError("Cannot create user, insufficient rights.")
 
+        generated_password = secrets.token_urlsafe(20)
         user = CustomUser.objects.create_user(
             email=self.cleaned_data["email"],
-            password=self.cleaned_data["password"],
+            password=generated_password,
             first_name=self.cleaned_data["first_name"],
             last_name=self.cleaned_data["last_name"],
         )
@@ -77,6 +77,12 @@ class SocialWorkerCreationForm(forms.ModelForm):
 
         if commit:
             socialworker.save()
+
+        send_account_welcome_email(
+            user,
+            login_url="/social-admin/login/",
+            request=self.request,
+        )
         return socialworker
 
 
@@ -89,11 +95,6 @@ class SocialWorkerStaffCreationForm(forms.ModelForm):
     email = forms.EmailField(required=True, help_text="Email address for the new user")
     first_name = forms.CharField(required=True, max_length=150)
     last_name = forms.CharField(required=True, max_length=150)
-    password = forms.CharField(
-        widget=forms.PasswordInput,
-        required=True,
-        help_text="Password for the new user",
-    )
 
     class Meta:
         model = SocialWorker
@@ -101,7 +102,6 @@ class SocialWorkerStaffCreationForm(forms.ModelForm):
             "email",
             "first_name",
             "last_name",
-            "password",
             "social_center",
         ]
 
@@ -111,9 +111,10 @@ class SocialWorkerStaffCreationForm(forms.ModelForm):
 
     def save(self, commit=True):
         """Create the linked CustomUser then the SocialWorker."""
+        generated_password = secrets.token_urlsafe(20)
         user = CustomUser.objects.create_user(
             email=self.cleaned_data["email"],
-            password=self.cleaned_data["password"],
+            password=generated_password,
             first_name=self.cleaned_data["first_name"],
             last_name=self.cleaned_data["last_name"],
         )
@@ -124,6 +125,12 @@ class SocialWorkerStaffCreationForm(forms.ModelForm):
 
         if commit:
             socialworker.save()
+
+        send_account_welcome_email(
+            user,
+            login_url="/social-admin/login/",
+            request=self.request,
+        )
         return socialworker
 
 
@@ -137,15 +144,10 @@ class RecipientCreationForm(forms.ModelForm):
     email = forms.EmailField(required=True, help_text="Email address for the new user")
     first_name = forms.CharField(required=True, max_length=150)
     last_name = forms.CharField(required=True, max_length=150)
-    password = forms.CharField(
-        widget=forms.PasswordInput,
-        required=True,
-        help_text="Password for the new user",
-    )
 
     class Meta:
         model = Recipient
-        fields = ["email", "first_name", "last_name", "password"]
+        fields = ["email", "first_name", "last_name"]
 
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop("request", None)
@@ -155,9 +157,10 @@ class RecipientCreationForm(forms.ModelForm):
         if not self.request or not (self.request.user.is_staff or hasattr(self.request.user, "socialworker")):
             raise forms.ValidationError("Cannot create user, insufficient rights.")
 
+        generated_password = secrets.token_urlsafe(20)
         user = CustomUser.objects.create_user(
             email=self.cleaned_data["email"],
-            password=self.cleaned_data["password"],
+            password=generated_password,
             first_name=self.cleaned_data["first_name"],
             last_name=self.cleaned_data["last_name"],
         )
@@ -169,6 +172,12 @@ class RecipientCreationForm(forms.ModelForm):
 
         if commit:
             recipient.save()
+
+        send_account_welcome_email(
+            user,
+            login_url=settings.MOBILE_APP_CALLBACK_URL,
+            request=self.request,
+        )
         return recipient
 
 
@@ -181,11 +190,6 @@ class RecipientStaffCreationForm(forms.ModelForm):
     email = forms.EmailField(required=True, help_text="Email address for the new user")
     first_name = forms.CharField(required=True, max_length=150)
     last_name = forms.CharField(required=True, max_length=150)
-    password = forms.CharField(
-        widget=forms.PasswordInput,
-        required=True,
-        help_text="Password for the new user",
-    )
 
     class Meta:
         model = Recipient
@@ -193,7 +197,6 @@ class RecipientStaffCreationForm(forms.ModelForm):
             "email",
             "first_name",
             "last_name",
-            "password",
             "social_center",
         ]
 
@@ -203,9 +206,10 @@ class RecipientStaffCreationForm(forms.ModelForm):
 
     def save(self, commit=True):
         """Create the linked CustomUser then the Recipient."""
+        generated_password = secrets.token_urlsafe(20)
         user = CustomUser.objects.create_user(
             email=self.cleaned_data["email"],
-            password=self.cleaned_data["password"],
+            password=generated_password,
             first_name=self.cleaned_data["first_name"],
             last_name=self.cleaned_data["last_name"],
         )
@@ -215,6 +219,12 @@ class RecipientStaffCreationForm(forms.ModelForm):
 
         if commit:
             recipient.save()
+
+        send_account_welcome_email(
+            user,
+            login_url=settings.MOBILE_APP_CALLBACK_URL,
+            request=self.request,
+        )
         return recipient
 
 
@@ -344,14 +354,14 @@ class SocialWorkerAdmin(admin.ModelAdmin):
     add_fieldsets = (
         (
             "User Information",
-            {"fields": ("email", "first_name", "last_name", "password")},
+            {"fields": ("email", "first_name", "last_name")},
         ),
     )
 
     add_fieldsets_staff = (
         (
             "User Information",
-            {"fields": ("email", "first_name", "last_name", "password")},
+            {"fields": ("email", "first_name", "last_name")},
         ),
         (
             "Social Center",
@@ -529,14 +539,14 @@ class SocialRecipientAdmin(admin.ModelAdmin):
     add_fieldsets = (
         (
             "User Information",
-            {"fields": ("email", "first_name", "last_name", "password")},
+            {"fields": ("email", "first_name", "last_name")},
         ),
     )
 
     add_fieldsets_staff = (
         (
             "User Information",
-            {"fields": ("email", "first_name", "last_name", "password")},
+            {"fields": ("email", "first_name", "last_name")},
         ),
         (
             "Social Center",
