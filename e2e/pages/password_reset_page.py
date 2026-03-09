@@ -128,10 +128,9 @@ class PasswordResetPage:
         messages = self.get_messages_for(recipient_email)
         assert messages, f"No password-reset email found in Mailhog for {recipient_email!r}."
         body = messages[0].get("Content", {}).get("Body", "")
-        assert "/auth/reset/" in body, (
-            f"Reset email for {recipient_email!r} does not contain a "
-            f"password-reset link.  Body preview: {body[:200]!r}"
-        )
+        assert (
+            "/auth/reset/" in body
+        ), f"Reset email for {recipient_email!r} does not contain a password-reset link.  Body preview: {body[:200]!r}"
 
     def extract_reset_url_from_email(self, recipient_email: str) -> str:
         """
@@ -145,7 +144,7 @@ class PasswordResetPage:
             If no email is found or no reset URL can be extracted.
         """
         messages = self.get_messages_for(recipient_email)
-        assert messages, f"No email found in Mailhog for {recipient_email!r} — " "cannot extract reset URL."
+        assert messages, f"No email found in Mailhog for {recipient_email!r} — cannot extract reset URL."
         # Mailhog stores the HTML part in MIME parts; fall back to Body.
         body = ""
         for part in messages[0].get("MIME", {}).get("Parts", []):
@@ -161,7 +160,7 @@ class PasswordResetPage:
         if not match:
             # Fallback: plain-text URL (no surrounding quotes)
             match = re.search(r"(https?://\S+/auth/reset/\S+)", body)
-        assert match, f"No /auth/reset/ URL found in email for {recipient_email!r}. " f"Body preview: {body[:300]!r}"
+        assert match, f"No /auth/reset/ URL found in email for {recipient_email!r}. Body preview: {body[:300]!r}"
         # Rewrite the origin (scheme + host + port) to match the test server,
         # since Django builds the URL using the Docker-internal host.
         extracted = match.group(1)
