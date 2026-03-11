@@ -194,6 +194,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/e1/9e/271e3b8ea27c089ddf3431140cf4aa86df86556ec102e360da5af62c3a99/django_allauth-65.10.0.tar.gz", hash = "sha256:47daa3b0e11a1d75724ea32995de37bd2b8963e9e4cce2b3a7fd64eb6d3b3c48", size = 1897777, upload-time = "2025-07-10T11:32:44.098Z" }
 
 [[package]]
+name = "django-anymail"
+version = "14.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "django" },
+    { name = "idna" },
+    { name = "requests" },
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f4/cb/25aa288f7ce37331d0ebe0321f3a3079add297b037d6d4b4b363bf080e0b/django_anymail-14.0.tar.gz", hash = "sha256:ca42e52da62d2c96ce92412f9d68ef6d2067d96a384096b6e932d6a247e9fd61", size = 106257, upload-time = "2025-12-18T01:36:07.944Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/81/83/6d92a06dba4ef471aa1bbbe2e1461103800beea6a4bf95ac5f3d0f21e167/django_anymail-14.0-py3-none-any.whl", hash = "sha256:98e5575bcff231952a92117b7d0a4dd37fab582333a343de302d415a31dc72b1", size = 146119, upload-time = "2025-12-18T01:36:06.612Z" },
+]
+
+[[package]]
 name = "django-cors-headers"
 version = "4.6.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1168,6 +1183,7 @@ dependencies = [
     { name = "django" },
     { name = "django-admin-action-forms" },
     { name = "django-allauth" },
+    { name = "django-anymail" },
     { name = "django-cors-headers" },
     { name = "django-extensions" },
     { name = "django-storages", extra = ["s3"] },
@@ -1205,6 +1221,7 @@ requires-dist = [
     { name = "django", specifier = "==5.2.7" },
     { name = "django-admin-action-forms", specifier = ">=2.2.1" },
     { name = "django-allauth", specifier = "==65.10.0" },
+    { name = "django-anymail", extras = ["brevo"], specifier = ">=14.0" },
     { name = "django-cors-headers", specifier = "==4.6.0" },
     { name = "django-extensions", specifier = "==4.1" },
     { name = "django-storages", extras = ["s3"], specifier = "==1.14.6" },

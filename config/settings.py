@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     "auth_kit",
     "django_admin_action_forms",
     "storages",
+    "anymail",
 ]
 
 REST_FRAMEWORK = {
@@ -355,6 +356,7 @@ if not DEBUG:
 
 # Email configuration
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@reseauxducoeur.fr")
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
 # Password-reset links are valid for 24 hours.
 PASSWORD_RESET_TIMEOUT = 86400
@@ -387,6 +389,8 @@ if DEBUG:
     EMAIL_USE_TLS = False
     EMAIL_USE_SSL = False
 else:
-    # Production email configuration
-    # TODO: Configure production email backend (SendGrid, Mailgun, etc.)
-    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+    # Production email configuration via Brevo (django-anymail)
+    EMAIL_BACKEND = "anymail.backends.brevo.EmailBackend"
+    ANYMAIL = {
+        "BREVO_API_KEY": os.environ.get("BREVO_API_KEY", ""),
+    }
