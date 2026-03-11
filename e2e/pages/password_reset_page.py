@@ -160,7 +160,12 @@ class PasswordResetPage:
         body = ""
         for part in (messages[0].get("MIME") or {}).get("Parts", []):
             content_types = part.get("Headers", {}).get("Content-Type", [""])
-            if any("text/html" in ct.lower() for ct in content_types):
+            # Mailhog may return a single string or a list of strings for headers.
+            if isinstance(content_types, str):
+                normalized_content_types = [content_types]
+            else:
+                normalized_content_types = content_types
+            if any("text/html" in ct.lower() for ct in normalized_content_types if isinstance(ct, str)):
                 body = part.get("Body", "")
                 break
         if not body:
