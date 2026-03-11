@@ -136,9 +136,9 @@ class PasswordResetPage:
         messages = self.get_messages_for(recipient_email)
         assert messages, f"No password-reset email found in Mailhog for {recipient_email!r}."
         body = messages[0].get("Content", {}).get("Body", "")
-        assert (
-            "/auth/reset/" in body
-        ), f"Reset email for {recipient_email!r} does not contain a password-reset link.  Body preview: {body[:200]!r}"
+        assert "/auth/reset/" in body, (
+            f"Reset email for {recipient_email!r} does not contain a password-reset link.  Body preview: {body[:200]!r}"
+        )
 
     def extract_reset_url_from_email(self, recipient_email: str) -> str:
         """

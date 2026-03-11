@@ -72,7 +72,7 @@ def _assert_no_email_delivered(
         messages = reset_page.get_messages_for(email)
         if messages:
             pytest.fail(
-                f"Admin reset email must NOT be sent to {email!r}, " f"but Mailhog received {len(messages)} message(s)."
+                f"Admin reset email must NOT be sent to {email!r}, but Mailhog received {len(messages)} message(s)."
             )
         time.sleep(poll_interval)
 
