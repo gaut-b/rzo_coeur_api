@@ -54,6 +54,29 @@ def _wait_for_email(reset_page: PasswordResetPage, email: str, timeout: float = 
     pytest.fail(f"No email delivered to {email!r} in Mailhog within {timeout}s.")
 
 
+def _assert_no_email_delivered(
+    reset_page: PasswordResetPage,
+    email: str,
+    timeout: float = 3.0,
+    poll_interval: float = 0.25,
+) -> None:
+    """
+    Assert that no email is delivered to *email* within *timeout* seconds.
+
+    Polls Mailhog every *poll_interval* seconds and fails immediately if any
+    message arrives. Succeeds only after the full timeout elapses with no
+    messages.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        messages = reset_page.get_messages_for(email)
+        if messages:
+            pytest.fail(
+                f"Admin reset email must NOT be sent to {email!r}, " f"but Mailhog received {len(messages)} message(s)."
+            )
+        time.sleep(poll_interval)
+
+
 # ────────────────────────────────────────────────────────────────────────────
 # 1 — "Mot de passe oublié ?" link visible on every custom admin login page
 # ────────────────────────────────────────────────────────────────────────────
@@ -132,13 +155,7 @@ class TestPasswordResetFlow:
         reset.clear_mailhog()
         reset.submit_reset_request(anon_page, email)
         reset.expect_email_sent_confirmation(anon_page)
-        # Give a short window for a hypothetical email to arrive.
-        time.sleep(2)
-        messages = reset.get_messages_for(email)
-        assert not messages, (
-            f"Admin reset email must NOT be sent to a client user, "
-            f"but Mailhog received {len(messages)} message(s) for {email!r}."
-        )
+        _assert_no_email_delivered(reset, email)
 
     def test_recipient_email_does_not_trigger_reset_email(self, anon_page: Page) -> None:
         """
@@ -151,12 +168,7 @@ class TestPasswordResetFlow:
         reset.clear_mailhog()
         reset.submit_reset_request(anon_page, email)
         reset.expect_email_sent_confirmation(anon_page)
-        time.sleep(2)
-        messages = reset.get_messages_for(email)
-        assert not messages, (
-            f"Admin reset email must NOT be sent to a recipient user, "
-            f"but Mailhog received {len(messages)} message(s) for {email!r}."
-        )
+        _assert_no_email_delivered(reset, email)
 
 
 # ────────────────────────────────────────────────────────────────────────────
