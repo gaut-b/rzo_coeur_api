@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 def send_account_welcome_email(
     user: CustomUser,
-    login_url: str,
+    callback_url: str,
     request,
 ) -> None:
     """
@@ -38,20 +38,23 @@ def send_account_welcome_email(
     ----------
     user:
         The newly created CustomUser instance.
-    login_url:
-        The absolute URL of the admin login page the user should use
-        (e.g. ``https://domain.com/social-admin/login/``).
+    callback_url:
+        The destination to redirect to after the password has been set.
+        Forwarded verbatim as the ``callbackUrl`` query parameter on the
+        one-time reset link.  May be a relative path
+        (e.g. ``/social-admin/login/``) or a whitelisted deep link
+        (e.g. ``rzo://activate``).
     request:
         The current Django HttpRequest, used to build the absolute reset URL.
     """
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     token = default_token_generator.make_token(user)
-    reset_path = f"/auth/reset/{uid}/{token}/?{urlencode({'callbackUrl': login_url})}"
+    reset_path = f"/auth/reset/{uid}/{token}/?{urlencode({'callbackUrl': callback_url})}"
     reset_url = request.build_absolute_uri(reset_path)
 
     context = {
         "user": user,
-        "login_url": login_url,
+        "callback_url": callback_url,
         "reset_url": reset_url,
     }
 

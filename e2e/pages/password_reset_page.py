@@ -62,8 +62,16 @@ class PasswordResetPage:
     # ── Mailhog helpers ───────────────────────────────────────────────────────
 
     def clear_mailhog(self) -> None:
-        """Delete all messages stored in Mailhog."""
-        requests.delete(f"{self.mailhog_api_url}/api/v1/messages", timeout=5)
+        """
+        Delete all messages stored in Mailhog.
+
+        Raises ``requests.HTTPError`` if the API returns a non-2xx status so
+        that a misconfigured URL or an unready Mailhog instance surfaces as a
+        hard failure rather than leaving stale messages that silently corrupt
+        subsequent assertions.
+        """
+        response = requests.delete(f"{self.mailhog_api_url}/api/v1/messages", timeout=5)
+        response.raise_for_status()
 
     def get_messages_for(self, recipient_email: str) -> list[dict]:
         """
@@ -146,8 +154,11 @@ class PasswordResetPage:
         messages = self.get_messages_for(recipient_email)
         assert messages, f"No email found in Mailhog for {recipient_email!r} — cannot extract reset URL."
         # Mailhog stores the HTML part in MIME parts; fall back to Body.
+        # Use ``or {}`` because Mailhog may store the key with a null value
+        # (e.g. for HTML-only, non-multipart emails) rather than omitting it,
+        # and ``.get(key, default)`` only substitutes when the key is absent.
         body = ""
-        for part in messages[0].get("MIME", {}).get("Parts", []):
+        for part in (messages[0].get("MIME") or {}).get("Parts", []):
             if "text/html" in part.get("Headers", {}).get("Content-Type", [""]):
                 body = part.get("Body", "")
                 break

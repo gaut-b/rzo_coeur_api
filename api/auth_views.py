@@ -58,19 +58,30 @@ class CustomPasswordResetView(auth_views.PasswordResetView):
     """
     Password-reset request view.
 
-    Reads an optional ``callbackUrl`` query param from the request and
-    forwards it to the reset-email template as ``callback_url``, so the
-    link in the email carries a ``?callbackUrl=…`` suffix.
+    Reads an optional ``callbackUrl`` query param from the request,
+    validates it against the same allow-list used by the confirm view
+    (same-host URLs and the configured deep-link), and forwards it to
+    the reset-email template as a pre-encoded query string.  Unrecognised
+    or cross-origin values are silently discarded so that a malicious URL
+    never appears in the outgoing email.
     """
 
     form_class = AdminPasswordResetForm
 
     def form_valid(self, form):
-        """Inject callback_url into the email context before sending."""
-        callback_url = self.request.GET.get("callbackUrl", "")
+        """Validate and inject callback_url_query into the email context."""
+        raw = self.request.GET.get("callbackUrl", "")
+        # Validate before forwarding: reject anything that would not be an
+        # accepted redirect target on the confirm view.  This prevents an
+        # open-redirect URL from appearing in the password-reset email even
+        # in encoded form.
+        safe_callback = raw if (raw and _is_allowed_callback_url(raw, self.request)) else ""
         self.extra_email_context = {
             **(self.extra_email_context or {}),
-            "callback_url": callback_url,
+            # Pre-encode as a ready-to-append query string so the template
+            # never concatenates raw user input into a URL or href attribute.
+            # E.g. ``callbackUrl=%2Fsocial-admin%2Flogin%2F``.
+            "callback_url_query": urlencode({"callbackUrl": safe_callback}) if safe_callback else "",
         }
         return super().form_valid(form)
 
@@ -116,7 +127,11 @@ class CustomPasswordResetConfirmView(auth_views.PasswordResetConfirmView):
         string is not carried over, so we append it manually.
         """
         response = super().dispatch(*args, **kwargs)
-        if isinstance(response, HttpResponseRedirect):
+        # Only patch GET responses: the sole purpose here is to carry the
+        # callbackUrl through Django's internal token-to-set-password redirect.
+        # POST responses are handled by form_valid / get_success_url; patching
+        # them here would double-append the param.
+        if self.request.method == "GET" and isinstance(response, HttpResponseRedirect):
             callback_url = self.request.GET.get("callbackUrl", "")
             if callback_url:
                 location = response["Location"]

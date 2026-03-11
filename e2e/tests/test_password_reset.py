@@ -81,7 +81,7 @@ class TestForgotPasswordLink:
     def test_link_navigates_to_reset_form(self, anon_page: Page) -> None:
         """Clicking the link from the social-admin login lands on the reset form."""
         login = AdminLoginPage(BASE_URL, "social-admin")
-        login.goto_forgot_password(anon_page, BASE_URL)
+        login.goto_forgot_password(anon_page)
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -305,15 +305,23 @@ class TestPostPasswordSetRedirect:
             f"as callbackUrl. URL: {reset_url!r}"
         )
 
-    def test_forgot_password_respects_callback_url(self, anon_page: Page) -> None:
+    def test_forgot_password_respects_callback_url(self, shop_manager_page: Page, anon_page: Page) -> None:
         """
         When 'Mot de passe oublié ?' is clicked from /shop-admin/login/, the
         reset email link must carry callbackUrl=/shop-admin/login/, and after
         setting the password the user lands on /shop-admin/login/.
+
+        A fresh cashier is created for this test so that the shared
+        e2e-shop-manager fixture account is never mutated.  Changing the
+        fixture user's password would invalidate its Django session and break
+        every subsequent test that restores the shop_manager_page state.
         """
-        email = "e2e-shop-manager@test.local"
+        # Create a disposable cashier whose password we can safely change.
+        shop_obj = ShopAdminPage(BASE_URL)
+        email = shop_obj.create_cashier(shop_manager_page, role="False")
+
         reset = _reset_page()
-        reset.clear_mailhog()
+        reset.clear_mailhog()  # discard the welcome email for the new cashier
 
         # Submit via the shop-admin forgot-password link (carries callbackUrl).
         anon_page.goto(f"{BASE_URL}/auth/password_reset/?callbackUrl=/shop-admin/login/")

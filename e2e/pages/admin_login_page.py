@@ -55,7 +55,7 @@ class AdminLoginPage:
         page.goto(self.login_url)
         expect(page.locator("#forgot-password-link")).to_be_visible()
 
-    def goto_forgot_password(self, page: Page, base_url: str) -> None:
+    def goto_forgot_password(self, page: Page) -> None:
         """Click the forgot-password link and assert we land on the reset form."""
         page.goto(self.login_url)
         page.locator("#forgot-password-link").click()
