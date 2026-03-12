@@ -78,7 +78,7 @@ class RecipientCartListView(APIView):
             valid_statuses = [s.value for s in CartStatus]
             if status_param not in valid_statuses:
                 return Response(
-                    {"status": [f"Invalid status. Must be one of: " f"{', '.join(valid_statuses)}"]},
+                    {"status": [f"Invalid status. Must be one of: {', '.join(valid_statuses)}"]},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 

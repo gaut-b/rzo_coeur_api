@@ -151,7 +151,7 @@ class ShopListView(APIView):
             ),
             OpenApiExample(
                 "Invalid coordinates",
-                value={"coordinates": ("Both latitude and longitude must be provided for " "proximity sorting.")},
+                value={"coordinates": ("Both latitude and longitude must be provided for proximity sorting.")},
                 response_only=True,
                 status_codes=["400"],
             ),
@@ -169,7 +169,7 @@ class ShopListView(APIView):
         # Only one coordinate provided is an error
         if (latitude is None) != (longitude is None):
             return Response(
-                {"coordinates": ("Both latitude and longitude must be provided for " "proximity sorting.")},
+                {"coordinates": ("Both latitude and longitude must be provided for proximity sorting.")},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -187,7 +187,7 @@ class ShopListView(APIView):
                     )
                 if not (-180 <= lon <= 180):
                     return Response(
-                        {"longitude": ("Longitude must be between -180 and 180 " "degrees.")},
+                        {"longitude": ("Longitude must be between -180 and 180 degrees.")},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 

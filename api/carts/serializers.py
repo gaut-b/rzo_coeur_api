@@ -63,7 +63,7 @@ class CartCollectSerializer(serializers.Serializer):
 
         if cart.status != CartStatus.ASSIGNED.value:
             raise serializers.ValidationError(
-                {"status": (f"Cart must be in ASSIGNED status to be collected. " f"Current status: {cart.status}")}
+                {"status": (f"Cart must be in ASSIGNED status to be collected. Current status: {cart.status}")}
             )
         cashier = getattr(request.user, "cashier", None)
         if not cashier or cashier.shop != cart.shop:

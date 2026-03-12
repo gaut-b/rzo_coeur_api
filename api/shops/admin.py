@@ -311,7 +311,7 @@ class CashierCreationForm(forms.ModelForm):
 
     def save(self, commit=True):
         if not self.request or not hasattr(self.request.user, "cashier"):
-            raise forms.ValidationError("Unable to determine shop. You must be logged in as a shop " "manager.")
+            raise forms.ValidationError("Unable to determine shop. You must be logged in as a shop manager.")
 
         user = CustomUser.objects.create_user(
             email=self.cleaned_data["email"],
@@ -361,7 +361,7 @@ class CashierShopAdmin(admin.ModelAdmin):
             "Role",
             {
                 "fields": ("role",),
-                "description": ("Select whether this user should be a regular cashier or " "a shop manager."),
+                "description": ("Select whether this user should be a regular cashier or a shop manager."),
             },
         ),
     )
@@ -526,7 +526,7 @@ class ArticleShopAdmin(admin.ModelAdmin):
     def get_status(self, obj):
         """Display article status based on cart relationship."""
         if obj.cart is None:
-            return format_html('<span style="color: green; font-weight: bold;">Available' "</span>")
+            return format_html('<span style="color: green; font-weight: bold;">Available</span>')
         cart_status = obj.cart.status
         if cart_status == "COLLECTED":
             return format_html('<span style="color: gray;">Collected</span>')

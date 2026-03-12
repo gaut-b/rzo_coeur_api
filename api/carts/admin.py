@@ -152,9 +152,9 @@ class ArticleAttrAdmin(AdminActionFormsMixin, admin.ModelAdmin):
         if cart_status == "COLLECTED":
             return mark_safe('<span style="color: gray; font-weight: bold;">Collecté</span>')
         elif cart_status == "ASSIGNED":
-            return mark_safe('<span style="color: orange; font-weight: bold;">' "Panier assigné</span>")
+            return mark_safe('<span style="color: orange; font-weight: bold;">Panier assigné</span>')
         else:
-            return mark_safe('<span style="color: blue; font-weight: bold;">' "Panier non assigné</span>")
+            return mark_safe('<span style="color: blue; font-weight: bold;">Panier non assigné</span>')
 
     get_status.short_description = "Statut"
 
