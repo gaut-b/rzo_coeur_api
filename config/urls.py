@@ -21,8 +21,9 @@ from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
-from api.admin import shop_admin_site, social_admin_site
-from api.cart_attributions import cart_attrib_admin_site
+from api.carts.admin import cart_attrib_admin_site
+from api.shops.admin import shop_admin_site
+from api.social.admin import social_admin_site
 
 urlpatterns = [
     path("admin/", admin.site.urls),

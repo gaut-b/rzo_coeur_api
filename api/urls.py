@@ -1,16 +1,17 @@
 from django.urls import path
 
-from .views import (
+from .articles.views import (
     ArticleBarcodeView,
     ArticleCreateView,
     ArticleGetListView,
     ArticlePhotoUploadView,
+)
+from .carts.views import (
     CartCollectView,
     CartDetailView,
     RecipientCartListView,
-    ShopDetailView,
-    ShopListView,
 )
+from .shops.views import ShopDetailView, ShopListView
 
 urlpatterns = [
     path("articles/", ArticleCreateView.as_view(), name="article-create"),

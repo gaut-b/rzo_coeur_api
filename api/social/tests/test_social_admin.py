@@ -2,8 +2,8 @@ from unittest.mock import Mock
 
 from django.test import RequestFactory, TestCase
 
-from api.admin import SocialAdminSite
 from api.enums import UserRole
+from api.social.admin import SocialAdminSite
 
 
 class SocialAdminSiteTests(TestCase):
