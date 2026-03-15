@@ -168,9 +168,9 @@ class CustomAdminSite(admin.AdminSite):
             if user is not None and user.is_active:
                 # Re-fetch with role profiles to avoid N+1 in
                 # check_user_permission
-                user = CustomUser.objects.select_related(
-                    "client", "socialworker", "recipient", "cashier"
-                ).get(pk=user.pk)
+                user = CustomUser.objects.select_related("client", "socialworker", "recipient", "cashier").get(
+                    pk=user.pk
+                )
                 # Check if user has the required role
                 if self.check_user_permission(user):
                     auth_login(request, user)
@@ -244,9 +244,9 @@ class CustomAdminSite(admin.AdminSite):
             return self.check_user_permission(request.user)
 
         # First access in this session: fetch with select_related and cache.
-        user = CustomUser.objects.select_related(
-            "client", "socialworker", "recipient", "cashier"
-        ).get(pk=request.user.pk)
+        user = CustomUser.objects.select_related("client", "socialworker", "recipient", "cashier").get(
+            pk=request.user.pk
+        )
         # Store as empty string instead of None so the key is falsy but
         # present.
         request.session[session_key] = user.role or ""
