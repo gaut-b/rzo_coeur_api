@@ -10,6 +10,8 @@ from django.utils.html import format_html
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
 
+from .models import CustomUser
+
 
 class AddressLocationAdminForm(forms.ModelForm):
     """Base form for models with address and location fields."""
@@ -164,6 +166,11 @@ class CustomAdminSite(admin.AdminSite):
             user = authenticate(request, username=username, password=password)
 
             if user is not None and user.is_active:
+                # Re-fetch with role profiles to avoid N+1 in
+                # check_user_permission
+                user = CustomUser.objects.select_related("client", "socialworker", "recipient", "cashier").get(
+                    pk=user.pk
+                )
                 # Check if user has the required role
                 if self.check_user_permission(user):
                     auth_login(request, user)
@@ -216,5 +223,31 @@ class CustomAdminSite(admin.AdminSite):
         """
         Allow access to users who pass the role-specific check.
         Does NOT require is_staff=True.
+
+        The resolved role is cached in the Django session so that only the
+        first request within a login session hits the database.  Subsequent
+        requests inject ``_cached_role`` onto ``request.user`` directly so
+        that the ``role`` property returns immediately without any extra
+        query.
         """
-        return request.user.is_active and request.user.is_authenticated and self.check_user_permission(request.user)
+        if not (request.user.is_active and request.user.is_authenticated):
+            return False
+
+        # Session key is scoped to this admin site so that users who
+        # access multiple admin sites each get their own cache entry.
+        session_key = f"_role_cache_{self.name}"
+
+        if session_key in request.session:
+            # Restore the cached role onto the user object so that
+            # check_user_permission → user.role never touches the DB.
+            request.user._cached_role = request.session[session_key] or None
+            return self.check_user_permission(request.user)
+
+        # First access in this session: fetch with select_related and cache.
+        user = CustomUser.objects.select_related("client", "socialworker", "recipient", "cashier").get(
+            pk=request.user.pk
+        )
+        # Store as empty string instead of None so the key is falsy but
+        # present.
+        request.session[session_key] = user.role or ""
+        return self.check_user_permission(user)
