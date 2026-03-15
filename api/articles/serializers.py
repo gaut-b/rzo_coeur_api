@@ -151,11 +151,8 @@ class BulkArticleCreateSerializer(serializers.Serializer):
         except Client.DoesNotExist:
             raise serializers.ValidationError(f"Client with id {value} does not exist.")
 
-        # Verify that the user has the CLIENT role
-        if client.user.role != UserRole.CLIENT.value:
-            raise serializers.ValidationError(f"User with id {value} is not a Client.")
-
         # Cache the client to avoid duplicate query in create()
+        # No need to verify role: existence in the Client table is sufficient.
         self._validated_client = client
 
         return value
