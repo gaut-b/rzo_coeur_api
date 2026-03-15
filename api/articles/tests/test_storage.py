@@ -89,7 +89,7 @@ class ArticlePhotoUploadViewTests(APITestCase):
 
     # ── happy path ───────────────────────────────────────────────────────────
 
-    @patch("api.views.default_storage")
+    @patch("api.articles.views.default_storage")
     def test_valid_jpeg_returns_201_with_url(self, mock_storage: MagicMock) -> None:
         """201 response with URL when a valid JPEG is uploaded."""
         mock_storage.save.return_value = "articles/abc123.jpg"
@@ -104,7 +104,7 @@ class ArticlePhotoUploadViewTests(APITestCase):
         self.assertEqual(response.data["url"], "http://localhost:9000/articles-photos/articles/abc123.jpg")
         mock_storage.save.assert_called_once()
 
-    @patch("api.views.default_storage")
+    @patch("api.articles.views.default_storage")
     def test_valid_png_returns_201(self, mock_storage: MagicMock) -> None:
         """201 response for a valid PNG upload."""
         mock_storage.save.return_value = "articles/abc456.png"
@@ -117,7 +117,7 @@ class ArticlePhotoUploadViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertIn("url", response.data)
 
-    @patch("api.views.default_storage")
+    @patch("api.articles.views.default_storage")
     def test_valid_webp_returns_201(self, mock_storage: MagicMock) -> None:
         """201 response for a valid WebP upload."""
         mock_storage.save.return_value = "articles/abc789.webp"
@@ -211,7 +211,7 @@ class ArticlePhotoUploadViewTests(APITestCase):
 
     # ── filename uniqueness ──────────────────────────────────────────────────
 
-    @patch("api.views.default_storage")
+    @patch("api.articles.views.default_storage")
     def test_uploaded_filename_is_uuid_based(self, mock_storage: MagicMock) -> None:
         """The filename passed to storage uses a UUID, not the original name."""
         mock_storage.save.return_value = "articles/someuuid.jpg"

@@ -19,14 +19,16 @@ from django.contrib.auth import get_user_model
 from django.test import RequestFactory, TestCase
 from django.utils import timezone
 
-from api.cart_attributions import (
+from api.carts.admin import (
     ArticleAttrAdmin,
     ArticleAvailabilityFilter,
-    ArticleChoiceField,
     CartAttribAdmin,
+    cart_attrib_admin_site,
+)
+from api.carts.forms import (
+    ArticleChoiceField,
     CartChangeForm,
     CartCreationForm,
-    cart_attrib_admin_site,
 )
 from api.models import (
     Article,

@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, PropertyMock, patch
 
 from django.test import TestCase
 
-from api.admin import SocialWorkerAdmin
+from api.social.admin import SocialWorkerAdmin
 
 # ---------------------------------------------------------------------------
 # Helpers

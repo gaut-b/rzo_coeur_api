@@ -6,8 +6,8 @@ from django.contrib.auth.models import AnonymousUser
 from django.test import Client, RequestFactory, TestCase
 from django.urls import reverse
 
-from api.admin import shop_admin_site
 from api.models import Cashier, CustomUser, Shop, SocialCenter
+from api.shops.admin import shop_admin_site
 
 
 class CustomAdminSiteTests(TestCase):
