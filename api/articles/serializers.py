@@ -1,7 +1,6 @@
 from rest_framework import serializers
 
 from api.constants import MAX_ARTICLES_PER_REQUEST
-from api.enums import UserRole
 from api.models import Article, Client
 
 
