@@ -80,7 +80,7 @@ class SocialWorkerCreationForm(forms.ModelForm):
 
         send_account_welcome_email(
             user,
-            login_url="/social-admin/login/",
+            callback_url="/social-admin/login/",
             request=self.request,
         )
         return socialworker
@@ -128,7 +128,7 @@ class SocialWorkerStaffCreationForm(forms.ModelForm):
 
         send_account_welcome_email(
             user,
-            login_url="/social-admin/login/",
+            callback_url="/social-admin/login/",
             request=self.request,
         )
         return socialworker
@@ -175,7 +175,7 @@ class RecipientCreationForm(forms.ModelForm):
 
         send_account_welcome_email(
             user,
-            login_url=settings.MOBILE_APP_CALLBACK_URL,
+            callback_url=settings.MOBILE_APP_CALLBACK_URL,
             request=self.request,
         )
         return recipient
@@ -222,7 +222,7 @@ class RecipientStaffCreationForm(forms.ModelForm):
 
         send_account_welcome_email(
             user,
-            login_url=settings.MOBILE_APP_CALLBACK_URL,
+            callback_url=settings.MOBILE_APP_CALLBACK_URL,
             request=self.request,
         )
         return recipient

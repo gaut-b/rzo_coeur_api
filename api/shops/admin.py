@@ -329,7 +329,7 @@ class CashierCreationForm(forms.ModelForm):
 
         send_account_welcome_email(
             user,
-            login_url="/shop-admin/login/",
+            callback_url="/shop-admin/login/",
             request=self.request,
         )
         return cashier
