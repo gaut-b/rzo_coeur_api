@@ -53,3 +53,9 @@ class TestSocialAdminCRUD:
         page_obj = SocialAdminPage(BASE_URL)
         email = page_obj.create_social_worker(social_admin_page)
         expect(social_admin_page.locator("#result_list")).to_contain_text(email)
+
+    def test_social_admin_can_create_shop_manager(self, social_admin_page: Page) -> None:
+        """Social admin creates a new shop manager (cashier) via the admin form."""
+        page_obj = SocialAdminPage(BASE_URL)
+        email = page_obj.create_shop_manager(social_admin_page)
+        expect(social_admin_page.locator("#result_list")).to_contain_text(email)

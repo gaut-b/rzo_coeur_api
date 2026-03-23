@@ -77,17 +77,37 @@ class HiddenCustomUserAdmin(admin.ModelAdmin):
     Minimal CustomUser admin registered on sub-sites solely to enable
     autocomplete_fields on models that reference CustomUser.
     Hidden from the navigation (has_module_permission returns False).
+    Direct list/change views are restricted to staff only.
     """
 
     search_fields = ["email", "first_name", "last_name"]
 
     def has_view_permission(self, request, obj=None):
+        # Allow authenticated social workers and cashiers so that
+        # autocomplete queries (AutocompleteJsonView) keep working.
+        # Direct changelist access is blocked separately in changelist_view.
         return request.user.is_authenticated and (
             request.user.is_staff or hasattr(request.user, "socialworker") or hasattr(request.user, "cashier")
         )
 
     def has_module_permission(self, request):
         return False
+
+    def changelist_view(self, request, extra_context=None):
+        """Block direct list access for non-staff users."""
+        if not request.user.is_staff:
+            from django.core.exceptions import PermissionDenied
+
+            raise PermissionDenied
+        return super().changelist_view(request, extra_context)
+
+    def change_view(self, request, object_id, form_url="", extra_context=None):
+        """Block direct change page access for non-staff users."""
+        if not request.user.is_staff:
+            from django.core.exceptions import PermissionDenied
+
+            raise PermissionDenied
+        return super().change_view(request, object_id, form_url, extra_context)
 
 
 admin.site.register(CustomUser, CustomUserAdmin)

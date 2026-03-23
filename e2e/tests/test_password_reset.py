@@ -201,6 +201,12 @@ class TestNoPasswordFieldOnCreationForms:
         page_obj.goto_add_cashier(shop_manager_page)
         expect(shop_manager_page.locator("#id_password")).to_have_count(0)
 
+    def test_no_password_field_on_shop_manager_form(self, social_admin_page: Page) -> None:
+        """The shop manager creation form (social admin) has no password input."""
+        page_obj = SocialAdminPage(BASE_URL)
+        page_obj.goto_add_shop_manager(social_admin_page)
+        expect(social_admin_page.locator("#id_password")).to_have_count(0)
+
 
 # ────────────────────────────────────────────────────────────────────────────
 # 5 — Welcome email sent on account creation
@@ -238,6 +244,15 @@ class TestWelcomeEmailOnAccountCreation:
         reset.clear_mailhog()
         page_obj = ShopAdminPage(BASE_URL)
         email = page_obj.create_cashier(shop_manager_page, role="False")
+        _wait_for_email(reset, email)
+        reset.expect_welcome_email_received(email)
+
+    def test_welcome_email_sent_on_shop_manager_creation(self, social_admin_page: Page) -> None:
+        """Creating a Shop Manager from social admin triggers a welcome email via Mailhog."""
+        reset = _reset_page()
+        reset.clear_mailhog()
+        page_obj = SocialAdminPage(BASE_URL)
+        email = page_obj.create_shop_manager(social_admin_page)
         _wait_for_email(reset, email)
         reset.expect_welcome_email_received(email)
 

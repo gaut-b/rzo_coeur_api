@@ -34,6 +34,10 @@ class SocialAdminPage:
         """Navigate directly to the Add SocialWorker form."""
         page.goto(f"{self.base_url}/social-admin/api/socialworker/add/")
 
+    def goto_add_shop_manager(self, page: Page) -> None:
+        """Navigate directly to the Add Shop Manager (Cashier) form."""
+        page.goto(f"{self.base_url}/social-admin/api/cashier/add/")
+
     def create_recipient(
         self,
         page: Page,
@@ -89,6 +93,41 @@ class SocialAdminPage:
         page.locator('[name="_save"]').click()
 
         expect(page).to_have_url(re.compile(r"/social-admin/api/socialworker/"))
+        return email
+
+    def create_shop_manager(
+        self,
+        page: Page,
+        *,
+        first_name: str | None = None,
+        last_name: str | None = None,
+        shop_name: str = "E2E Test Shop",
+    ) -> str:
+        """
+        Fill and submit the Shop Manager (Cashier) creation form.
+
+        Uses the Select2 autocomplete widget to pick *shop_name*.
+        Returns the email address used so callers can assert on it.
+        """
+        suffix = uuid.uuid4().hex[:8]
+        email = f"e2e-new-shop-mgr-{suffix}@test.local"
+        first_name = first_name or "New"
+        last_name = last_name or f"Manager{suffix}"
+
+        self.goto_add_shop_manager(page)
+
+        page.locator("#id_email").fill(email)
+        page.locator("#id_first_name").fill(first_name)
+        page.locator("#id_last_name").fill(last_name)
+
+        # The shop field uses a Select2 autocomplete widget.
+        page.locator(".select2-container").click()
+        page.locator(".select2-search__field").fill(shop_name)
+        page.locator(".select2-results__option", has_text=shop_name).click()
+
+        page.locator('[name="_save"]').click()
+
+        expect(page).to_have_url(re.compile(r"/social-admin/api/cashier/"))
         return email
 
     def expect_has_access(self, page: Page) -> None:
