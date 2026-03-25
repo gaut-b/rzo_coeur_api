@@ -22,7 +22,14 @@ from django.contrib.auth import views as auth_views
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
-from api.auth_views import CustomPasswordResetConfirmView, CustomPasswordResetView
+from api.auth_views import (
+    AndroidAssetLinksView,
+    AppleAppSiteAssociationView,
+    AppResetPasswordFallbackView,
+    AppVerifyEmailFallbackView,
+    CustomPasswordResetConfirmView,
+    CustomPasswordResetView,
+)
 from api.carts.admin import cart_attrib_admin_site
 from api.shops.admin import shop_admin_site
 from api.social.admin import social_admin_site
@@ -31,6 +38,28 @@ from api.social.admin import social_admin_site
 # shop-admin, cart-admin).  Django's built-in views handle token generation,
 # validation and expiry; we only need to supply templates.
 urlpatterns = [
+    # Universal Links — served at the domain root, must not redirect.
+    path(
+        ".well-known/apple-app-site-association",
+        AppleAppSiteAssociationView.as_view(),
+        name="apple-app-site-association",
+    ),
+    path(
+        ".well-known/assetlinks.json",
+        AndroidAssetLinksView.as_view(),
+        name="android-asset-links",
+    ),
+    # Fallback web pages for deep links opened outside the mobile app.
+    path(
+        "app/reset-password/",
+        AppResetPasswordFallbackView.as_view(),
+        name="app-reset-password",
+    ),
+    path(
+        "app/verify-email/",
+        AppVerifyEmailFallbackView.as_view(),
+        name="app-verify-email",
+    ),
     path("admin/", admin.site.urls),
     path("shop-admin/", shop_admin_site.urls),
     path("social-admin/", social_admin_site.urls),

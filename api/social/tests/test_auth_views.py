@@ -500,3 +500,308 @@ class CustomPasswordResetConfirmViewStandardPathTests(TestCase):
             "/shop-admin/login/",
             fetch_redirect_response=False,
         )
+
+
+# ---------------------------------------------------------------------------
+# MobileAccountAdapter.get_email_confirmation_url
+# ---------------------------------------------------------------------------
+
+
+class MobileAccountAdapterTests(SimpleTestCase):
+    """Unit tests for the custom allauth account adapter."""
+
+    def _make_email_confirmation(self, key: str):
+        """Return a minimal stub with a ``key`` attribute."""
+
+        class _Stub:
+            pass
+
+        stub = _Stub()
+        stub.key = key
+        return stub
+
+    def test_confirmation_url_points_to_app_verify_path(self) -> None:
+        """get_email_confirmation_url must return a URL rooted at /app/verify-email/."""
+        from api.auth_views import MobileAccountAdapter
+
+        adapter = MobileAccountAdapter()
+        request = RequestFactory().get("/")
+        ec = self._make_email_confirmation("testkey123")
+
+        url = adapter.get_email_confirmation_url(request, ec)
+
+        self.assertIn("/app/verify-email/", url)
+        self.assertIn("key=testkey123", url)
+
+    def test_confirmation_url_key_is_url_encoded(self) -> None:
+        """Special characters in the key must be percent-encoded."""
+        from api.auth_views import MobileAccountAdapter
+
+        adapter = MobileAccountAdapter()
+        request = RequestFactory().get("/")
+        ec = self._make_email_confirmation("key with spaces+special")
+
+        url = adapter.get_email_confirmation_url(request, ec)
+
+        self.assertNotIn(" ", url)
+        self.assertIn("/app/verify-email/", url)
+
+    def test_confirmation_url_without_request_still_returns_string(self) -> None:
+        """When request is None the method returns a relative path (no sites framework needed)."""
+        from api.auth_views import MobileAccountAdapter
+
+        adapter = MobileAccountAdapter()
+        ec = self._make_email_confirmation("nokey")
+
+        url = adapter.get_email_confirmation_url(None, ec)
+
+        self.assertIsInstance(url, str)
+        self.assertIn("/app/verify-email/", url)
+        self.assertIn("key=nokey", url)
+
+
+# ---------------------------------------------------------------------------
+# mobile_password_reset_url_generator
+# ---------------------------------------------------------------------------
+
+
+class MobilePasswordResetUrlGeneratorTests(TestCase):
+    """Unit tests for the auth_kit PASSWORD_RESET_URL_GENERATOR callable."""
+
+    def setUp(self) -> None:
+        self.user = CustomUser.objects.create_user(
+            email="mobile_reset@test.com",
+            password="pass",
+            first_name="Mobile",
+            last_name="User",
+        )
+
+    def test_url_points_to_app_reset_path(self) -> None:
+        """The generated URL must be rooted at /app/reset-password/."""
+        from api.auth_views import mobile_password_reset_url_generator
+
+        request = RequestFactory().get("/")
+        url = mobile_password_reset_url_generator(request, self.user, "tok123")
+
+        self.assertIn("/app/reset-password/", url)
+
+    def test_url_contains_uid_and_token(self) -> None:
+        """uid and token query params must both appear in the URL."""
+        from api.auth_views import mobile_password_reset_url_generator
+
+        request = RequestFactory().get("/")
+        url = mobile_password_reset_url_generator(request, self.user, "sometoken")
+
+        self.assertIn("uid=", url)
+        self.assertIn("token=sometoken", url)
+
+    def test_uid_is_base36_encoded(self) -> None:
+        """uid must be the allauth base36-encoded primary key (not raw UUID/int)."""
+        from allauth.account.utils import user_pk_to_url_str
+
+        from api.auth_views import mobile_password_reset_url_generator
+
+        request = RequestFactory().get("/")
+        url = mobile_password_reset_url_generator(request, self.user, "tok")
+        expected_uid = user_pk_to_url_str(self.user)
+
+        self.assertIn(f"uid={expected_uid}", url)
+
+
+# ---------------------------------------------------------------------------
+# AppResetPasswordFallbackView  (/app/reset-password/)
+# ---------------------------------------------------------------------------
+
+
+@override_settings(MOBILE_APP_SCHEME="rzo")
+class AppResetPasswordFallbackViewTests(SimpleTestCase):
+    """Tests for the /app/reset-password/ fallback web page."""
+
+    def test_get_returns_200(self) -> None:
+        """GET /app/reset-password/ must return HTTP 200."""
+        response = self.client.get("/app/reset-password/")
+        self.assertEqual(response.status_code, 200)
+
+    def test_response_contains_deep_link_with_uid_and_token(self) -> None:
+        """The rendered page must embed a deep link containing uid and token."""
+        response = self.client.get(
+            "/app/reset-password/",
+            {"uid": "abc123", "token": "tok456"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "uid=abc123")
+        self.assertContains(response, "token=tok456")
+
+    def test_response_uses_mobile_app_scheme(self) -> None:
+        """The deep link must use the MOBILE_APP_SCHEME defined in settings."""
+        response = self.client.get("/app/reset-password/", {"uid": "x", "token": "y"})
+
+        self.assertContains(response, "rzo://reset-password")
+
+    def test_missing_params_do_not_crash(self) -> None:
+        """GET without uid/token query params must not raise — empty strings used."""
+        response = self.client.get("/app/reset-password/")
+        self.assertEqual(response.status_code, 200)
+
+
+# ---------------------------------------------------------------------------
+# AppVerifyEmailFallbackView  (/app/verify-email/)
+# ---------------------------------------------------------------------------
+
+
+@override_settings(MOBILE_APP_SCHEME="rzo")
+class AppVerifyEmailFallbackViewTests(TestCase):
+    """Tests for the /app/verify-email/ fallback web page."""
+
+    def test_get_returns_200(self) -> None:
+        """GET /app/verify-email/ must return HTTP 200 even without a valid key."""
+        response = self.client.get("/app/verify-email/")
+        self.assertEqual(response.status_code, 200)
+
+    def test_invalid_key_shows_error_state(self) -> None:
+        """An invalid/expired key must render without crashing (verified=False)."""
+        response = self.client.get("/app/verify-email/", {"key": "invalidkey"})
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Adresse email confirmée")
+
+    def test_missing_key_param_does_not_crash(self) -> None:
+        """GET without key param must not raise — treated as invalid key."""
+        response = self.client.get("/app/verify-email/")
+        self.assertEqual(response.status_code, 200)
+
+    def test_response_contains_login_deep_link_when_verified(self) -> None:
+        """The confirmed page must embed the rzo://login deep link when email is verified."""
+        from allauth.account.models import EmailAddress, get_emailconfirmation_model
+
+        # Create a real user + email confirmation entry so verification succeeds.
+        user = CustomUser.objects.create_user(
+            email="verify_test@test.com",
+            password="pass",
+            first_name="Test",
+            last_name="User",
+        )
+        email_address = EmailAddress.objects.create(user=user, email=user.email, primary=True, verified=False)
+        model = get_emailconfirmation_model()
+        confirmation = model.create(email_address)
+
+        response = self.client.get("/app/verify-email/", {"key": confirmation.key})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "rzo://login")
+        self.assertContains(response, "Adresse email confirm\u00e9e")
+
+
+# ---------------------------------------------------------------------------
+# AppleAppSiteAssociationView  (/.well-known/apple-app-site-association)
+# ---------------------------------------------------------------------------
+
+
+@override_settings(IOS_APP_ID="TEAM01.fr.reseauxducoeur.app")
+class AppleAppSiteAssociationViewTests(SimpleTestCase):
+    """Tests for the iOS Universal Links AASA endpoint."""
+
+    def test_returns_200(self) -> None:
+        """GET /.well-known/apple-app-site-association must return HTTP 200."""
+        response = self.client.get("/.well-known/apple-app-site-association")
+        self.assertEqual(response.status_code, 200)
+
+    def test_content_type_is_json(self) -> None:
+        """Response Content-Type must be application/json (iOS requirement)."""
+        response = self.client.get("/.well-known/apple-app-site-association")
+        self.assertIn("application/json", response["Content-Type"])
+
+    def test_payload_contains_app_id_from_settings(self) -> None:
+        """The JSON payload must include the IOS_APP_ID from settings."""
+        import json
+
+        response = self.client.get("/.well-known/apple-app-site-association")
+        data = json.loads(response.content)
+
+        app_ids = data["applinks"]["details"][0]["appIDs"]
+        self.assertIn("TEAM01.fr.reseauxducoeur.app", app_ids)
+
+    def test_payload_covers_all_required_paths(self) -> None:
+        """
+        The AASA must declare components for /app/reset-password/,
+        /app/verify-email/ and /auth/reset/ (recipient welcome emails).
+        """
+        import json
+
+        response = self.client.get("/.well-known/apple-app-site-association")
+        data = json.loads(response.content)
+
+        components = data["applinks"]["details"][0]["components"]
+        declared_paths = [c["/"] for c in components if "/" in c]
+
+        self.assertTrue(
+            any("/app/reset-password/" in p for p in declared_paths),
+            "Missing /app/reset-password/* in AASA components",
+        )
+        self.assertTrue(
+            any("/app/verify-email/" in p for p in declared_paths),
+            "Missing /app/verify-email/* in AASA components",
+        )
+        self.assertTrue(
+            any("/auth/reset/" in p for p in declared_paths),
+            "Missing /auth/reset/* in AASA components",
+        )
+
+
+# ---------------------------------------------------------------------------
+# AndroidAssetLinksView  (/.well-known/assetlinks.json)
+# ---------------------------------------------------------------------------
+
+
+@override_settings(
+    ANDROID_APP_PACKAGE="fr.reseauxducoeur.app",
+    ANDROID_SHA256_FINGERPRINT="AA:BB:CC:DD",
+)
+class AndroidAssetLinksViewTests(SimpleTestCase):
+    """Tests for the Android App Links Digital Asset Links endpoint."""
+
+    def test_returns_200(self) -> None:
+        """GET /.well-known/assetlinks.json must return HTTP 200."""
+        response = self.client.get("/.well-known/assetlinks.json")
+        self.assertEqual(response.status_code, 200)
+
+    def test_content_type_is_json(self) -> None:
+        """Response Content-Type must be application/json (Android requirement)."""
+        response = self.client.get("/.well-known/assetlinks.json")
+        self.assertIn("application/json", response["Content-Type"])
+
+    def test_payload_is_a_list(self) -> None:
+        """The JSON payload must be a top-level array."""
+        import json
+
+        response = self.client.get("/.well-known/assetlinks.json")
+        data = json.loads(response.content)
+        self.assertIsInstance(data, list)
+
+    def test_payload_contains_package_name_from_settings(self) -> None:
+        """The JSON payload must include ANDROID_APP_PACKAGE from settings."""
+        import json
+
+        response = self.client.get("/.well-known/assetlinks.json")
+        data = json.loads(response.content)
+
+        self.assertEqual(data[0]["target"]["package_name"], "fr.reseauxducoeur.app")
+
+    def test_payload_contains_fingerprint_from_settings(self) -> None:
+        """The JSON payload must include ANDROID_SHA256_FINGERPRINT from settings."""
+        import json
+
+        response = self.client.get("/.well-known/assetlinks.json")
+        data = json.loads(response.content)
+
+        self.assertIn("AA:BB:CC:DD", data[0]["target"]["sha256_cert_fingerprints"])
+
+    @override_settings(ANDROID_SHA256_FINGERPRINT="")
+    def test_empty_fingerprint_yields_empty_list(self) -> None:
+        """When ANDROID_SHA256_FINGERPRINT is empty, the fingerprints list must be []."""
+        import json
+
+        response = self.client.get("/.well-known/assetlinks.json")
+        data = json.loads(response.content)
+
+        self.assertEqual(data[0]["target"]["sha256_cert_fingerprints"], [])

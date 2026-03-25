@@ -18,12 +18,16 @@ import logging
 from html import escape as html_escape
 from urllib.parse import urlencode
 
-from allauth.account.models import EmailAddress
+from allauth.account.adapter import DefaultAccountAdapter
+from allauth.account.models import EmailAddress, get_emailconfirmation_model
+from allauth.account.utils import user_pk_to_url_str
 from django.conf import settings
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.forms import PasswordResetForm
-from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, JsonResponse
+from django.shortcuts import render
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.views import View
 
 from .models import CustomUser
 
@@ -210,3 +214,195 @@ class CustomPasswordResetConfirmView(auth_views.PasswordResetConfirmView):
             return callback_url
 
         return super().get_success_url()
+
+
+# ---------------------------------------------------------------------------
+# Mobile / Universal Links support
+# ---------------------------------------------------------------------------
+
+
+class MobileAccountAdapter(DefaultAccountAdapter):
+    """
+    Custom allauth account adapter.
+
+    Overrides ``get_email_confirmation_url`` so that the link inside the
+    signup confirmation email points to the Universal Link path
+    ``/app/verify-email/?key=<key>``.  iOS and Android intercept this URL
+    and open the app directly.  When the app is not installed the browser
+    lands on ``AppVerifyEmailFallbackView``, which shows a branded web page.
+    """
+
+    def get_email_confirmation_url(self, request, emailconfirmation) -> str:
+        """Return a Universal Link URL for email verification."""
+        confirm_path = "/app/verify-email/?" + urlencode({"key": emailconfirmation.key})
+        if request is not None:
+            return request.build_absolute_uri(confirm_path)
+        # request may be None when signals trigger confirmation outside a
+        # request cycle (e.g. management commands).  Return the relative path
+        # since building an absolute URI requires either a request or the
+        # django.contrib.sites framework, which is not always enabled.
+        return confirm_path
+
+
+def mobile_password_reset_url_generator(
+    request: HttpRequest,
+    user: CustomUser,
+    temp_key: str,
+) -> str:
+    """
+    Generate a Universal Link URL for the password reset email (mobile clients).
+
+    auth_kit calls this function (configured via
+    ``AUTH_KIT["PASSWORD_RESET_URL_GENERATOR"]``) to build the link included
+    in the password reset email sent to ``Client`` users.
+
+    The URL points to ``/app/reset-password/`` — a path registered in the
+    ``/.well-known/apple-app-site-association`` and
+    ``/.well-known/assetlinks.json`` files so that iOS and Android open the
+    app directly.  When the app is not installed, the browser shows the
+    ``AppResetPasswordFallbackView`` branded fallback page.
+
+    Parameters
+    ----------
+    request:
+        The current HTTP request.
+    user:
+        The user requesting a password reset.
+    temp_key:
+        The allauth password-reset token (plain, not encoded).
+    """
+    uid = user_pk_to_url_str(user)
+    reset_path = "/app/reset-password/?" + urlencode({"uid": uid, "token": temp_key})
+    return request.build_absolute_uri(reset_path)
+
+
+class AppResetPasswordFallbackView(View):
+    """
+    Fallback web page for password reset Universal Links.
+
+    Shown when the user taps the password reset link in a browser (app not
+    installed or link opened outside the device).  A JS redirect immediately
+    tries the custom-scheme deep link (``rzo://reset-password?uid=…&token=…``).
+    If the app is not installed the browser stays on this page, which shows
+    a branded message and a direct link to the standard web reset form.
+    """
+
+    def get(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
+        """Render the fallback page with the appropriate deep link."""
+        uid = request.GET.get("uid", "")
+        token = request.GET.get("token", "")
+        app_scheme = getattr(settings, "MOBILE_APP_SCHEME", "rzo")
+        deep_link = f"{app_scheme}://reset-password?" + urlencode({"uid": uid, "token": token})
+        return render(
+            request,
+            "emails/app_fallback.html",
+            {"action": "reset_password", "deep_link": deep_link},
+        )
+
+
+class AppVerifyEmailFallbackView(View):
+    """
+    Web landing page for email verification Universal Links.
+
+    When iOS/Android opens ``/app/verify-email/?key=<key>`` and the app is NOT
+    installed, this view:
+
+    1. Confirms the email server-side immediately (allauth ``confirm()``).
+    2. Renders a branded page and tries to open the app login screen via the
+       custom-scheme deep link (``rzo://login``).
+    3. If the app is not installed, the browser stays on this page which tells
+       the user their email is confirmed and invites them to download the app.
+
+    When the app IS installed, iOS/Android intercepts the Universal Link before
+    it reaches this view and opens the app directly.  The app is then
+    responsible for calling ``POST /api/auth/registration/verify-email/``
+    with the key.
+    """
+
+    def get(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
+        """Confirm the email server-side, then render the fallback page."""
+        key = request.GET.get("key", "")
+        app_scheme = getattr(settings, "MOBILE_APP_SCHEME", "rzo")
+
+        verified = False
+        if key:
+            try:
+                model = get_emailconfirmation_model()
+                confirmation = model.from_key(key)
+                if confirmation is not None:
+                    confirmation.confirm(request)
+                    verified = True
+            except Exception:
+                # Expired, already-used, or malformed key — verified stays False.
+                pass
+
+        # Deep link to the app login screen (email is already confirmed here).
+        deep_link = f"{app_scheme}://login"
+        return render(
+            request,
+            "emails/app_fallback.html",
+            {"action": "verify_email", "deep_link": deep_link, "verified": verified},
+        )
+
+
+class AppleAppSiteAssociationView(View):
+    """
+    Serve the Apple App Site Association (AASA) file for Universal Links.
+
+    iOS fetches ``/.well-known/apple-app-site-association`` (without redirect,
+    Content-Type: application/json) to verify that this domain is associated
+    with the app whose Team ID + Bundle ID is declared in ``IOS_APP_ID``.
+
+    Paths covered (app intercepts these URLs on iOS devices):
+
+    * ``/app/reset-password/`` — client forgot-password link
+    * ``/app/verify-email/`` — client signup confirmation link
+    * ``/auth/reset/`` — recipient / admin welcome-email activation link
+    """
+
+    def get(self, request: HttpRequest, *args, **kwargs) -> JsonResponse:
+        """Return the AASA JSON payload."""
+        ios_app_id = getattr(settings, "IOS_APP_ID", "TEAMID.fr.reseauxducoeur.app")
+        data = {
+            "applinks": {
+                "details": [
+                    {
+                        "appIDs": [ios_app_id],
+                        "components": [
+                            {"/": "/app/reset-password/*"},
+                            {"/": "/app/verify-email/*"},
+                            {"/": "/auth/reset/*"},
+                        ],
+                    }
+                ]
+            }
+        }
+        # content_type must be application/json — no text/plain, no redirect.
+        return JsonResponse(data)
+
+
+class AndroidAssetLinksView(View):
+    """
+    Serve the Android Digital Asset Links file for App Links.
+
+    Android fetches ``/.well-known/assetlinks.json`` to verify that this domain
+    is associated with the app whose package name and signing certificate
+    fingerprint are declared in ``ANDROID_APP_PACKAGE`` and
+    ``ANDROID_SHA256_FINGERPRINT``.
+    """
+
+    def get(self, request: HttpRequest, *args, **kwargs) -> JsonResponse:
+        """Return the Asset Links JSON payload."""
+        android_package = getattr(settings, "ANDROID_APP_PACKAGE", "fr.reseauxducoeur.app")
+        android_fp = getattr(settings, "ANDROID_SHA256_FINGERPRINT", "")
+        data = [
+            {
+                "relation": ["delegate_permission/common.handle_all_urls"],
+                "target": {
+                    "namespace": "android_app",
+                    "package_name": android_package,
+                    "sha256_cert_fingerprints": [android_fp] if android_fp else [],
+                },
+            }
+        ]
+        return JsonResponse(data, safe=False)

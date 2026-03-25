@@ -610,6 +610,7 @@ class SocialWorkerAdmin(admin.ModelAdmin):
             and request.user.socialworker is not None
             and request.user.socialworker.is_social_admin
             and obj.social_center == request.user.socialworker.social_center
+            and obj.user != request.user
         )
 
     def has_view_permission(self, request, obj=None):

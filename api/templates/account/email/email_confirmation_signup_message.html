@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Confirmez votre adresse email — Les Réseaux du Coeur</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        max-width: 600px;
+        margin: 40px auto;
+        background: #ffffff;
+        border-radius: 6px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        background-color: #417690;
+        color: #ffffff;
+        padding: 24px 32px;
+        text-align: center;
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 700;
+      }
+      .body {
+        padding: 32px;
+        color: #333333;
+        line-height: 1.6;
+      }
+      .body h2 {
+        color: #417690;
+        margin-top: 0;
+      }
+      .btn {
+        display: inline-block;
+        margin: 20px 0;
+        padding: 12px 28px;
+        background-color: #417690;
+        color: #ffffff !important;
+        text-decoration: none;
+        border-radius: 4px;
+        font-weight: bold;
+      }
+      .footer {
+        background-color: #f4f4f4;
+        padding: 16px 32px;
+        font-size: 13px;
+        color: #888888;
+        text-align: center;
+      }
+      .notice {
+        background-color: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 12px 16px;
+        margin: 16px 0;
+        border-radius: 2px;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>Les Réseaux du Coeur</h1>
+      </div>
+
+      <div class="body">
+        <h2>Confirmez votre adresse email</h2>
+
+        <p>
+          Bonjour {% if user.first_name %}{{ user.first_name }} {{ user.last_name }}{% endif %},
+        </p>
+
+        <p>
+          Merci de vous être inscrit sur <strong>Les Réseaux du Coeur</strong>.
+          Cliquez sur le bouton ci-dessous pour confirmer votre adresse email et
+          activer votre compte.
+        </p>
+
+        <div class="notice">
+          Ce lien est <strong>valable 3 jours</strong>. Passé ce délai, vous
+          pourrez en demander un nouveau depuis l'application.
+        </div>
+
+        <p style="text-align: center">
+          <a href="{{ activate_url }}" class="btn"
+            >Confirmer mon adresse email</a
+          >
+        </p>
+
+        <p>
+          Si le bouton ne fonctionne pas, copiez-collez ce lien dans votre
+          navigateur&nbsp;:
+        </p>
+        <p style="word-break: break-all; font-size: 13px; color: #555555">
+          {{ activate_url }}
+        </p>
+
+        <p>Si vous n'avez pas créé ce compte, ignorez simplement cet email.</p>
+      </div>
+
+      <div class="footer">Les Réseaux du Coeur</div>
+    </div>
+  </body>
+</html>
