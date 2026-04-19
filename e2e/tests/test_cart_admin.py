@@ -95,12 +95,12 @@ class TestCartAdmin:
         A social worker navigates to a cart's edit page, unchecks all articles,
         and saves. A native confirmation dialog appears; upon acceptance the
         cart is deleted and the user is redirected to the cart changelist.
+
+        Relies on the cart created by the previous tests in this class.
         """
         page_obj = CartAdminPage(BASE_URL)
-        # Create a fresh cart for this test so it does not depend on state
-        # created by earlier tests.
-        cart_id = page_obj.create_cart(cart_admin_page, article_indices=[0])
-        assert cart_id > 0, "Cart creation did not return a valid id"
+        cart_id = page_obj.get_first_cart_id(cart_admin_page)
+        assert cart_id > 0, "No existing cart found to run the delete test against"
         page_obj.delete_cart_by_unchecking_all(cart_admin_page, cart_id)
 
     def test_articles_are_removed_when_cart_is_collected(self, cart_admin_page: Page, staff_page: Page) -> None:
