@@ -213,7 +213,8 @@ def reset_db(django_server: str) -> dict[str, str]:
     auth_paths = _write_auth_states(sessions)
 
     # 3. Clear Mailhog so each test starts with an empty inbox.
-    requests.delete(f"{MAILHOG_API_URL}/api/v1/messages", timeout=5)
+    response = requests.delete(f"{MAILHOG_API_URL}/api/v1/messages", timeout=5)
+    response.raise_for_status()
 
     return auth_paths
 
