@@ -18,7 +18,7 @@ class Cashier(models.Model):
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name="cashiers")
     is_shop_manager = models.BooleanField(
         default=False,
-        help_text="Designates whether this cashier can manage other cashiers.",
+        help_text="Designates whether this cashier can manage other cashiers",
     )
 
     def __str__(self) -> str:

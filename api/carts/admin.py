@@ -320,7 +320,7 @@ class CartAttribAdmin(admin.ModelAdmin):
             self.message_user(
                 request,
                 "Le panier a été supprimé car tous les articles ont été retirés.",
-                level="success",
+                level=messages.SUCCESS,
             )
             return HttpResponseRedirect(reverse("cart_attrib_admin:api_cart_changelist"))
         return super().response_change(request, obj)
