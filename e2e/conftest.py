@@ -141,8 +141,7 @@ def _build_storage_state(session_key: str) -> dict:
     parsed = urlparse(BASE_URL)
     if not parsed.hostname:
         raise ValueError(
-            f"E2E_BASE_URL {BASE_URL!r} has no hostname. "
-            "Set E2E_BASE_URL to a valid URL (e.g. http://127.0.0.1:8001)."
+            f"E2E_BASE_URL {BASE_URL!r} has no hostname. Set E2E_BASE_URL to a valid URL (e.g. http://127.0.0.1:8001)."
         )
     return {
         "cookies": [
@@ -181,8 +180,7 @@ def _write_auth_states(sessions: dict[str, str]) -> dict[str, str]:
         if extra:
             parts.append(f"unexpected roles: {sorted(extra)}")
         raise RuntimeError(
-            f"reset_e2e_data returned an unexpected session mapping "
-            f"({'; '.join(parts)}). Got keys: {sorted(received)}"
+            f"reset_e2e_data returned an unexpected session mapping ({'; '.join(parts)}). Got keys: {sorted(received)}"
         )
 
     paths: dict[str, str] = {}
