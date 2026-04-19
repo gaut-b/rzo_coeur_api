@@ -97,10 +97,10 @@ class TestCartAdmin:
         cart is deleted and the user is redirected to the cart changelist.
         """
         page_obj = CartAdminPage(BASE_URL)
-        # Re-use the first non-collected cart already in the DB (created by
-        # earlier tests in this session).
-        cart_id = page_obj.get_first_cart_id(cart_admin_page)
-        assert cart_id > 0, "No cart found in the DB to run the deletion test"
+        # Create a fresh cart for this test so it does not depend on state
+        # created by earlier tests.
+        cart_id = page_obj.create_cart(cart_admin_page, article_indices=[0])
+        assert cart_id > 0, "Cart creation did not return a valid id"
         page_obj.delete_cart_by_unchecking_all(cart_admin_page, cart_id)
 
     def test_articles_are_removed_when_cart_is_collected(self, cart_admin_page: Page, staff_page: Page) -> None:
