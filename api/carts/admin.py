@@ -1,4 +1,4 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.html import format_html, mark_safe
@@ -143,14 +143,14 @@ class ArticleAttrAdmin(AdminActionFormsMixin, admin.ModelAdmin):
             self.message_user(
                 request,
                 "Certains articles sélectionnés sont déjà dans un panier.",
-                level="error",
+                level=messages.ERROR,
             )
             return
         if queryset.values("shop").distinct().count() > 1:
             self.message_user(
                 request,
                 "Les articles sélectionnés doivent tous provenir du même magasin.",
-                level="error",
+                level=messages.ERROR,
             )
             return
         cart = Cart.objects.create(shop=queryset.first().shop)
