@@ -41,8 +41,7 @@ class CartChangeForm(forms.ModelForm):
     """
     Form for editing an existing cart.
 
-    Displays articles already in this cart and available articles
-    from the same shop as checkboxes.
+    Displays only the articles already in this cart as checkboxes.
     """
 
     articles = ArticleChoiceField(
