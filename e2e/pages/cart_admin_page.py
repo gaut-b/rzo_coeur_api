@@ -162,7 +162,7 @@ class CartAdminPage:
         # intercepts the native confirm() dialog and accepts it.
         page.once("dialog", lambda dialog: dialog.accept())
         page.locator('[name="_save"]').click()
-        expect(page).to_have_url(re.compile(r"/cart-admin/api/cart/(?!\d)"))
+        expect(page).to_have_url(re.compile(rf"^{re.escape(self.carts_url)}(?:\?.*)?$"))
 
     def expect_has_access(self, page: Page) -> None:
         """Assert that the user has a valid session on cart-admin."""
