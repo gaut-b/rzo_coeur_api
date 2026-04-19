@@ -47,6 +47,9 @@ services:
       # the Mailhog HTTP API (http://localhost:8025/api/v2/messages).
       - EMAIL_HOST=mailhog
       - EMAIL_PORT=1025
+      # Explicit opt-in required by reset_e2e_data to prevent accidental
+      # use of that command outside of the E2E test environment.
+      - E2E_RESET_CONFIRM=1
     volumes:
       - static_files:/app/src/staticfiles
       - media_files:/app/src/media

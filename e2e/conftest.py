@@ -134,11 +134,16 @@ def _build_storage_state(session_key: str) -> dict:
     Build a Playwright storage-state dict containing a single ``sessionid``
     cookie for the given Django session key.
 
-    The cookie is configured for HTTP (not Secure) to match the local
-    Docker-based E2E environment where the backend runs with DEBUG=True
-    behind plain HTTP.
+    The ``secure`` flag is derived from the URL scheme so the cookie is
+    sent correctly whether the E2E stack runs over HTTP (local dev) or
+    HTTPS (CI / external stacks with ``E2E_BASE_URL``).
     """
     parsed = urlparse(BASE_URL)
+    if not parsed.hostname:
+        raise ValueError(
+            f"E2E_BASE_URL {BASE_URL!r} has no hostname. "
+            "Set E2E_BASE_URL to a valid URL (e.g. http://127.0.0.1:8001)."
+        )
     return {
         "cookies": [
             {
@@ -147,7 +152,7 @@ def _build_storage_state(session_key: str) -> dict:
                 "domain": parsed.hostname,
                 "path": "/",
                 "httpOnly": True,
-                "secure": False,
+                "secure": parsed.scheme == "https",
                 "sameSite": "Lax",
             },
         ],
@@ -157,9 +162,29 @@ def _build_storage_state(session_key: str) -> dict:
 
 def _write_auth_states(sessions: dict[str, str]) -> dict[str, str]:
     """
-    Write one ``.auth/<role>.json`` file per role and return a
-    role → file-path mapping.
+    Validate *sessions*, write one ``.auth/<role>.json`` file per role,
+    and return a role → file-path mapping.
+
+    Raises ``RuntimeError`` with a human-readable message if the mapping
+    returned by ``reset_e2e_data`` is missing expected roles or contains
+    unexpected ones, rather than letting later code fail with a bare
+    ``KeyError``.
     """
+    expected = set(_ROLES)
+    received = set(sessions.keys())
+    missing = expected - received
+    extra = received - expected
+    if missing or extra:
+        parts: list[str] = []
+        if missing:
+            parts.append(f"missing roles: {sorted(missing)}")
+        if extra:
+            parts.append(f"unexpected roles: {sorted(extra)}")
+        raise RuntimeError(
+            f"reset_e2e_data returned an unexpected session mapping "
+            f"({'; '.join(parts)}). Got keys: {sorted(received)}"
+        )
+
     paths: dict[str, str] = {}
     for role in _ROLES:
         state = _build_storage_state(sessions[role])
