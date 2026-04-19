@@ -76,7 +76,6 @@ class ArticleToCartForm(ActionForm):
         from django.contrib.admin.widgets import AutocompleteSelect
 
         from api.carts.admin import cart_attrib_admin_site
-        from api.models import Article
 
         self.fields["cart"].widget = AutocompleteSelect(
             Article._meta.get_field("cart"),
