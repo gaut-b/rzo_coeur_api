@@ -103,7 +103,7 @@ class CartAdminPage:
     def assign_articles_to_cart(self, page: Page, cart_id: int, article_indices: list[int]) -> None:
         """
         Select articles by row index (0-based) and assign them to *cart_id*
-        using the "Assign Article to Cart" bulk action.
+        using the "Ajouter à un panier existant" bulk action.
 
         Only available articles (cart=None) are shown — the URL is filtered
         to ``?cart__isnull=True`` to ensure repeatable indices across runs.
