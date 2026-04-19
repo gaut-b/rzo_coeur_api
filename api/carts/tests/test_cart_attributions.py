@@ -4,18 +4,20 @@ Tests for cart_attributions.py
 Covers:
 - CartAttributionAdminSite.check_user_permission
 - CartCreationForm: shop/recipient filtering by social center
-- CartChangeForm: articles queryset (in cart + available from same shop)
+- CartChangeForm: articles queryset (only articles already in the cart)
 - ArticleChoiceField.label_from_instance
 - CartAttribAdmin permissions (including COLLECTED lock)
-- CartAttribAdmin.save_model: article assignment/detachment
+- CartAttribAdmin.save_model: article assignment/detachment/cart deletion
 - ArticleAvailabilityFilter
 - ArticleAttrAdmin.get_queryset: social center isolation
+- ArticleAttrAdmin.create_cart: validation and redirect
 - ArticleToCartForm: only PENDING carts from same social center
 """
 
 from unittest.mock import Mock
 
 from django.contrib.auth import get_user_model
+from django.http import HttpResponseRedirect
 from django.test import RequestFactory, TestCase
 from django.utils import timezone
 
@@ -118,6 +120,24 @@ def make_request(user) -> Mock:
     return request
 
 
+def make_request_with_messages(user):
+    """
+    Create a fake GET request with session and message middleware applied.
+
+    Required for code paths that call ``ModelAdmin.message_user``, which
+    internally uses ``django.contrib.messages``.
+    """
+    from django.contrib.messages.middleware import MessageMiddleware
+    from django.contrib.sessions.middleware import SessionMiddleware
+
+    factory = RequestFactory()
+    request = factory.get("/")
+    request.user = user
+    SessionMiddleware(lambda r: r).process_request(request)
+    MessageMiddleware(lambda r: r).process_request(request)
+    return request
+
+
 # ---------------------------------------------------------------------------
 # CartCreationForm
 # ---------------------------------------------------------------------------
@@ -183,20 +203,15 @@ class CartChangeFormTests(TestCase):
         form = CartChangeForm(instance=self.cart)
         self.assertIn(self.article_in_cart, form.fields["articles"].queryset)
 
-    def test_articles_queryset_includes_available_same_shop(self):
-        """Available articles from the same shop must be selectable."""
+    def test_articles_queryset_excludes_available_same_shop(self):
+        """Available articles from the same shop must NOT appear in the queryset."""
         form = CartChangeForm(instance=self.cart)
-        self.assertIn(self.article_available, form.fields["articles"].queryset)
+        self.assertNotIn(self.article_available, form.fields["articles"].queryset)
 
     def test_articles_queryset_excludes_other_shop(self):
         """Articles from a different shop must not appear."""
         form = CartChangeForm(instance=self.cart)
         self.assertNotIn(self.article_other_shop, form.fields["articles"].queryset)
-
-    def test_articles_queryset_excludes_articles_in_other_cart(self):
-        """Articles already assigned to another cart must not appear."""
-        form = CartChangeForm(instance=self.cart)
-        self.assertNotIn(self.article_in_other_cart, form.fields["articles"].queryset)
 
     def test_initial_articles_are_prechecked(self):
         """Articles already in the cart must be in initial data."""
@@ -375,6 +390,22 @@ class CartAttribAdminSaveModelTests(TestCase):
         article.refresh_from_db()
         self.assertIsNone(article.cart)
 
+    def test_save_model_deletes_cart_when_all_articles_removed(self):
+        """
+        save_model must delete the cart and set _cart_deleted on the request
+        when the selected article list is empty.
+        """
+        article = make_article(self.shop, self.client_obj, "A5", cart=self.cart)
+        form = Mock()
+        form.instance = self.cart
+        form.cleaned_data = {"articles": []}
+        request = make_request(self.sw.user)
+        self.admin_instance.save_model(request, self.cart, form, change=True)
+        self.assertFalse(Cart.objects.filter(pk=self.cart.pk).exists())
+        article.refresh_from_db()
+        self.assertIsNone(article.cart)
+        self.assertTrue(getattr(request, "_cart_deleted", False))
+
 
 # ---------------------------------------------------------------------------
 # ArticleAvailabilityFilter
@@ -510,3 +541,86 @@ class ArticleToCartFormCartQuerysetTests(TestCase):
         """Carts from other social centers must not appear."""
         qs = self._cart_qs(self.center_a)
         self.assertNotIn(self.pending_b, qs)
+
+
+# ---------------------------------------------------------------------------
+# ArticleAttrAdmin.create_cart action
+# ---------------------------------------------------------------------------
+
+
+class CreateCartActionTests(TestCase):
+    """Tests for the ArticleAttrAdmin.create_cart admin action."""
+
+    def setUp(self):
+        self.admin_instance = ArticleAttrAdmin(Article, cart_attrib_admin_site)
+        self.center = make_social_center()
+        self.shop = make_shop(self.center)
+        self.other_shop = make_shop(self.center, "Shop B")
+        self.client_obj = make_client()
+        self.sw = make_social_worker(self.center)
+        self.article_a = make_article(self.shop, self.client_obj, "Art A")
+        self.article_b = make_article(self.shop, self.client_obj, "Art B")
+        self.article_other_shop = make_article(self.other_shop, self.client_obj, "Art Other")
+
+    def _qs(self, *articles):
+        return Article.objects.filter(pk__in=[a.pk for a in articles])
+
+    def test_create_cart_creates_pending_cart(self):
+        """create_cart must create a PENDING cart (no recipient) in the article's shop."""
+        qs = self._qs(self.article_a, self.article_b)
+        request = make_request(self.sw.user)
+        self.admin_instance.create_cart(request, qs)
+        self.article_a.refresh_from_db()
+        cart = self.article_a.cart
+        self.assertIsNotNone(cart)
+        self.assertEqual(cart.shop, self.shop)
+        self.assertIsNone(cart.recipient)
+        self.assertEqual(cart.status, "PENDING")
+
+    def test_create_cart_assigns_all_selected_articles(self):
+        """create_cart must assign all selected articles to the new cart."""
+        qs = self._qs(self.article_a, self.article_b)
+        request = make_request(self.sw.user)
+        self.admin_instance.create_cart(request, qs)
+        self.article_a.refresh_from_db()
+        self.article_b.refresh_from_db()
+        self.assertIsNotNone(self.article_a.cart)
+        self.assertEqual(self.article_a.cart, self.article_b.cart)
+
+    def test_create_cart_redirects_to_cart_change_page(self):
+        """create_cart must return an HttpResponseRedirect to the new cart."""
+        qs = self._qs(self.article_a)
+        request = make_request(self.sw.user)
+        response = self.admin_instance.create_cart(request, qs)
+        self.assertIsInstance(response, HttpResponseRedirect)
+        self.article_a.refresh_from_db()
+        cart = self.article_a.cart
+        self.assertIn(str(cart.pk), response["Location"])
+
+    def test_create_cart_error_if_article_already_in_cart(self):
+        """create_cart must reject articles that are already in a cart."""
+        existing_cart = make_cart(self.shop)
+        article_in_cart = make_article(self.shop, self.client_obj, "Taken", cart=existing_cart)
+        qs = self._qs(self.article_a, article_in_cart)
+        request = make_request_with_messages(self.sw.user)
+        initial_count = Cart.objects.count()
+        response = self.admin_instance.create_cart(request, qs)
+        self.assertIsNone(response)
+        self.assertEqual(Cart.objects.count(), initial_count)
+
+    def test_create_cart_error_if_articles_from_different_shops(self):
+        """create_cart must reject a selection spanning multiple shops."""
+        qs = self._qs(self.article_a, self.article_other_shop)
+        request = make_request_with_messages(self.sw.user)
+        initial_count = Cart.objects.count()
+        response = self.admin_instance.create_cart(request, qs)
+        self.assertIsNone(response)
+        self.assertEqual(Cart.objects.count(), initial_count)
+
+    def test_remove_from_cart_not_in_actions(self):
+        """remove_from_cart must no longer be a registered action."""
+        self.assertNotIn("remove_from_cart", self.admin_instance.actions)
+
+    def test_create_cart_in_actions(self):
+        """create_cart must be a registered action."""
+        self.assertIn("create_cart", self.admin_instance.actions)

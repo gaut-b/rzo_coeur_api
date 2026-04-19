@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.html import format_html, mark_safe
 
@@ -129,19 +130,37 @@ class ArticleAttrAdmin(AdminActionFormsMixin, admin.ModelAdmin):
             )
         return qs.none()
 
-    @action_with_form(ArticleToCartForm, description="Assign Article to Cart")
+    @action_with_form(ArticleToCartForm, description="Ajouter à un panier existant")
     def assign_to_cart(self, request, queryset, data):
         cart = data["cart"]
         for article in queryset:
             article.cart = cart
             article.save()
 
-    def remove_from_cart(self, request, queryset):
-        for article in queryset:
-            article.cart = None
-            article.save()
+    def create_cart(self, request, queryset):
+        """Create a new PENDING cart from selected articles and redirect to it."""
+        if queryset.exclude(cart=None).exists():
+            self.message_user(
+                request,
+                "Certains articles sélectionnés sont déjà dans un panier.",
+                level="error",
+            )
+            return
+        if queryset.values("shop").distinct().count() > 1:
+            self.message_user(
+                request,
+                "Les articles sélectionnés doivent tous provenir du même magasin.",
+                level="error",
+            )
+            return
+        cart = Cart.objects.create(shop=queryset.first().shop)
+        queryset.update(cart=cart)
+        url = reverse("cart_attrib_admin:api_cart_change", args=[cart.pk])
+        return HttpResponseRedirect(url)
 
-    actions = ["assign_to_cart", "remove_from_cart"]
+    create_cart.short_description = "Créer un panier"
+
+    actions = ["create_cart", "assign_to_cart"]
 
     def get_status(self, obj):
         """Display article status based on cart relationship."""
@@ -183,8 +202,30 @@ class ArticleAttrAdmin(AdminActionFormsMixin, admin.ModelAdmin):
 
 
 class CartAttribAdmin(admin.ModelAdmin):
-    list_display = ["id", "shop", "status", "collected_at"]
+    list_display = ["id", "shop", "status", "created_at", "collected_at"]
     autocomplete_fields = ["shop", "recipient"]
+    search_fields = ["id", "shop__name"]
+
+    class Media:
+        js = ("api/js/cart_attrib_confirm_delete.js",)
+
+    def get_queryset(self, request):
+        """
+        Restrict carts to non-collected carts from the social worker's center.
+
+        Staff users see all carts. Social workers only see PENDING and ASSIGNED
+        carts from their own social center (collected carts are read-only and
+        managed outside this interface).
+        """
+        qs = super().get_queryset(request)
+        if request.user.is_staff:
+            return qs
+        if hasattr(request.user, "socialworker"):
+            return qs.filter(
+                shop__social_center=request.user.socialworker.social_center,
+                collected_at=None,
+            )
+        return qs.none()
 
     def get_articles_display(self, obj: "Cart") -> str:
         """
@@ -251,8 +292,10 @@ class CartAttribAdmin(admin.ModelAdmin):
         """
         Save the cart then update article assignments.
 
-        For each article in the shop: assign it to this cart if selected,
-        detach it (cart=None) if deselected.
+        For each article: assign it to this cart if selected, detach it
+        (cart=None) if deselected. If no articles remain after the update,
+        the cart is deleted and a ``_cart_deleted`` flag is set on the request
+        so ``response_change`` can redirect to the changelist.
         """
         super().save_model(request, obj, form, change)
         if change and "articles" in form.cleaned_data:
@@ -264,6 +307,23 @@ class CartAttribAdmin(admin.ModelAdmin):
             for article in previously_in_cart - selected_articles:
                 article.cart = None
                 article.save()
+            if not selected_articles:
+                obj.delete()
+                request._cart_deleted = True
+
+    def response_change(self, request, obj):
+        """
+        After saving, redirect to the changelist if the cart was deleted
+        because all articles were removed.
+        """
+        if getattr(request, "_cart_deleted", False):
+            self.message_user(
+                request,
+                "Le panier a été supprimé car tous les articles ont été retirés.",
+                level="success",
+            )
+            return HttpResponseRedirect(reverse("cart_attrib_admin:api_cart_changelist"))
+        return super().response_change(request, obj)
 
     def has_view_permission(self, request, obj=None):
         if not request.user.is_authenticated:

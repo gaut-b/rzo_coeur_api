@@ -3,9 +3,9 @@ test_cart_admin.py
 
 Covers the /cart-admin/ interface:
   - Social worker can see available articles
-  - Social worker can create a cart and assign it to a recipient
-  - Social worker can add articles to a cart (bulk action)
-  - Social worker can remove articles from a cart (bulk action)
+  - Social worker can create a cart directly from the article list
+  - Social worker can add articles to an existing cart (bulk action)
+  - Social worker can delete a cart by unchecking all articles on the edit page
 """
 
 import pytest
@@ -62,58 +62,46 @@ class TestCartAdmin:
         page_obj.goto_articles(cart_admin_page)
         page_obj.expect_articles_visible(cart_admin_page)
 
-    def test_social_worker_can_create_cart_and_assign_recipient(self, cart_admin_page: Page) -> None:
+    def test_social_worker_can_create_cart_from_article_list(self, cart_admin_page: Page) -> None:
         """
-        A social worker creates a cart and assigns the E2E recipient to it.
-        The page must redirect to the cart detail/change view.
+        A social worker selects an available article and creates a new cart
+        using the "Créer un panier" bulk action. The page must redirect to
+        the cart detail/change view.
         """
         page_obj = CartAdminPage(BASE_URL)
-        # "Test Recipient" matches the __str__ of the Recipient model
-        cart_id = page_obj.create_cart(cart_admin_page, recipient_display="Test Recipient")
+        cart_id = page_obj.create_cart(cart_admin_page, article_indices=[0])
         assert cart_id > 0, "Cart creation did not return a valid id"
 
     def test_social_worker_can_add_articles_to_cart(self, cart_admin_page: Page) -> None:
         """
-        A social worker selects available articles and assigns them to a cart
-        using the bulk action "Assign Article to Cart".
+        A social worker selects an available article and assigns it to an
+        existing cart using the "Ajouter à un panier existant" bulk action.
         """
         page_obj = CartAdminPage(BASE_URL)
 
-        # Create a fresh cart to assign articles to
-        cart_id = page_obj.create_cart(cart_admin_page, recipient_display="Test Recipient")
+        # Create a cart with the first available article.
+        cart_id = page_obj.create_cart(cart_admin_page, article_indices=[0])
         assert cart_id > 0
 
-        # Select the first two articles (indices 0 and 1) and assign them
-        page_obj.assign_articles_to_cart(cart_admin_page, cart_id=cart_id, article_indices=[0, 1])
+        # Assign the next available article (first of the remaining) to the
+        # same cart via the "Ajouter à un panier existant" action.
+        page_obj.assign_articles_to_cart(cart_admin_page, cart_id=cart_id, article_indices=[0])
 
-        # Navigate back to the article list and verify the articles appear
-        # with a non-"Available" status (the status column text changes after
-        # assignment). We just check that the list still loads cleanly.
         page_obj.goto_articles(cart_admin_page)
         expect(cart_admin_page.locator("#result_list")).to_be_visible()
 
-    def test_social_worker_can_remove_articles_from_cart(self, cart_admin_page: Page) -> None:
+    def test_social_worker_can_delete_cart_by_unchecking_all_articles(self, cart_admin_page: Page) -> None:
         """
-        After assigning articles, a social worker can remove them from their
-        cart using the "remove_from_cart" bulk action.
+        A social worker navigates to a cart's edit page, unchecks all articles,
+        and saves. A native confirmation dialog appears; upon acceptance the
+        cart is deleted and the user is redirected to the cart changelist.
         """
         page_obj = CartAdminPage(BASE_URL)
-
-        # Assign article at index 2 to a cart first
-        cart_id = page_obj.create_cart(cart_admin_page, recipient_display="Test Recipient")
-        assert cart_id > 0
-        page_obj.assign_articles_to_cart(cart_admin_page, cart_id=cart_id, article_indices=[0])
-
-        # Now navigate back to articles and remove the article we just assigned.
-        # Filter the list to show only articles in this cart.
-        cart_admin_page.goto(f"{BASE_URL}/cart-admin/api/article/?cart__id__exact={cart_id}")
-        expect(cart_admin_page.locator("#result_list tbody tr")).to_have_count(1, timeout=10_000)
-
-        page_obj.remove_articles_from_cart(cart_admin_page, article_indices=[0])
-
-        # After removal the article should no longer appear in the cart filter
-        cart_admin_page.goto(f"{BASE_URL}/cart-admin/api/article/?cart__id__exact={cart_id}")
-        expect(cart_admin_page.locator("#result_list tbody tr")).to_have_count(0, timeout=10_000)
+        # Re-use the first non-collected cart already in the DB (created by
+        # earlier tests in this session).
+        cart_id = page_obj.get_first_cart_id(cart_admin_page)
+        assert cart_id > 0, "No cart found in the DB to run the deletion test"
+        page_obj.delete_cart_by_unchecking_all(cart_admin_page, cart_id)
 
     def test_articles_are_removed_when_cart_is_collected(self, cart_admin_page: Page, staff_page: Page) -> None:
         """
@@ -122,9 +110,9 @@ class TestCartAdmin:
         """
         page_obj = CartAdminPage(BASE_URL)
         page_admin_obj = AdminPage(BASE_URL)
-        cart_id = page_obj.create_cart(cart_admin_page, recipient_display="Test Recipient")
+        cart_id = page_obj.create_cart(cart_admin_page, article_indices=[0])
         assert cart_id > 0
-        page_obj.assign_articles_to_cart(cart_admin_page, cart_id=cart_id, article_indices=[0, 1, 2])
+        page_obj.assign_articles_to_cart(cart_admin_page, cart_id=cart_id, article_indices=[0, 1])
         page_obj.goto_articles(cart_admin_page)
         page_obj.expect_articles_visible(cart_admin_page)
         page_admin_obj.mark_cart_as_collected(staff_page, cart_id=cart_id)
