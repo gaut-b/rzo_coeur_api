@@ -8,7 +8,7 @@ browser cookies without performing real browser logins.
 
 This command is called **before every E2E test** to guarantee complete
 isolation: each test starts from a pristine DB state with no leftover
-carts, articles assignments or extra users from previous tests.
+carts, article assignments or extra users from previous tests.
 
 Usage (inside the backend container):
     python manage.py reset_e2e_data
