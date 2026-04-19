@@ -1,3 +1,5 @@
+import secrets
+
 from django import forms
 from django.contrib import admin
 from django.utils.html import format_html
@@ -7,6 +9,7 @@ from api.admin_sites import (
     AddressLocationAdminMixin,
     CustomAdminSite,
 )
+from api.emails import send_account_welcome_email
 from api.models import Article, Cashier, CustomUser, Shop
 from api.users.admin import HiddenCustomUserAdmin
 
@@ -286,11 +289,6 @@ class CashierCreationForm(forms.ModelForm):
     email = forms.EmailField(required=True, help_text="Email address for the new user")
     first_name = forms.CharField(required=True, max_length=150)
     last_name = forms.CharField(required=True, max_length=150)
-    password = forms.CharField(
-        widget=forms.PasswordInput,
-        required=True,
-        help_text="Password for the new user",
-    )
     role = forms.TypedChoiceField(
         choices=[
             (True, "Shop Manager"),
@@ -303,7 +301,7 @@ class CashierCreationForm(forms.ModelForm):
 
     class Meta:
         model = Cashier
-        fields = ["email", "first_name", "last_name", "password", "role"]
+        fields = ["email", "first_name", "last_name", "role"]
 
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop("request", None)
@@ -313,9 +311,10 @@ class CashierCreationForm(forms.ModelForm):
         if not self.request or not hasattr(self.request.user, "cashier"):
             raise forms.ValidationError("Unable to determine shop. You must be logged in as a shop manager.")
 
+        generated_password = secrets.token_urlsafe(20)
         user = CustomUser.objects.create_user(
             email=self.cleaned_data["email"],
-            password=self.cleaned_data["password"],
+            password=generated_password,
             first_name=self.cleaned_data["first_name"],
             last_name=self.cleaned_data["last_name"],
         )
@@ -327,7 +326,50 @@ class CashierCreationForm(forms.ModelForm):
 
         if commit:
             cashier.save()
+
+        send_account_welcome_email(
+            user,
+            callback_url="/shop-admin/login/",
+            request=self.request,
+        )
         return cashier
+
+
+class CashierShopChangeForm(forms.ModelForm):
+    """
+    Change form for Cashier: exposes user fields inline and allows
+    role editing. Keeps the same structure as the social admin change form.
+    """
+
+    first_name = forms.CharField(required=True, max_length=150, label="First name")
+    last_name = forms.CharField(required=True, max_length=150, label="Last name")
+    email = forms.EmailField(required=True, label="Email")
+
+    class Meta:
+        model = Cashier
+        fields = ["is_shop_manager"]
+
+    def __init__(self, *args, **kwargs):
+        instance = kwargs.get("instance")
+        if instance and instance.pk and hasattr(instance, "user"):
+            initial = kwargs.setdefault("initial", {})
+            initial.setdefault("first_name", instance.user.first_name)
+            initial.setdefault("last_name", instance.user.last_name)
+            initial.setdefault("email", instance.user.email)
+        super().__init__(*args, **kwargs)
+
+    def save(self, commit=True):
+        """Save editable user fields back to the linked CustomUser."""
+        instance = super().save(commit=False)
+        user = instance.user
+        user.first_name = self.cleaned_data["first_name"]
+        user.last_name = self.cleaned_data["last_name"]
+        user.email = self.cleaned_data["email"]
+        if commit:
+            user.save()
+            instance.save()
+            self.save_m2m()
+        return instance
 
 
 class CashierShopAdmin(admin.ModelAdmin):
@@ -345,17 +387,29 @@ class CashierShopAdmin(admin.ModelAdmin):
     ]
     list_filter = ["is_shop_manager", "shop"]
     search_fields = ["user__email", "user__first_name", "user__last_name"]
-    autocomplete_fields = ["user"]
 
-    fieldsets = (
-        ("User Information", {"fields": ("user",)}),
+    edit_fieldsets = (
+        (
+            "User Information",
+            {
+                "fields": (
+                    "first_name",
+                    "last_name",
+                    "email",
+                    "get_user_last_login",
+                    "get_user_is_active",
+                    "get_user_date_joined",
+                )
+            },
+        ),
+        ("Shop", {"fields": ("get_shop_name", "get_shop_address")}),
         ("Role", {"fields": ("is_shop_manager",)}),
     )
 
     add_fieldsets = (
         (
             "User Information",
-            {"fields": ("email", "first_name", "last_name", "password")},
+            {"fields": ("email", "first_name", "last_name")},
         ),
         (
             "Role",
@@ -389,14 +443,65 @@ class CashierShopAdmin(admin.ModelAdmin):
 
     get_role.short_description = "Role"
 
+    def get_user_last_login(self, obj):
+        """Display the last login date of the linked user."""
+        return obj.user.last_login or "Never"
+
+    get_user_last_login.short_description = "Last login"
+
+    def get_user_is_active(self, obj):
+        """Display the active status of the linked user."""
+        return obj.user.is_active
+
+    get_user_is_active.short_description = "Active"
+    get_user_is_active.boolean = True
+
+    def get_user_date_joined(self, obj):
+        """Display the date the linked user joined."""
+        return obj.user.date_joined
+
+    get_user_date_joined.short_description = "Date joined"
+
+    def get_shop_name(self, obj):
+        """Display the cashier's shop name."""
+        return obj.shop.name
+
+    get_shop_name.short_description = "Shop name"
+
+    def get_shop_address(self, obj):
+        """Display the cashier's shop address."""
+        shop = obj.shop
+        parts = filter(
+            None,
+            [
+                f"{shop.street_number} {shop.street_name}".strip(),
+                f"{shop.postal_code} {shop.city}".strip(),
+            ],
+        )
+        return ", ".join(parts) or "—"
+
+    get_shop_address.short_description = "Address"
+
+    def get_readonly_fields(self, request, obj=None):
+        """Shop info and user metadata are read-only when editing."""
+        if obj is not None:
+            return [
+                "get_user_last_login",
+                "get_user_is_active",
+                "get_user_date_joined",
+                "get_shop_name",
+                "get_shop_address",
+            ]
+        return []
+
     def get_fieldsets(self, request, obj=None):
-        """Use different fieldsets for creation vs editing."""
+        """Use edit fieldsets when editing, add fieldsets when creating."""
         if obj is None:
             return self.add_fieldsets
-        return super().get_fieldsets(request, obj)
+        return self.edit_fieldsets
 
     def get_form(self, request, obj=None, **kwargs):
-        """Use custom form for creation, standard form for editing."""
+        """Use custom form for creation, change form with inline user fields for editing."""
         if obj is None:
             kwargs["form"] = CashierCreationForm
             form_class = super().get_form(request, obj, **kwargs)
@@ -407,6 +512,7 @@ class CashierShopAdmin(admin.ModelAdmin):
                     super().__init__(*args, **form_kwargs)
 
             return FormWithRequest
+        kwargs["form"] = CashierShopChangeForm
         return super().get_form(request, obj, **kwargs)
 
     def get_queryset(self, request):

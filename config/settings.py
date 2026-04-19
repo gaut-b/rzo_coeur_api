@@ -107,6 +107,14 @@ AUTH_KIT = {
     "USER_SERIALIZER": "api.users.serializers.CustomUserSerializer",
     "REGISTER_SERIALIZER": "api.users.serializers.CustomRegisterSerializer",
     "USE_AUTH_COOKIE": True,
+    # Override password reset URL to generate Universal Links that the mobile
+    # app can intercept.  Falls back to a styled web page when the app is not
+    # installed.
+    "PASSWORD_RESET_URL_GENERATOR": "api.auth_views.mobile_password_reset_url_generator",
+    # Override email verification URL so the confirmation link in the signup
+    # email points to the Universal Link path /app/verify-email/ instead of
+    # the DRF endpoint (which only accepts POST).
+    "REGISTER_EMAIL_CONFIRM_PATH": "/app/verify-email/",
 }
 
 MIDDLEWARE = [
@@ -335,6 +343,30 @@ if not DEBUG:
     CSRF_COOKIE_SECURE = True
 
 # Email configuration
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@reseauxducoeur.fr")
+
+# Password-reset links are valid for 24 hours.
+PASSWORD_RESET_TIMEOUT = 86400
+
+# Deep-link used as callbackUrl for recipient welcome emails (mobile app).
+MOBILE_APP_CALLBACK_URL = os.environ.get("MOBILE_APP_CALLBACK_URL", "rzo://activate")
+
+# Custom URL scheme used by the mobile app for deep links on the fallback page.
+MOBILE_APP_SCHEME = os.environ.get("MOBILE_APP_SCHEME", "rzo")
+
+# ---------------------------------------------------------------------------
+# Universal Links / App Links — .well-known configuration
+# ---------------------------------------------------------------------------
+# iOS: Team ID + Bundle ID, e.g. "ABCDE12345.fr.reseauxducoeur.app"
+IOS_APP_ID = os.environ.get("IOS_APP_ID", "TEAMID.fr.reseauxducoeur.app")
+# Android: package name and SHA-256 fingerprint of the signing certificate.
+ANDROID_APP_PACKAGE = os.environ.get("ANDROID_APP_PACKAGE", "fr.reseauxducoeur.app")
+ANDROID_SHA256_FINGERPRINT = os.environ.get("ANDROID_SHA256_FINGERPRINT", "")
+
+# Use custom allauth account adapter so that email confirmation links point to
+# Universal Link paths (/app/verify-email/) instead of Django views.
+ACCOUNT_ADAPTER = "api.auth_views.MobileAccountAdapter"
+
 if DEBUG:
     # Use Mailhog for local development
     EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"

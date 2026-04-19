@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>
+      {% if action == "reset_password" %}Réinitialisation du mot de passe | Les Réseaux du Coeur
+      {% else %}Confirmation d'email | Les Réseaux du Coeur
+      {% endif %}
+    </title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        max-width: 600px;
+        margin: 40px auto;
+        background: #ffffff;
+        border-radius: 6px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        background-color: #417690;
+        color: #ffffff;
+        padding: 24px 32px;
+        text-align: center;
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 700;
+      }
+      .body {
+        padding: 32px;
+        color: #333333;
+        line-height: 1.6;
+      }
+      .body h2 {
+        color: #417690;
+        margin-top: 0;
+      }
+      .btn {
+        display: inline-block;
+        margin: 20px 0;
+        padding: 12px 28px;
+        background-color: #417690;
+        color: #ffffff !important;
+        text-decoration: none;
+        border-radius: 4px;
+        font-weight: bold;
+      }
+      .btn-secondary {
+        display: inline-block;
+        margin: 8px 0;
+        padding: 10px 24px;
+        background-color: transparent;
+        color: #417690 !important;
+        text-decoration: none;
+        border-radius: 4px;
+        font-weight: bold;
+        border: 2px solid #417690;
+      }
+      .footer {
+        background-color: #f4f4f4;
+        padding: 16px 32px;
+        font-size: 13px;
+        color: #888888;
+        text-align: center;
+      }
+      .notice {
+        background-color: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 12px 16px;
+        margin: 16px 0;
+        border-radius: 2px;
+        font-size: 14px;
+      }
+      .action-buttons {
+        text-align: center;
+        margin: 24px 0;
+      }
+      .action-buttons p {
+        margin: 4px 0;
+      }
+      hr {
+        border: none;
+        border-top: 1px solid #e8e8e8;
+        margin: 24px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>Les Réseaux du Coeur</h1>
+      </div>
+
+      <div class="body">
+        {% if action == "reset_password" %}
+        <h2>Réinitialisation de votre mot de passe</h2>
+        <p>
+          Si vous avez l'application <strong>Les Réseaux du Coeur</strong>
+          installée sur votre appareil, appuyez sur le bouton ci-dessous pour
+          l'ouvrir et continuer la réinitialisation.
+        </p>
+
+        <div class="notice">
+          Si l'application ne s'ouvre pas automatiquement, appuyez sur
+          <strong>« Ouvrir dans l'application »</strong> ci-dessous.
+        </div>
+
+        <div class="action-buttons">
+          <p>
+            <a href="{{ deep_link }}" class="btn" id="open-app-btn">
+              Ouvrir dans l'application
+            </a>
+          </p>
+        </div>
+
+        <hr />
+
+        <p style="text-align: center; font-size: 14px; color: #555555">
+          Vous préférez utiliser un navigateur ?
+        </p>
+        <div class="action-buttons">
+          <p>
+            <a href="/auth/password_reset/" class="btn-secondary">
+              Réinitialiser via le navigateur
+            </a>
+          </p>
+        </div>
+
+        {% else %}
+          {% if verified %}
+            <h2>Adresse email confirmée !</h2>
+            <p>
+              Votre adresse email a bien été confirmée. Vous pouvez maintenant
+              vous connecter à l’application
+              <strong>Les Réseaux du Coeur</strong>.
+            </p>
+
+            <div class="action-buttons">
+              <p>
+                <a href="{{ deep_link }}" class="btn" id="open-app-btn">
+                  Ouvrir l’application
+                </a>
+              </p>
+            </div>
+
+            <hr />
+
+            <p style="text-align: center; font-size: 14px; color: #555555">
+              Vous n’avez pas encore l’application ?
+            </p>
+            <div class="action-buttons">
+              <p>
+                <a
+                  href="https://apps.apple.com"
+                  class="btn-secondary"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Télécharger sur l’App Store
+                </a>
+              </p>
+              <p>
+                <a
+                  href="https://play.google.com"
+                  class="btn-secondary"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Télécharger sur Google Play
+                </a>
+              </p>
+            </div>
+          {% else %}
+            <h2>Lien invalide ou expiré</h2>
+            <p>
+              Ce lien de confirmation est invalide ou a déjà été utilisé. Si
+              vous n’avez pas encore confirmé votre adresse email, vous pouvez
+              en demander un nouveau depuis l’application.
+            </p>
+          {% endif %}
+        {% endif %}
+      </div>
+
+      <div class="footer">Les Réseaux du Coeur</div>
+    </div>
+
+    {# JS auto-redirect only for reset-password — verify-email confirms server-side. #}
+    {% if action == "reset_password" %}
+    {{ deep_link|json_script:"deep-link-url" }}
+    <script>
+      (function () {
+        var el = document.getElementById('deep-link-url');
+        if (el) {
+          var appUrl = JSON.parse(el.textContent);
+          // Attempt to open the app immediately.
+          window.location.href = appUrl;
+        }
+      })();
+    </script>
+    {% endif %}
+  </body>
+</html>

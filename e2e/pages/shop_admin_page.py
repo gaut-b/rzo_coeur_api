@@ -34,6 +34,11 @@ class ShopAdminPage:
         page.goto(self.articles_url)
         expect(page).to_have_url(re.compile(r"/shop-admin/api/article/"))
 
+    def goto_add_cashier(self, page: Page) -> None:
+        """Navigate directly to the Add Cashier form."""
+        page.goto(self.add_cashier_url)
+        expect(page).to_have_url(re.compile(r"/shop-admin/api/cashier/add/"))
+
     def expect_articles_visible(self, page: Page) -> None:
         """Assert that at least one article row is shown."""
         expect(page.locator("#result_list tbody tr").first).to_be_visible(timeout=10_000)
@@ -74,7 +79,6 @@ class ShopAdminPage:
         page.locator("#id_email").fill(email)
         page.locator("#id_first_name").fill(first_name)
         page.locator("#id_last_name").fill(last_name)
-        page.locator("#id_password").fill("TestPass123!")
         page.locator("#id_role").select_option(value=role)
 
         page.locator('[name="_save"]').click()

@@ -48,16 +48,21 @@
               />
             </div>
 
-            <input
-              type="hidden"
-              name="next"
-              value="{{ next }}"
-            />
+            <input type="hidden" name="next" value="{{ next }}" />
 
             <div class="submit-row">
               <input type="submit" value="Log in" />
             </div>
           </form>
+
+          <p style="margin-top: 1em; text-align: center">
+            <a
+              href="/auth/password_reset/?callbackUrl={{ request.path }}"
+              id="forgot-password-link"
+            >
+              Mot de passe oublié ?
+            </a>
+          </p>
         </div>
       </div>
 

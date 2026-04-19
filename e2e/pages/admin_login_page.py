@@ -49,3 +49,14 @@ class AdminLoginPage:
     def expect_on_login_page(self, page: Page) -> None:
         """Assert that the browser is still on (or was redirected to) the login page."""
         expect(page).to_have_url(re.compile(r"/login/"))
+
+    def expect_forgot_password_link(self, page: Page) -> None:
+        """Assert that the 'Mot de passe oublié ?' link is visible on the login page."""
+        page.goto(self.login_url)
+        expect(page.locator("#forgot-password-link")).to_be_visible()
+
+    def goto_forgot_password(self, page: Page) -> None:
+        """Click the forgot-password link and assert we land on the reset form."""
+        page.goto(self.login_url)
+        page.locator("#forgot-password-link").click()
+        expect(page).to_have_url(re.compile(r"/auth/password_reset/"))

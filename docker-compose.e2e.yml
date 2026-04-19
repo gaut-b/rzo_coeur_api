@@ -43,6 +43,10 @@ services:
       # Let the container auto-discover system GDAL/GEOS libraries.
       - GDAL_LIBRARY_PATH=
       - GEOS_LIBRARY_PATH=
+      # Email — use Mailhog in the e2e stack so emails can be inspected via
+      # the Mailhog HTTP API (http://localhost:8025/api/v2/messages).
+      - EMAIL_HOST=mailhog
+      - EMAIL_PORT=1025
     volumes:
       - static_files:/app/src/staticfiles
       - media_files:/app/src/media
@@ -50,6 +54,8 @@ services:
       db-e2e:
         condition: service_healthy
       minio:
+        condition: service_healthy
+      mailhog:
         condition: service_healthy
     healthcheck:
       test:
@@ -105,6 +111,19 @@ services:
         mc anonymous set download local/articles-photos;
         echo 'MinIO bucket ready.';
       "
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    # Port 1025 is the SMTP server used by the backend container.
+    # Port 8025 is the Web UI / HTTP API, exposed on the host so Playwright
+    # tests can query received emails via http://localhost:8025/api/v2/messages.
+    ports:
+      - '8025:8025'
+    healthcheck:
+      test: ['CMD', 'sh', '-c', 'wget -qO- http://localhost:8025/ > /dev/null']
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 volumes:
   db_data:

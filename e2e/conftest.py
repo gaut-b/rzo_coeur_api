@@ -28,6 +28,7 @@ from playwright.sync_api import Browser, BrowserContext, Page
 # ─── Constants ────────────────────────────────────────────────────────────────
 
 BASE_URL = os.environ.get("E2E_BASE_URL", "http://127.0.0.1:8001")
+MAILHOG_API_URL = os.environ.get("E2E_MAILHOG_URL", "http://localhost:8025")
 AUTH_DIR = os.path.join(os.path.dirname(__file__), ".auth")
 os.makedirs(AUTH_DIR, exist_ok=True)
 
@@ -58,6 +59,29 @@ LOGIN_URLS: dict[str, str] = {
 # ─── Stack management ────────────────────────────────────────────────────────
 
 
+def _wait_for_mailhog(url: str, timeout: float = 30.0) -> None:
+    """
+    Block until the Mailhog HTTP API is reachable from the host.
+
+    ``docker compose --wait`` checks healthchecks from *inside* each container.
+    On macOS with Docker Desktop the TCP port binding on the host side may
+    not be ready immediately after the healthcheck passes, causing the first
+    ``requests`` call from the test runner to get a ConnectionRefusedError.
+    """
+    import time
+
+    import requests as _req
+
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            _req.get(url, timeout=2)
+            return
+        except _req.exceptions.ConnectionError:
+            time.sleep(0.5)
+    raise RuntimeError(f"Mailhog HTTP API not accessible at {url!r} after {timeout}s")
+
+
 @pytest.fixture(scope="session")
 def django_server() -> Generator[str, None, None]:
     """
@@ -82,6 +106,9 @@ def django_server() -> Generator[str, None, None]:
             compose_up.append("--build")
         compose_up.append("--wait")
         subprocess.run(compose_up, check=True)
+        # On macOS with Docker Desktop the host-side port binding may lag
+        # behind the container healthcheck.  Poll until localhost:8025 is up.
+        _wait_for_mailhog(f"{MAILHOG_API_URL}/api/v2/messages")
         # Run the MinIO bucket initialisation separately.
         subprocess.run(
             ["docker", "compose", "-f", E2E_COMPOSE_FILE, "--profile", "init", "run", "--rm", "minio-init"],
