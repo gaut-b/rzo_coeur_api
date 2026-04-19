@@ -41,6 +41,15 @@ class TestMainAdminAccess:
             "Please enter the correct email address and password",
         )
 
+    def test_staff_user_can_login_via_form(self, anon_page: Page) -> None:
+        """
+        A staff user can authenticate through the /admin/ login form.
+        Verifies the form itself works for valid credentials.
+        """
+        login_page = AdminLoginPage(BASE_URL, "admin")
+        login_page.login(anon_page, "e2e-staff@test.local", E2E_PASSWORD)
+        login_page.expect_logged_in(anon_page, "admin")
+
     def test_unauthenticated_access_redirects_to_login(self, anon_page: Page) -> None:
         """Accessing /admin/ without a session redirects to /admin/login/."""
         anon_page.goto(f"{BASE_URL}/admin/")

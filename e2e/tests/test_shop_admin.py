@@ -30,6 +30,15 @@ class TestShopAdminAccess:
         login_page.login(anon_page, "e2e-social-worker@test.local", E2E_PASSWORD)
         login_page.expect_error(anon_page, "You do not have permission")
 
+    def test_cashier_can_login_via_form(self, anon_page: Page) -> None:
+        """
+        A cashier can authenticate through the /shop-admin/ login form.
+        Verifies the form itself works for valid credentials.
+        """
+        login_page = AdminLoginPage(BASE_URL, "shop-admin")
+        login_page.login(anon_page, "e2e-cashier@test.local", E2E_PASSWORD)
+        login_page.expect_logged_in(anon_page, "shop-admin")
+
     def test_cashier_can_access_shop_admin(self, cashier_page: Page) -> None:
         """A regular cashier reaches the /shop-admin/ index."""
         page_obj = ShopAdminPage(BASE_URL)

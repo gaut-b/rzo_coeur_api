@@ -11,7 +11,8 @@ Covers the /cart-admin/ interface:
 import pytest
 from playwright.sync_api import Page, expect
 
-from e2e.conftest import BASE_URL
+from e2e.conftest import BASE_URL, E2E_PASSWORD
+from e2e.pages.admin_login_page import AdminLoginPage
 from e2e.pages.cart_admin_page import CartAdminPage
 
 
@@ -36,6 +37,15 @@ class TestCartAdminAccess:
         staff_page.goto(f"{BASE_URL}/cart-admin/")
         assert "/cart-admin/" in staff_page.url
         assert "/login/" not in staff_page.url
+
+    def test_social_worker_can_login_via_form(self, anon_page: Page) -> None:
+        """
+        A social worker can authenticate through the /cart-admin/ login form.
+        Verifies the form itself works for valid credentials.
+        """
+        login_page = AdminLoginPage(BASE_URL, "cart-admin")
+        login_page.login(anon_page, "e2e-social-worker@test.local", E2E_PASSWORD)
+        login_page.expect_logged_in(anon_page, "cart-admin")
 
 
 @pytest.mark.usefixtures("django_server")

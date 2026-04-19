@@ -4,12 +4,16 @@ conftest.py — Playwright E2E fixtures for the Django admin test suite.
 Provides:
   - django_server: session-scoped fixture that builds and starts the complete
     application stack (nginx + backend/gunicorn + PostGIS + MinIO) via
-    docker-compose.e2e.yml, seeds E2E data, and tears everything down (with
-    volume removal) at the end of the session.  Skipped when
-    E2E_EXTERNAL_STACK=1 (CI mode where the stack is provided externally).
+    docker-compose.e2e.yml, and tears everything down (with volume removal)
+    at the end of the session.  Skipped when E2E_EXTERNAL_STACK=1 (CI mode
+    where the stack is provided externally).
+  - reset_db: function-scoped autouse fixture that flushes the database,
+    re-seeds E2E data, creates Django sessions for each role, clears
+    Mailhog, and writes browser-state files so per-role page fixtures
+    can restore authenticated contexts without a real browser login.
   - Authenticated page fixtures for each role (social_admin, social_worker,
-    shop_manager, cashier). Each re-uses a stored browser-context state so
-    the login round-trip only happens once per session.
+    shop_manager, cashier, staff).
+  - anon_page: unauthenticated browser page for login / access-denied tests.
 
 Environment variables (with defaults suitable for local dev):
   E2E_BASE_URL            http://127.0.0.1:8001
@@ -18,11 +22,14 @@ Environment variables (with defaults suitable for local dev):
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 from collections.abc import Generator
+from urllib.parse import urlparse
 
 import pytest
+import requests
 from playwright.sync_api import Browser, BrowserContext, Page
 
 # ─── Constants ────────────────────────────────────────────────────────────────
@@ -38,22 +45,10 @@ E2E_COMPOSE_FILE = os.path.join(_REPO_ROOT, "docker-compose.e2e.yml")
 
 E2E_PASSWORD = "E2eTestPass123!"
 
-USERS = {
-    "social_admin": "e2e-social-admin@test.local",
-    "social_worker": "e2e-social-worker@test.local",
-    "shop_manager": "e2e-shop-manager@test.local",
-    "cashier": "e2e-cashier@test.local",
-    "staff": "e2e-staff@test.local",
-}
 
-# Each role logs into its "home" admin site for the auth-setup step.
-LOGIN_URLS: dict[str, str] = {
-    "social_admin": f"{BASE_URL}/social-admin/login/",
-    "social_worker": f"{BASE_URL}/cart-admin/login/",
-    "shop_manager": f"{BASE_URL}/shop-admin/login/",
-    "cashier": f"{BASE_URL}/shop-admin/login/",
-    "staff": f"{BASE_URL}/admin/login/",
-}
+def _auth_state_path(role: str) -> str:
+    """Return the path to the stored browser-context state for a role."""
+    return os.path.join(AUTH_DIR, f"{role}.json")
 
 
 # ─── Stack management ────────────────────────────────────────────────────────
@@ -85,13 +80,17 @@ def _wait_for_mailhog(url: str, timeout: float = 30.0) -> None:
 @pytest.fixture(scope="session")
 def django_server() -> Generator[str, None, None]:
     """
-    Build and start the full application stack, seed E2E data, then tear
-    everything down at the end of the session.
+    Build and start the full application stack, then tear everything down
+    at the end of the session.
 
     The stack is defined in docker-compose.e2e.yml and mirrors production:
     nginx + backend (gunicorn) + PostGIS + MinIO.  docker compose --wait
     blocks until every healthcheck passes, so the server is guaranteed to be
     ready before any test runs.
+
+    Database seeding is NOT done here — the function-scoped ``reset_db``
+    fixture flushes and re-seeds the DB before every test to guarantee
+    complete isolation.
 
     Set E2E_EXTERNAL_STACK=1 to skip the Docker lifecycle entirely (CI mode
     where the stack is already running).
@@ -115,24 +114,6 @@ def django_server() -> Generator[str, None, None]:
             check=True,
         )
 
-    # Seed test data inside the running backend container (idempotent).
-    subprocess.run(
-        [
-            "docker",
-            "compose",
-            "-f",
-            E2E_COMPOSE_FILE,
-            "exec",
-            "backend",
-            "python",
-            "manage.py",
-            "seed_data",
-            "--env",
-            "e2e",
-        ],
-        check=True,
-    )
-
     yield BASE_URL
 
     if os.environ.get("E2E_EXTERNAL_STACK") != "1":
@@ -142,43 +123,99 @@ def django_server() -> Generator[str, None, None]:
         )
 
 
-# ─── Auth-state helpers ───────────────────────────────────────────────────────
+# ─── DB reset & session injection ─────────────────────────────────────────────
+
+# Roles that need an authenticated browser context.
+_ROLES = ("social_admin", "social_worker", "shop_manager", "cashier", "staff")
 
 
-def _auth_state_path(role: str) -> str:
-    """Return the path to the stored browser-context state for a role."""
-    return os.path.join(AUTH_DIR, f"{role}.json")
-
-
-def _login_and_save(browser: Browser, role: str, email: str, login_url: str) -> None:
+def _build_storage_state(session_key: str) -> dict:
     """
-    Perform a real browser login for the given role and persist the session
-    state to disk so subsequent fixtures can restore it without re-logging in.
+    Build a Playwright storage-state dict containing a single ``sessionid``
+    cookie for the given Django session key.
+
+    The cookie is configured for HTTP (not Secure) to match the local
+    Docker-based E2E environment where the backend runs with DEBUG=True
+    behind plain HTTP.
     """
-    context = browser.new_context()
-    page = context.new_page()
-    page.goto(login_url)
-    page.locator("#id_username").fill(email)
-    page.locator("#id_password").fill(E2E_PASSWORD)
-    page.locator('[type="submit"]').click()
-    # Wait until we're past the login page (redirected to admin index).
-    page.wait_for_url(lambda url: "/login/" not in url and "admin" in url, timeout=10_000)
-    context.storage_state(path=_auth_state_path(role))
-    context.close()
+    parsed = urlparse(BASE_URL)
+    return {
+        "cookies": [
+            {
+                "name": "sessionid",
+                "value": session_key,
+                "domain": parsed.hostname,
+                "path": "/",
+                "httpOnly": True,
+                "secure": False,
+                "sameSite": "Lax",
+            },
+        ],
+        "origins": [],
+    }
 
 
-@pytest.fixture(scope="session")
-def authenticated_states(django_server: str, browser: Browser) -> dict[str, str]:
+def _write_auth_states(sessions: dict[str, str]) -> dict[str, str]:
     """
-    Session-scoped fixture that logs in once per role and caches the browser
-    storage state.  Returns a mapping of role → state-file path.
+    Write one ``.auth/<role>.json`` file per role and return a
+    role → file-path mapping.
     """
-    states: dict[str, str] = {}
-    for role, email in USERS.items():
-        state_path = _auth_state_path(role)
-        _login_and_save(browser, role, email, LOGIN_URLS[role])
-        states[role] = state_path
-    return states
+    paths: dict[str, str] = {}
+    for role in _ROLES:
+        state = _build_storage_state(sessions[role])
+        path = _auth_state_path(role)
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(state, fh)
+        paths[role] = path
+    return paths
+
+
+@pytest.fixture(autouse=True)
+def reset_db(django_server: str) -> dict[str, str]:
+    """
+    Flush the DB, re-seed E2E fixtures, create Django sessions for each
+    role, clear Mailhog, and write browser-auth state files.
+
+    Runs **before every test** (function scope, autouse) to guarantee
+    complete isolation: no leftover carts, article assignments, extra
+    users, or stale emails from previous tests.
+
+    Returns a role → auth-state-file-path mapping used by per-role page
+    fixtures.
+    """
+    # 1. Flush + seed + create sessions inside the backend container.
+    result = subprocess.run(
+        [
+            "docker",
+            "compose",
+            "-f",
+            E2E_COMPOSE_FILE,
+            "exec",
+            "-T",
+            "backend",
+            "python",
+            "manage.py",
+            "reset_e2e_data",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    # The command prints a JSON object as its last line on stdout.
+    # Preceding lines may contain Django management command output
+    # (e.g. from seed_data); only the last line is the JSON payload.
+    stdout = result.stdout.strip()
+    if not stdout:
+        raise RuntimeError("reset_e2e_data produced no stdout; expected a JSON payload on the last line.")
+    sessions: dict[str, str] = json.loads(stdout.splitlines()[-1])
+
+    # 2. Write Playwright browser-state files for each role.
+    auth_paths = _write_auth_states(sessions)
+
+    # 3. Clear Mailhog so each test starts with an empty inbox.
+    requests.delete(f"{MAILHOG_API_URL}/api/v1/messages", timeout=5)
+
+    return auth_paths
 
 
 # ─── Per-role page fixtures ───────────────────────────────────────────────────
@@ -192,41 +229,41 @@ def _make_authed_page(browser: Browser, state_path: str) -> tuple[BrowserContext
 
 
 @pytest.fixture
-def social_admin_page(browser: Browser, authenticated_states: dict[str, str]) -> Generator[Page, None, None]:
+def social_admin_page(browser: Browser, reset_db: dict[str, str]) -> Generator[Page, None, None]:
     """Authenticated page for the social admin role."""
-    context, page = _make_authed_page(browser, authenticated_states["social_admin"])
+    context, page = _make_authed_page(browser, reset_db["social_admin"])
     yield page
     context.close()
 
 
 @pytest.fixture
-def cart_admin_page(browser: Browser, authenticated_states: dict[str, str]) -> Generator[Page, None, None]:
+def cart_admin_page(browser: Browser, reset_db: dict[str, str]) -> Generator[Page, None, None]:
     """Authenticated page for the social worker role."""
-    context, page = _make_authed_page(browser, authenticated_states["social_worker"])
+    context, page = _make_authed_page(browser, reset_db["social_worker"])
     yield page
     context.close()
 
 
 @pytest.fixture
-def shop_manager_page(browser: Browser, authenticated_states: dict[str, str]) -> Generator[Page, None, None]:
+def shop_manager_page(browser: Browser, reset_db: dict[str, str]) -> Generator[Page, None, None]:
     """Authenticated page for the shop manager role."""
-    context, page = _make_authed_page(browser, authenticated_states["shop_manager"])
+    context, page = _make_authed_page(browser, reset_db["shop_manager"])
     yield page
     context.close()
 
 
 @pytest.fixture
-def cashier_page(browser: Browser, authenticated_states: dict[str, str]) -> Generator[Page, None, None]:
+def cashier_page(browser: Browser, reset_db: dict[str, str]) -> Generator[Page, None, None]:
     """Authenticated page for the regular cashier role."""
-    context, page = _make_authed_page(browser, authenticated_states["cashier"])
+    context, page = _make_authed_page(browser, reset_db["cashier"])
     yield page
     context.close()
 
 
 @pytest.fixture
-def staff_page(browser: Browser, authenticated_states: dict[str, str]) -> Generator[Page, None, None]:
+def staff_page(browser: Browser, reset_db: dict[str, str]) -> Generator[Page, None, None]:
     """Authenticated page for the staff role."""
-    context, page = _make_authed_page(browser, authenticated_states["staff"])
+    context, page = _make_authed_page(browser, reset_db["staff"])
     yield page
     context.close()
 
