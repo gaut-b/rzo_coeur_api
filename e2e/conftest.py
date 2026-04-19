@@ -229,8 +229,21 @@ def reset_db(django_server: str) -> dict[str, str]:
     # (e.g. from seed_data); only the last line is the JSON payload.
     stdout = result.stdout.strip()
     if not stdout:
-        raise RuntimeError("reset_e2e_data produced no stdout; expected a JSON payload on the last line.")
-    sessions: dict[str, str] = json.loads(stdout.splitlines()[-1])
+        raise RuntimeError(
+            "reset_e2e_data produced no stdout; expected a JSON payload on the last line.\n"
+            f"stderr:\n{result.stderr.strip() or '(empty)'}"
+        )
+    last_line = stdout.splitlines()[-1]
+    try:
+        sessions: dict[str, str] = json.loads(last_line)
+    except json.JSONDecodeError as exc:
+        tail = "\n".join(stdout.splitlines()[-10:])
+        raise RuntimeError(
+            f"reset_e2e_data output could not be parsed as JSON: {exc}\n"
+            f"Last line received: {last_line!r}\n"
+            f"stdout (last 10 lines):\n{tail}\n"
+            f"stderr:\n{result.stderr.strip() or '(empty)'}"
+        ) from exc
 
     # 2. Write Playwright browser-state files for each role.
     auth_paths = _write_auth_states(sessions)

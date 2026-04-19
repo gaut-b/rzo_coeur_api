@@ -81,12 +81,15 @@ class Command(BaseCommand):
         call_command("seed_data", "--env", "e2e", verbosity=0)
 
         # 3. Create a Django session for each role and collect keys.
+        # Use the first configured backend so sessions stay valid if the
+        # project's AUTHENTICATION_BACKENDS setting changes.
+        auth_backend: str = settings.AUTHENTICATION_BACKENDS[0]
         sessions: dict[str, str] = {}
         for role, email in ROLE_EMAILS.items():
             user = CustomUser.objects.get(email=email)
             session = SessionStore()
             session[SESSION_KEY] = str(user.pk)
-            session[BACKEND_SESSION_KEY] = "django.contrib.auth.backends.ModelBackend"
+            session[BACKEND_SESSION_KEY] = auth_backend
             session[HASH_SESSION_KEY] = user.get_session_auth_hash()
             session.create()
             sessions[role] = session.session_key
