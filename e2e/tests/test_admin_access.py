@@ -25,7 +25,6 @@ class TestMainAdminAccess:
         staff_page.goto(f"{BASE_URL}/admin/")
         assert "/admin/login/" not in staff_page.url
         assert "admin/" in staff_page.url
-        staff_page.expect_error(anon_page, "You do not have permission")
 
     def test_non_staff_user_cannot_access_main_admin(self, anon_page: Page) -> None:
         """

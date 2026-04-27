@@ -90,6 +90,7 @@ class Command(BaseCommand):
         first_name: str,
         last_name: str,
         is_staff: bool = False,
+        is_superuser: bool = False,
     ) -> CustomUser:
         """
         Return an existing user by email, or create a new one with SEED_PASSWORD.
@@ -102,6 +103,7 @@ class Command(BaseCommand):
                 "first_name": first_name,
                 "last_name": last_name,
                 "is_staff": is_staff,
+                "is_superuser": is_superuser,
             },
         )
         user.set_password(SEED_PASSWORD)
@@ -109,6 +111,9 @@ class Command(BaseCommand):
         if user.is_staff != is_staff:
             user.is_staff = is_staff
             update_fields.append("is_staff")
+        if user.is_superuser != is_superuser:
+            user.is_superuser = is_superuser
+            update_fields.append("is_superuser")
         user.save(update_fields=update_fields)
         return user
 
@@ -174,6 +179,7 @@ class Command(BaseCommand):
                 data["first_name"],
                 data["last_name"],
                 is_staff=data.get("is_staff", False),
+                is_superuser=data.get("is_superuser", False),
             )
             user_map[user.email] = user
             self.stdout.write(f"  User          : {user.email}")
