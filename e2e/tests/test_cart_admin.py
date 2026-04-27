@@ -14,6 +14,7 @@ from playwright.sync_api import Page, expect
 from e2e.conftest import BASE_URL, E2E_PASSWORD
 from e2e.pages.admin_login_page import AdminLoginPage
 from e2e.pages.cart_admin_page import CartAdminPage
+from e2e.pages.admin_page import AdminPage
 
 
 @pytest.mark.usefixtures("django_server")
@@ -113,3 +114,16 @@ class TestCartAdmin:
         # After removal the article should no longer appear in the cart filter
         cart_admin_page.goto(f"{BASE_URL}/cart-admin/api/article/?cart__id__exact={cart_id}")
         expect(cart_admin_page.locator("#result_list tbody tr")).to_have_count(0, timeout=10_000)
+
+    def test_articles_are_removed_when_cart_is_collected(self, cart_admin_page: Page, staff_page: Page) -> None:
+        """
+        Assign articles to a cart, attribute cart, when cart is collected, articles should
+        not be visibles anymore.
+        """
+        page_obj = CartAdminPage(BASE_URL)
+        page_admin_obj = AdminPage(BASE_URL)
+        cart_id = page_obj.create_cart(cart_admin_page, recipient_display="Test Recipient")
+        assert cart_id > 0
+        page_obj.assign_articles_to_cart(cart_admin_page, cart_id=cart_id, article_indices=[0, 1, 2])
+        page_admin_obj.mark_cart_as_collected(staff_page, cart_id=cart_id)
+        page_obj.expect_articles_not_visible(cart_admin_page)

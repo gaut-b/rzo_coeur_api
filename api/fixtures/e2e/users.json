@@ -4,7 +4,8 @@
       "email": "e2e-staff@test.local",
       "first_name": "Test",
       "last_name": "Staff",
-      "is_staff": true
+      "is_staff": true,
+      "is_superuser": true
     },
     {
       "email": "e2e-client@test.local",

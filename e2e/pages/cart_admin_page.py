@@ -40,6 +40,11 @@ class CartAdminPage:
         # Django admin renders results in a <table id="result_list">
         expect(page.locator("#result_list tbody tr").first).to_be_visible(timeout=10_000)
 
+    def expect_articles_not_visible(self, page: Page) -> None:
+        """Assert that articles are not shown anymore in the list."""
+        # Django admin renders results in a <table id="result_list">
+        expect(page.locator("#result_list tbody tr").first).not_to_be_visible()
+
     def _select_autocomplete(self, page: Page, field_id: str, search_text: str = "") -> None:
         """
         Interact with a Django Select2 autocomplete field.
