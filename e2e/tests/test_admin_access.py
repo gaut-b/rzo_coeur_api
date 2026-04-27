@@ -7,9 +7,8 @@ log in and should see an authentication error or be kept on the login page.
 """
 
 import pytest
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Page
 
-from e2e.conftest import anon_page
 from e2e.conftest import BASE_URL, E2E_PASSWORD
 from e2e.pages.admin_login_page import AdminLoginPage
 

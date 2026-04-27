@@ -13,8 +13,8 @@ from playwright.sync_api import Page, expect
 
 from e2e.conftest import BASE_URL, E2E_PASSWORD
 from e2e.pages.admin_login_page import AdminLoginPage
-from e2e.pages.cart_admin_page import CartAdminPage
 from e2e.pages.admin_page import AdminPage
+from e2e.pages.cart_admin_page import CartAdminPage
 
 
 @pytest.mark.usefixtures("django_server")

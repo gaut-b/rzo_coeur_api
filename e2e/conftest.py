@@ -306,14 +306,6 @@ def cashier_page(browser: Browser, reset_db: dict[str, str]) -> Generator[Page, 
 
 
 @pytest.fixture
-def staff_page(browser: Browser, reset_db: dict[str, str]) -> Generator[Page, None, None]:
-    """Authenticated page for the staff role."""
-    context, page = _make_authed_page(browser, reset_db["staff"])
-    yield page
-    context.close()
-
-
-@pytest.fixture
 def anon_page(browser: Browser) -> Generator[Page, None, None]:
     """Unauthenticated browser page."""
     context = browser.new_context()
