@@ -138,7 +138,6 @@ class TestPasswordResetFlow:
         """
         email = "e2e-shop-manager@test.local"
         reset = _reset_page()
-        reset.clear_mailhog()
         reset.submit_reset_request(anon_page, email)
         reset.expect_email_sent_confirmation(anon_page)
         _wait_for_email(reset, email)
@@ -152,7 +151,6 @@ class TestPasswordResetFlow:
         """
         email = "e2e-client@test.local"
         reset = _reset_page()
-        reset.clear_mailhog()
         reset.submit_reset_request(anon_page, email)
         reset.expect_email_sent_confirmation(anon_page)
         _assert_no_email_delivered(reset, email)
@@ -165,7 +163,6 @@ class TestPasswordResetFlow:
         """
         email = "e2e-recipient@test.local"
         reset = _reset_page()
-        reset.clear_mailhog()
         reset.submit_reset_request(anon_page, email)
         reset.expect_email_sent_confirmation(anon_page)
         _assert_no_email_delivered(reset, email)
@@ -223,7 +220,6 @@ class TestWelcomeEmailOnAccountCreation:
     def test_welcome_email_sent_on_recipient_creation(self, social_admin_page: Page) -> None:
         """Creating a Recipient triggers a welcome email via Mailhog."""
         reset = _reset_page()
-        reset.clear_mailhog()
         page_obj = SocialAdminPage(BASE_URL)
         email = page_obj.create_recipient(social_admin_page)
         _wait_for_email(reset, email)
@@ -232,7 +228,6 @@ class TestWelcomeEmailOnAccountCreation:
     def test_welcome_email_sent_on_social_worker_creation(self, social_admin_page: Page) -> None:
         """Creating a SocialWorker triggers a welcome email via Mailhog."""
         reset = _reset_page()
-        reset.clear_mailhog()
         page_obj = SocialAdminPage(BASE_URL)
         email = page_obj.create_social_worker(social_admin_page)
         _wait_for_email(reset, email)
@@ -241,7 +236,6 @@ class TestWelcomeEmailOnAccountCreation:
     def test_welcome_email_sent_on_cashier_creation(self, shop_manager_page: Page) -> None:
         """Creating a Cashier triggers a welcome email via Mailhog."""
         reset = _reset_page()
-        reset.clear_mailhog()
         page_obj = ShopAdminPage(BASE_URL)
         email = page_obj.create_cashier(shop_manager_page, role="False")
         _wait_for_email(reset, email)
@@ -250,7 +244,6 @@ class TestWelcomeEmailOnAccountCreation:
     def test_welcome_email_sent_on_shop_manager_creation(self, social_admin_page: Page) -> None:
         """Creating a Shop Manager from social admin triggers a welcome email via Mailhog."""
         reset = _reset_page()
-        reset.clear_mailhog()
         page_obj = SocialAdminPage(BASE_URL)
         email = page_obj.create_shop_manager(social_admin_page)
         _wait_for_email(reset, email)
@@ -290,7 +283,6 @@ class TestPostPasswordSetRedirect:
         setting their password, lands on /social-admin/login/.
         """
         reset = _reset_page()
-        reset.clear_mailhog()
         page_obj = SocialAdminPage(BASE_URL)
         email = page_obj.create_social_worker(social_admin_page)
         _wait_for_email(reset, email)
@@ -305,7 +297,6 @@ class TestPostPasswordSetRedirect:
         setting their password, lands on /shop-admin/login/.
         """
         reset = _reset_page()
-        reset.clear_mailhog()
         page_obj = ShopAdminPage(BASE_URL)
         email = page_obj.create_cashier(shop_manager_page, role="False")
         _wait_for_email(reset, email)
@@ -321,7 +312,6 @@ class TestPostPasswordSetRedirect:
         so we only assert that the URL contains the expected callbackUrl value.
         """
         reset = _reset_page()
-        reset.clear_mailhog()
         page_obj = SocialAdminPage(BASE_URL)
         email = page_obj.create_recipient(social_admin_page)
         _wait_for_email(reset, email)
@@ -338,10 +328,8 @@ class TestPostPasswordSetRedirect:
         reset email link must carry callbackUrl=/shop-admin/login/, and after
         setting the password the user lands on /shop-admin/login/.
 
-        A fresh cashier is created for this test so that the shared
-        e2e-shop-manager fixture account is never mutated.  Changing the
-        fixture user's password would invalidate its Django session and break
-        every subsequent test that restores the shop_manager_page state.
+        A fresh cashier is created for this test so that no seeded account is
+        mutated.
         """
         # Create a disposable cashier whose password we can safely change.
         shop_obj = ShopAdminPage(BASE_URL)
