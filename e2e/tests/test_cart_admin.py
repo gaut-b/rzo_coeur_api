@@ -125,5 +125,8 @@ class TestCartAdmin:
         cart_id = page_obj.create_cart(cart_admin_page, recipient_display="Test Recipient")
         assert cart_id > 0
         page_obj.assign_articles_to_cart(cart_admin_page, cart_id=cart_id, article_indices=[0, 1, 2])
+        page_obj.goto_articles(cart_admin_page)
+        page_obj.expect_articles_visible(cart_admin_page)
         page_admin_obj.mark_cart_as_collected(staff_page, cart_id=cart_id)
+        page_obj.goto_articles(cart_admin_page)
         page_obj.expect_articles_not_visible(cart_admin_page)
