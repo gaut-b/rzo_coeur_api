@@ -32,10 +32,7 @@ class ArticleAvailabilityFilter(admin.SimpleListFilter):
     parameter_name = "disponibilite"
 
     def lookups(self, request, model_admin):
-        return [
-            ("available", "Disponible"),
-            ("in_cart", "En panier"),
-        ]
+        return [("available", "Disponible"), ("in_cart", "En panier")]
 
     def queryset(self, request, queryset):
         if self.value() == "available":
@@ -127,7 +124,9 @@ class ArticleAttrAdmin(AdminActionFormsMixin, admin.ModelAdmin):
         if request.user.is_staff:
             return qs
         if hasattr(request.user, "socialworker"):
-            return qs.filter(shop__social_center=request.user.socialworker.social_center)
+            return qs.filter(
+                shop__social_center=request.user.socialworker.social_center, cart__collected_at__isnull=True
+            )
         return qs.none()
 
     @action_with_form(ArticleToCartForm, description="Assign Article to Cart")
