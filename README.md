@@ -189,8 +189,22 @@ uv run playwright install chromium
 
 #### Running the tests
 
+To run all tests
+
 ```sh
 uv run pytest e2e/ -p no:django -v
+```
+
+To run tests from a specific file :
+
+```sh
+uv run pytest e2e/<path to test file>.py -p no:django -v
+```
+
+To run specific test:
+
+```sh
+uv run pytest e2e/<path to test file>.py::TestClass::test_name -p no:django -v
 ```
 
 The test session is fully self-contained and runs against a production-like stack:
