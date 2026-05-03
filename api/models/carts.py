@@ -19,6 +19,7 @@ class Cart(models.Model):
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name="carts")
     recipient = models.ForeignKey(Recipient, on_delete=models.CASCADE, related_name="carts", null=True, blank=True)
     collected_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
 
     if TYPE_CHECKING:
         articles: "RelatedManager[Article]"
@@ -38,4 +39,5 @@ class Cart(models.Model):
         return CartStatus.PENDING.value
 
     def __str__(self) -> str:
-        return f"Cart {self.id} - {self.status} - {self.shop.name}"
+        date_str = self.created_at.strftime("%d/%m/%Y") if self.created_at else "—"
+        return f"#{self.id} — {self.shop.name} — {date_str}"

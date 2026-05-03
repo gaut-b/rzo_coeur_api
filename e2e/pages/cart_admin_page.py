@@ -3,9 +3,9 @@ Page Object: CartAdminPage  (/cart-admin/)
 
 Covers:
   - Viewing available articles.
-  - Creating a cart and assigning it to a recipient.
-  - Selecting articles and using the "Assign Article to Cart" action.
-  - Removing articles from a cart.
+  - Creating a cart directly from a selection of available articles.
+  - Selecting articles and using the "Ajouter à un panier existant" action.
+  - Deleting a cart by unchecking all articles on the edit page.
 """
 
 from __future__ import annotations
@@ -75,32 +75,27 @@ class CartAdminPage:
         expect(first_result).to_be_visible(timeout=5_000)
         first_result.click()
 
-    def create_cart(self, page: Page, recipient_display: str) -> int:
+    def create_cart(self, page: Page, article_indices: list[int]) -> int:
         """
-        Fill and submit the Cart creation form.
+        Select articles by row index (0-based) from the available article list
+        and create a new PENDING cart using the "Créer un panier" bulk action.
 
         Parameters
         ----------
-        recipient_display:
-            The string representation of the recipient as it appears in the
-            autocomplete widget (e.g. ``"Test Recipient"``).
+        article_indices:
+            Row indices (0-based) of the available articles to include in
+            the new cart.
 
         Returns the Django id of the created cart (parsed from the redirect URL).
         """
-        page.goto(self.add_cart_url)
-
-        # Select shop — only one shop exists in E2E data; open the autocomplete
-        # dropdown and pick the first result without filtering.
-        self._select_autocomplete(page, "id_shop")
-
-        # Select recipient by searching their display name.
-        self._select_autocomplete(page, "id_recipient", recipient_display)
-
-        page.locator('[name="_continue"]').click()
-
-        # Redirects to /cart-admin/api/cart/<id>/change/
+        page.goto(f"{self.articles_url}?cart__isnull=True")
+        rows = page.locator("#result_list tbody tr")
+        for idx in article_indices:
+            rows.nth(idx).locator('input[type="checkbox"]').check()
+        page.locator('select[name="action"]').select_option(label="Créer un panier")
+        page.locator('[type="submit"][name="index"]').click()
+        # Server redirects to /cart-admin/api/cart/<id>/change/
         expect(page).to_have_url(re.compile(r"/cart-admin/api/cart/\d+"))
-        # Extract id from URL  e.g. /cart-admin/api/cart/3/change/
         url = page.url
         parts = [p for p in url.split("/") if p.isdigit()]
         return int(parts[-1]) if parts else -1
@@ -108,7 +103,7 @@ class CartAdminPage:
     def assign_articles_to_cart(self, page: Page, cart_id: int, article_indices: list[int]) -> None:
         """
         Select articles by row index (0-based) and assign them to *cart_id*
-        using the "Assign Article to Cart" bulk action.
+        using the "Ajouter à un panier existant" bulk action.
 
         Only available articles (cart=None) are shown — the URL is filtered
         to ``?cart__isnull=True`` to ensure repeatable indices across runs.
@@ -127,34 +122,47 @@ class CartAdminPage:
             rows.nth(idx).locator('input[type="checkbox"]').check()
 
         # Choose the assign action from the <select>
-        page.locator('select[name="action"]').select_option(label="Assign Article to Cart")
+        page.locator('select[name="action"]').select_option(label="Ajouter à un panier existant")
 
         # Submit the action form — opens the action form modal/page
         page.locator('[type="submit"][name="index"]').click()
 
-        # Fill the cart id in the action form
-        page.locator("#id_cart").select_option(value=str(cart_id))
+        # Pick the cart via the Select2 autocomplete widget (AutocompleteSelect).
+        # Search by cart id so the result is unique regardless of shop name or date.
+        self._select_autocomplete(page, "id_cart", search_text=str(cart_id))
         page.locator('[type="submit"]').last.click()
 
         # Should be back on the article list
         expect(page).to_have_url(re.compile(r"/cart-admin/api/article/"))
 
-    def remove_articles_from_cart(self, page: Page, article_indices: list[int]) -> None:
+    def get_first_cart_id(self, page: Page) -> int:
         """
-        Select articles by row index (0-based) and remove them from their cart
-        using the "remove_from_cart" bulk action.
-
-        Operates on the article list as currently loaded — navigate to the
-        desired filter before calling if needed.
+        Navigate to the cart changelist and return the Django id of the first
+        listed cart.
         """
-        rows = page.locator("#result_list tbody tr")
-        for idx in article_indices:
-            rows.nth(idx).locator('input[type="checkbox"]').check()
+        page.goto(self.carts_url)
+        first_link = page.locator("#result_list tbody tr").first.locator("a").first
+        expect(first_link).to_be_visible(timeout=10_000)
+        href = first_link.get_attribute("href") or ""
+        parts = [p for p in href.split("/") if p.isdigit()]
+        return int(parts[-1]) if parts else -1
 
-        page.locator('select[name="action"]').select_option(value="remove_from_cart")
-        page.locator('[type="submit"][name="index"]').click()
-
-        expect(page).to_have_url(re.compile(r"/cart-admin/api/article/"))
+    def delete_cart_by_unchecking_all(self, page: Page, cart_id: int) -> None:
+        """
+        Navigate to a cart's change page, uncheck all article checkboxes,
+        accept the native ``confirm()`` dialog triggered by the JS guard, and
+        save. The server deletes the empty cart and redirects to the
+        changelist.
+        """
+        page.goto(f"{self.carts_url}{cart_id}/change/")
+        checkboxes = page.locator('input[name="articles"]')
+        for i in range(checkboxes.count()):
+            checkboxes.nth(i).uncheck()
+        # Register the dialog handler BEFORE clicking save so Playwright
+        # intercepts the native confirm() dialog and accepts it.
+        page.once("dialog", lambda dialog: dialog.accept())
+        page.locator('[name="_save"]').click()
+        expect(page).to_have_url(re.compile(rf"^{re.escape(self.carts_url)}(?:\?.*)?$"))
 
     def expect_has_access(self, page: Page) -> None:
         """Assert that the user has a valid session on cart-admin."""
