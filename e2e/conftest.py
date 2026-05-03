@@ -274,7 +274,7 @@ def staff_page(browser: Browser, reset_db: dict[str, str]) -> Generator[Page, No
 
 
 @pytest.fixture
-def social_admin_page(browser: Browser, authenticated_states: dict[str, str]) -> Generator[Page, None, None]:
+def social_admin_page(browser: Browser, reset_db: dict[str, str]) -> Generator[Page, None, None]:
     """Authenticated page for the social admin role."""
     context, page = _make_authed_page(browser, reset_db["social_admin"])
     yield page
