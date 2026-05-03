@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
+from django.utils.translation import gettext_lazy as _
 
 from api.models import Client, CustomUser
 
@@ -10,9 +11,9 @@ class CustomUserAdmin(UserAdmin):
     list_filter = ["is_staff", "is_active"]
     fieldsets = (
         (None, {"fields": ("email", "password")}),
-        ("Personal info", {"fields": ("first_name", "last_name")}),
+        (_("Informations personnelles"), {"fields": ("first_name", "last_name")}),
         (
-            "Permissions",
+            _("Permissions"),
             {
                 "fields": (
                     "is_active",
@@ -23,7 +24,7 @@ class CustomUserAdmin(UserAdmin):
                 )
             },
         ),
-        ("Important dates", {"fields": ("last_login", "date_joined")}),
+        (_("Dates importantes"), {"fields": ("last_login", "date_joined")}),
     )
     add_fieldsets = (
         (
@@ -56,19 +57,19 @@ class ClientAdmin(admin.ModelAdmin):
     def get_email(self, obj):
         return obj.user.email
 
-    get_email.short_description = "Email"
+    get_email.short_description = _("E-mail")
     get_email.admin_order_field = "user__email"
 
     def get_first_name(self, obj):
         return obj.user.first_name
 
-    get_first_name.short_description = "First Name"
+    get_first_name.short_description = _("Prénom")
     get_first_name.admin_order_field = "user__first_name"
 
     def get_last_name(self, obj):
         return obj.user.last_name
 
-    get_last_name.short_description = "Last Name"
+    get_last_name.short_description = _("Nom")
     get_last_name.admin_order_field = "user__last_name"
 
 

@@ -1,9 +1,10 @@
+{% load i18n %}
 <!doctype html>
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Bienvenue sur Les Réseaux du Coeur</title>
+    <title>{% trans "Bienvenue sur Les Réseaux du Coeur" %}</title>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -69,31 +70,30 @@
   <body>
     <div class="container">
       <div class="header">
-        <h1>Les Réseaux du Coeur</h1>
+        <h1>{% trans "Les Réseaux du Coeur" %}</h1>
       </div>
 
       <div class="body">
-        <h2>Bienvenue, {{ user.first_name }} {{ user.last_name }} !</h2>
+        <h2>{% blocktrans with first=user.first_name last=user.last_name %}Bienvenue, {{ first }} {{ last }} !{% endblocktrans %}</h2>
 
         <p>
-          Votre compte a été créé sur la plateforme
+          {% blocktrans %}Votre compte a été créé sur la plateforme
           <strong>Les Réseaux du Coeur</strong>. Pour l'activer, vous devez
-          définir votre mot de passe en cliquant sur le bouton ci-dessous.
+          définir votre mot de passe en cliquant sur le bouton ci-dessous.{% endblocktrans %}
         </p>
 
         <div class="notice">
-          Ce lien est <strong>valable 24 heures</strong>. Passé ce délai, vous
+          {% blocktrans %}Ce lien est <strong>valable 24 heures</strong>. Passé ce délai, vous
           pourrez en demander un nouveau via le lien
-          <em>« Mot de passe oublié ? »</em> sur la page de connexion.
+          <em>«&nbsp;Mot de passe oublié&nbsp;? »</em> sur la page de connexion.{% endblocktrans %}
         </div>
 
         <p style="text-align: center">
-          <a href="{{ reset_url }}" class="btn">Activer mon compte</a>
+          <a href="{{ reset_url }}" class="btn">{% trans "Activer mon compte" %}</a>
         </p>
 
         <p>
-          Si le bouton ne fonctionne pas, copiez-collez ce lien dans votre
-          navigateur&nbsp;:
+          {% trans "Si le bouton ne fonctionne pas, copiez-collez ce lien dans votre navigateur :" %}
         </p>
         <p style="word-break: break-all; font-size: 13px; color: #555555">
           {{ reset_url }}
@@ -101,7 +101,7 @@
       </div>
 
       <div class="footer">
-        Si vous n'êtes pas concerné par ce message, ignorez-le simplement.
+        {% trans "Si vous n'êtes pas concerné par ce message, ignorez-le simplement." %}
         <br />
         Les Réseaux du Coeur
       </div>

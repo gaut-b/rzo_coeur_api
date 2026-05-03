@@ -38,7 +38,7 @@ class TestMainAdminAccess:
         # on the login page — it does not redirect them to the index.
         login_page.expect_error(
             anon_page,
-            "Please enter the correct email address and password",
+            "Veuillez compléter correctement les champs",
         )
 
     def test_staff_user_can_login_via_form(self, anon_page: Page) -> None:

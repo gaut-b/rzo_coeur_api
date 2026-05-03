@@ -4,6 +4,7 @@ from django import forms
 from django.conf import settings
 from django.contrib import admin
 from django.db import transaction
+from django.utils.translation import gettext_lazy as _
 
 from api.admin_sites import (
     AddressLocationAdminForm,
@@ -383,9 +384,9 @@ class SocialCenterAdmin(AddressLocationAdminMixin, admin.ModelAdmin):
     search_fields = ["name", "street_name", "city", "postal_code", "mail"]
 
     fieldsets = (
-        ("General Information", {"fields": ("name", "mail")}),
+        (_("Informations générales"), {"fields": ("name", "mail")}),
         (
-            "Address",
+            _("Adresse"),
             {
                 "fields": (
                     "address",
@@ -397,10 +398,9 @@ class SocialCenterAdmin(AddressLocationAdminMixin, admin.ModelAdmin):
                     "longitude",
                     "display_coordinates",
                 ),
-                "description": (
-                    "Start typing in the address field to see suggestions. "
-                    "The structured fields below are auto-filled but can be "
-                    "edited."
+                "description": _(
+                    "Commencez à saisir dans le champ adresse pour voir des suggestions. "
+                    "Les champs structurés ci-dessous sont remplis automatiquement mais peuvent être modifiés."
                 ),
             },
         ),
@@ -436,27 +436,27 @@ class SocialWorkerMainAdmin(admin.ModelAdmin):
     autocomplete_fields = ["user", "social_center"]
 
     fieldsets = (
-        ("User Information", {"fields": ("user",)}),
-        ("Social Center", {"fields": ("social_center",)}),
-        ("Role", {"fields": ("is_social_admin",)}),
+        (_("Informations utilisateur"), {"fields": ("user",)}),
+        (_("Centre social"), {"fields": ("social_center",)}),
+        (_("Rôle"), {"fields": ("is_social_admin",)}),
     )
 
     def get_email(self, obj):
         return obj.user.email
 
-    get_email.short_description = "Email"
+    get_email.short_description = _("E-mail")
     get_email.admin_order_field = "user__email"
 
     def get_first_name(self, obj):
         return obj.user.first_name
 
-    get_first_name.short_description = "First Name"
+    get_first_name.short_description = _("Prénom")
     get_first_name.admin_order_field = "user__first_name"
 
     def get_last_name(self, obj):
         return obj.user.last_name
 
-    get_last_name.short_description = "Last Name"
+    get_last_name.short_description = _("Nom")
     get_last_name.admin_order_field = "user__last_name"
 
 
@@ -478,7 +478,7 @@ class SocialWorkerAdmin(admin.ModelAdmin):
 
     edit_fieldsets = (
         (
-            "User Information",
+            _("Informations utilisateur"),
             {
                 "fields": (
                     "first_name",
@@ -490,24 +490,24 @@ class SocialWorkerAdmin(admin.ModelAdmin):
                 )
             },
         ),
-        ("Social Center", {"fields": ("get_sc_name", "get_sc_mail", "get_sc_address")}),
-        ("Role", {"fields": ("is_social_admin",)}),
+        (_("Centre social"), {"fields": ("get_sc_name", "get_sc_mail", "get_sc_address")}),
+        (_("Rôle"), {"fields": ("is_social_admin",)}),
     )
 
     add_fieldsets = (
         (
-            "User Information",
+            _("Informations utilisateur"),
             {"fields": ("email", "first_name", "last_name")},
         ),
     )
 
     add_fieldsets_staff = (
         (
-            "User Information",
+            _("Informations utilisateur"),
             {"fields": ("email", "first_name", "last_name")},
         ),
         (
-            "Social Center",
+            _("Centre social"),
             {"fields": ("social_center",)},
         ),
     )
@@ -515,51 +515,51 @@ class SocialWorkerAdmin(admin.ModelAdmin):
     def get_email(self, obj):
         return obj.user.email
 
-    get_email.short_description = "Email"
+    get_email.short_description = _("E-mail")
     get_email.admin_order_field = "user__email"
 
     def get_first_name(self, obj):
         return obj.user.first_name
 
-    get_first_name.short_description = "First Name"
+    get_first_name.short_description = _("Prénom")
     get_first_name.admin_order_field = "user__first_name"
 
     def get_last_name(self, obj):
         return obj.user.last_name
 
-    get_last_name.short_description = "Last Name"
+    get_last_name.short_description = _("Nom")
     get_last_name.admin_order_field = "user__last_name"
 
     def get_user_last_login(self, obj):
         """Display the last login date of the linked user."""
-        return obj.user.last_login or "Never"
+        return obj.user.last_login or _("Jamais")
 
-    get_user_last_login.short_description = "Last login"
+    get_user_last_login.short_description = _("Dernière connexion")
 
     def get_user_is_active(self, obj):
         """Display the active status of the linked user."""
         return obj.user.is_active
 
-    get_user_is_active.short_description = "Active"
+    get_user_is_active.short_description = _("Actif")
     get_user_is_active.boolean = True
 
     def get_user_date_joined(self, obj):
         """Display the date the linked user joined."""
         return obj.user.date_joined
 
-    get_user_date_joined.short_description = "Date joined"
+    get_user_date_joined.short_description = _("Date d'inscription")
 
     def get_sc_name(self, obj):
         """Display the social center name."""
         return obj.social_center.name
 
-    get_sc_name.short_description = "Name"
+    get_sc_name.short_description = _("Nom")
 
     def get_sc_mail(self, obj):
         """Display the social center email."""
         return obj.social_center.mail
 
-    get_sc_mail.short_description = "Email"
+    get_sc_mail.short_description = _("E-mail")
 
     def get_sc_address(self, obj):
         """Display the social center address."""
@@ -573,7 +573,7 @@ class SocialWorkerAdmin(admin.ModelAdmin):
         )
         return ", ".join(parts) or "—"
 
-    get_sc_address.short_description = "Address"
+    get_sc_address.short_description = _("Adresse")
 
     def get_readonly_fields(self, request, obj=None):
         """User metadata and social center are read-only when editing."""
@@ -700,24 +700,24 @@ class RecipientAdmin(admin.ModelAdmin):
     search_fields = ["user__email", "user__first_name", "user__last_name"]
     autocomplete_fields = ["user", "social_center"]
 
-    fieldsets = (("User Information", {"fields": ("user", "social_center")}),)
+    fieldsets = ((_("Informations utilisateur"), {"fields": ("user", "social_center")}),)
 
     def get_email(self, obj):
         return obj.user.email
 
-    get_email.short_description = "Email"
+    get_email.short_description = _("E-mail")
     get_email.admin_order_field = "user__email"
 
     def get_first_name(self, obj):
         return obj.user.first_name
 
-    get_first_name.short_description = "First Name"
+    get_first_name.short_description = _("Prénom")
     get_first_name.admin_order_field = "user__first_name"
 
     def get_last_name(self, obj):
         return obj.user.last_name
 
-    get_last_name.short_description = "Last Name"
+    get_last_name.short_description = _("Nom")
     get_last_name.admin_order_field = "user__last_name"
 
 
@@ -739,7 +739,7 @@ class SocialRecipientAdmin(admin.ModelAdmin):
 
     edit_fieldsets = (
         (
-            "User Information",
+            _("Informations utilisateur"),
             {
                 "fields": (
                     "first_name",
@@ -751,23 +751,23 @@ class SocialRecipientAdmin(admin.ModelAdmin):
                 )
             },
         ),
-        ("Social Center", {"fields": ("get_sc_name", "get_sc_mail", "get_sc_address")}),
+        (_("Centre social"), {"fields": ("get_sc_name", "get_sc_mail", "get_sc_address")}),
     )
 
     add_fieldsets = (
         (
-            "User Information",
+            _("Informations utilisateur"),
             {"fields": ("email", "first_name", "last_name")},
         ),
     )
 
     add_fieldsets_staff = (
         (
-            "User Information",
+            _("Informations utilisateur"),
             {"fields": ("email", "first_name", "last_name")},
         ),
         (
-            "Social Center",
+            _("Centre social"),
             {"fields": ("social_center",)},
         ),
     )
@@ -775,51 +775,51 @@ class SocialRecipientAdmin(admin.ModelAdmin):
     def get_email(self, obj):
         return obj.user.email
 
-    get_email.short_description = "Email"
+    get_email.short_description = _("E-mail")
     get_email.admin_order_field = "user__email"
 
     def get_first_name(self, obj):
         return obj.user.first_name
 
-    get_first_name.short_description = "First Name"
+    get_first_name.short_description = _("Prénom")
     get_first_name.admin_order_field = "user__first_name"
 
     def get_last_name(self, obj):
         return obj.user.last_name
 
-    get_last_name.short_description = "Last Name"
+    get_last_name.short_description = _("Nom")
     get_last_name.admin_order_field = "user__last_name"
 
     def get_user_last_login(self, obj):
         """Display the last login date of the linked user."""
-        return obj.user.last_login or "Never"
+        return obj.user.last_login or _("Jamais")
 
-    get_user_last_login.short_description = "Last login"
+    get_user_last_login.short_description = _("Dernière connexion")
 
     def get_user_is_active(self, obj):
         """Display the active status of the linked user."""
         return obj.user.is_active
 
-    get_user_is_active.short_description = "Active"
+    get_user_is_active.short_description = _("Actif")
     get_user_is_active.boolean = True
 
     def get_user_date_joined(self, obj):
         """Display the date the linked user joined."""
         return obj.user.date_joined
 
-    get_user_date_joined.short_description = "Date joined"
+    get_user_date_joined.short_description = _("Date d'inscription")
 
     def get_sc_name(self, obj):
         """Display the social center name."""
         return obj.social_center.name
 
-    get_sc_name.short_description = "Name"
+    get_sc_name.short_description = _("Nom")
 
     def get_sc_mail(self, obj):
         """Display the social center email."""
         return obj.social_center.mail
 
-    get_sc_mail.short_description = "Email"
+    get_sc_mail.short_description = _("E-mail")
 
     def get_sc_address(self, obj):
         """Display the social center address."""
@@ -833,7 +833,7 @@ class SocialRecipientAdmin(admin.ModelAdmin):
         )
         return ", ".join(parts) or "—"
 
-    get_sc_address.short_description = "Address"
+    get_sc_address.short_description = _("Adresse")
 
     def get_readonly_fields(self, request, obj=None):
         """User metadata and social center are read-only when editing."""
@@ -956,7 +956,7 @@ class SocialCashierAdmin(admin.ModelAdmin):
 
     edit_fieldsets = (
         (
-            "User Information",
+            _("Informations utilisateur"),
             {
                 "fields": (
                     "first_name",
@@ -968,16 +968,16 @@ class SocialCashierAdmin(admin.ModelAdmin):
                 )
             },
         ),
-        ("Shop", {"fields": ("get_shop_name", "get_shop_address")}),
+        (_("Magasin"), {"fields": ("get_shop_name", "get_shop_address")}),
     )
 
     add_fieldsets = (
         (
-            "User Information",
+            _("Informations utilisateur"),
             {"fields": ("email", "first_name", "last_name")},
         ),
         (
-            "Shop Assignment",
+            _("Affectation magasin"),
             {"fields": ("shop",)},
         ),
     )
@@ -985,45 +985,45 @@ class SocialCashierAdmin(admin.ModelAdmin):
     def get_email(self, obj):
         return obj.user.email
 
-    get_email.short_description = "Email"
+    get_email.short_description = _("E-mail")
     get_email.admin_order_field = "user__email"
 
     def get_first_name(self, obj):
         return obj.user.first_name
 
-    get_first_name.short_description = "First Name"
+    get_first_name.short_description = _("Prénom")
     get_first_name.admin_order_field = "user__first_name"
 
     def get_last_name(self, obj):
         return obj.user.last_name
 
-    get_last_name.short_description = "Last Name"
+    get_last_name.short_description = _("Nom")
     get_last_name.admin_order_field = "user__last_name"
 
     def get_user_last_login(self, obj):
         """Display the last login date of the linked user."""
-        return obj.user.last_login or "Never"
+        return obj.user.last_login or _("Jamais")
 
-    get_user_last_login.short_description = "Last login"
+    get_user_last_login.short_description = _("Dernière connexion")
 
     def get_user_is_active(self, obj):
         """Display the active status of the linked user."""
         return obj.user.is_active
 
-    get_user_is_active.short_description = "Active"
+    get_user_is_active.short_description = _("Actif")
     get_user_is_active.boolean = True
 
     def get_user_date_joined(self, obj):
         """Display the date the linked user joined."""
         return obj.user.date_joined
 
-    get_user_date_joined.short_description = "Date joined"
+    get_user_date_joined.short_description = _("Date d'inscription")
 
     def get_shop_name(self, obj):
         """Display the cashier's shop name."""
         return obj.shop.name
 
-    get_shop_name.short_description = "Shop name"
+    get_shop_name.short_description = _("Nom du magasin")
 
     def get_shop_address(self, obj):
         """Display the cashier's shop address."""
@@ -1037,7 +1037,7 @@ class SocialCashierAdmin(admin.ModelAdmin):
         )
         return ", ".join(parts) or "—"
 
-    get_shop_address.short_description = "Address"
+    get_shop_address.short_description = _("Adresse")
 
     def get_readonly_fields(self, request, obj=None):
         """User info and shop are read-only when editing."""
@@ -1195,9 +1195,9 @@ class SocialAdminSite(CustomAdminSite):
     Accessible at /social-admin/
     """
 
-    site_header = "Social Center Admin"
-    site_title = "Social Center"
-    index_title = "Welcome to social center interface"
+    site_header = _("Administration Centre Social")
+    site_title = _("Centre Social")
+    index_title = _("Bienvenue dans l'interface du centre social")
 
     def check_user_permission(self, user):
         """Check if user has a social admin role."""
@@ -1205,7 +1205,7 @@ class SocialAdminSite(CustomAdminSite):
 
     def get_permission_denied_message(self):
         """Custom message for social admin access denied."""
-        return "You do not have permission to access the social center admin page."
+        return _("Vous n'avez pas la permission d'accéder à l'interface du centre social.")
 
 
 # ---------------------------------------------------------------------------

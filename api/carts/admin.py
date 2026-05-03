@@ -2,6 +2,7 @@ from django.contrib import admin, messages
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.html import format_html, mark_safe
+from django.utils.translation import gettext_lazy as _
 
 from api.admin_sites import CustomAdminSite
 from api.enums import UserRole
@@ -71,19 +72,19 @@ class RecipientAttrAdmin(admin.ModelAdmin):
     def get_email(self, obj):
         return obj.user.email
 
-    get_email.short_description = "Email"
+    get_email.short_description = _("E-mail")
     get_email.admin_order_field = "user__email"
 
     def get_first_name(self, obj):
         return obj.user.first_name
 
-    get_first_name.short_description = "First Name"
+    get_first_name.short_description = _("Prénom")
     get_first_name.admin_order_field = "user__first_name"
 
     def get_last_name(self, obj):
         return obj.user.last_name
 
-    get_last_name.short_description = "Last Name"
+    get_last_name.short_description = _("Nom")
     get_last_name.admin_order_field = "user__last_name"
 
     def get_queryset(self, request):
@@ -350,9 +351,9 @@ class CartAttribAdmin(admin.ModelAdmin):
 
 
 class CartAttributionAdminSite(CustomAdminSite):
-    site_header = "Cart Attribution"
-    site_title = "Cart Attribution"
-    index_title = "Interface de création et attribution de paniers"
+    site_header = _("Attribution des paniers")
+    site_title = _("Attribution des paniers")
+    index_title = _("Interface de création et attribution de paniers")
 
     def check_user_permission(self, user):
         """Check if user has a social worker, social admin role, or is staff."""
@@ -360,7 +361,7 @@ class CartAttributionAdminSite(CustomAdminSite):
 
     def get_permission_denied_message(self):
         """Custom message for cart attribution access denied."""
-        return "You do not have permission to access the social center admin page."
+        return _("Vous n'avez pas la permission d'accéder à l'interface du centre social.")
 
 
 cart_attrib_admin_site = CartAttributionAdminSite(name="cart_attrib_admin")

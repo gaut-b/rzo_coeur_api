@@ -69,6 +69,10 @@ class CustomUser(AbstractUser):
 class Client(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, primary_key=True)
 
+    class Meta:
+        verbose_name = _("client")
+        verbose_name_plural = _("clients")
+
     if TYPE_CHECKING:
         articles: "RelatedManager[Article]"
 

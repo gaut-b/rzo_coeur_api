@@ -1,4 +1,5 @@
 {% load static %}
+{% load i18n %}
 <!doctype html>
 <html lang="en">
   <head>
@@ -27,7 +28,7 @@
             {% csrf_token %}
 
             <div class="form-row">
-              <label for="id_username" class="required">Email:</label>
+              <label for="id_username" class="required">{% trans "E-mail :" %}</label>
               <input
                 type="email"
                 name="username"
@@ -39,7 +40,7 @@
             </div>
 
             <div class="form-row">
-              <label for="id_password" class="required">Password:</label>
+              <label for="id_password" class="required">{% trans "Mot de passe :" %}</label>
               <input
                 type="password"
                 name="password"
@@ -51,7 +52,7 @@
             <input type="hidden" name="next" value="{{ next }}" />
 
             <div class="submit-row">
-              <input type="submit" value="Log in" />
+              <input type="submit" value="{% trans 'Se connecter' %}" />
             </div>
           </form>
 
@@ -60,7 +61,7 @@
               href="/auth/password_reset/?callbackUrl={{ request.path }}"
               id="forgot-password-link"
             >
-              Mot de passe oublié ?
+              {% trans "Mot de passe oublié ?" %}
             </a>
           </p>
         </div>

@@ -8,6 +8,7 @@ from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.utils.html import format_html
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils.translation import gettext_lazy as _
 from django.views.decorators.cache import never_cache
 
 from .models import CustomUser
@@ -104,7 +105,7 @@ class AddressLocationAdminMixin:
             return address_line
         return "-"
 
-    full_address.short_description = "Address"
+    full_address.short_description = _("Adresse")
 
     def has_coordinates(self, obj, *args, **kwargs):
         """Display whether the object has GPS coordinates."""
@@ -124,7 +125,7 @@ class AddressLocationAdminMixin:
             )
         return "No GPS coordinates"
 
-    display_coordinates.short_description = "GPS Coordinates"
+    display_coordinates.short_description = _("Coordonnées GPS")
 
 
 class CustomAdminSite(admin.AdminSite):
@@ -150,7 +151,7 @@ class CustomAdminSite(admin.AdminSite):
         Get the error message to display when user doesn't have permission.
         Can be overridden by subclasses for custom messages.
         """
-        return "You do not have permission to access this area."
+        return _("Vous n'avez pas la permission d'accéder à cette zone.")
 
     @method_decorator(never_cache)
     def login(self, request, extra_context=None):
@@ -201,7 +202,7 @@ class CustomAdminSite(admin.AdminSite):
                     "title": f"{self.site_title} Login",
                     "site_title": self.site_title,
                     "site_header": self.site_header,
-                    "error_message": ("Please enter a correct email and password."),
+                    "error_message": _("Veuillez saisir une adresse e-mail et un mot de passe corrects."),
                     "username": username,
                 }
                 return render(request, self.login_template, context)

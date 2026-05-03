@@ -52,7 +52,7 @@ class CustomAdminSiteTests(TestCase):
             },
         )
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Please enter a correct email and password")
+        self.assertContains(response, "Veuillez saisir une adresse e-mail et un mot de passe corrects.")
 
     def test_inactive_user_denied(self):
         """Test that inactive users cannot log in."""
@@ -64,7 +64,7 @@ class CustomAdminSiteTests(TestCase):
             },
         )
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Please enter a correct email and password")
+        self.assertContains(response, "Veuillez saisir une adresse e-mail et un mot de passe corrects.")
 
     def test_valid_next_url_redirect(self):
         """Test that valid 'next' parameter redirects correctly."""
@@ -121,7 +121,7 @@ class CustomAdminSiteTests(TestCase):
         """Test that GET request to login shows the login form."""
         response = self.client.get(reverse("shop_admin:login"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Shop Admin Login")
+        self.assertContains(response, "Admin magasin Login")
 
     def test_has_permission_inactive_user(self):
         """Test has_permission returns False for inactive user."""

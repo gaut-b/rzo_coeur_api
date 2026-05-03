@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.utils.translation import gettext_lazy as _
 
 from api.models import Article
 
@@ -20,25 +21,25 @@ class ArticleAdmin(admin.ModelAdmin):
     autocomplete_fields = ["client", "shop", "cart"]
     fieldsets = [
         (
-            "Article Information",
+            _("Informations sur l'article"),
             {
                 "fields": ["name", "barcode", "brand_label"],
             },
         ),
         (
-            "Images",
+            _("Images"),
             {
                 "fields": ["img_url", "thumb_url"],
             },
         ),
         (
-            "Relationships",
+            _("Relations"),
             {
                 "fields": ["client", "shop", "cart"],
             },
         ),
         (
-            "Timestamps",
+            _("Horodatages"),
             {
                 "fields": ["created_at", "updated_at"],
             },

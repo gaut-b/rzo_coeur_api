@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 from ..enums import CartStatus
 from .shops import Shop
@@ -51,6 +52,10 @@ class Cart(models.Model):
 
     if TYPE_CHECKING:
         articles: "RelatedManager[Article]"
+
+    class Meta:
+        verbose_name = _("panier")
+        verbose_name_plural = _("paniers")
 
     @property
     def status(self) -> str:
