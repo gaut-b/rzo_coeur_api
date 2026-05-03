@@ -167,6 +167,12 @@ class SendAccountWelcomeEmailTests(TestCase):
         If the SMTP backend raises, the exception must be caught so that
         account creation is not interrupted.
         """
-        with patch("django.core.mail.EmailMessage.send", side_effect=OSError("SMTP down")):
+        with (
+            patch(
+                "django.core.mail.EmailMessage.send",
+                side_effect=OSError("SMTP down"),
+            ),
+            self.assertLogs("api.emails", level="ERROR"),
+        ):
             # Must not raise.
             send_account_welcome_email(self.user, "/social-admin/login/", self.request)
