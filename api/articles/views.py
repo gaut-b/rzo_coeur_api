@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from api.models import Article
-from api.shops.permissions import IsCashier
+from api.shops.permissions import IsCashier, IsShopManager
 from api.users.permissions import IsClient
 
 from .serializers import (
@@ -40,7 +40,7 @@ class ArticleCreateView(APIView):
     cashier's shop.
     """
 
-    permission_classes = [IsCashier]
+    permission_classes = [IsCashier | IsShopManager]
 
     @extend_schema(
         summary="Create multiple articles in bulk",

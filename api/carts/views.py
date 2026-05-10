@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 
 from api.enums import CartStatus
 from api.models import Cart, Recipient
-from api.shops.permissions import IsCashier
+from api.shops.permissions import IsCashier, IsShopManager
 
 from .permissions import IsRecipient
 from .serializers import CartCollectSerializer, CartSerializer
@@ -105,7 +105,7 @@ class RecipientCartListView(APIView):
 class CartCollectView(APIView):
     """API endpoint for marking a cart as collected by a cashier."""
 
-    permission_classes = [IsCashier]
+    permission_classes = [IsCashier | IsShopManager]
 
     @extend_schema(
         summary="Mark cart as collected",
@@ -162,10 +162,10 @@ class CartCollectView(APIView):
 class CartDetailView(APIView):
     """
     Retrieve a cart by its ID.
-    Only accessible by cashiers for carts from their shop.
+    Only accessible by cashiers and shop managers for carts from their shop.
     """
 
-    permission_classes = [IsCashier]
+    permission_classes = [IsCashier | IsShopManager]
 
     @extend_schema(
         summary="Retrieve cart by ID",
