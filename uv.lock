@@ -1181,7 +1181,6 @@ dependencies = [
     { name = "pyjwt" },
     { name = "python-dotenv" },
     { name = "requests" },
-    { name = "structlog" },
     { name = "whitenoise" },
 ]
 
@@ -1219,7 +1218,6 @@ requires-dist = [
     { name = "pyjwt", specifier = "==2.10.1" },
     { name = "python-dotenv", specifier = "==1.2.1" },
     { name = "requests", specifier = "==2.32.5" },
-    { name = "structlog", specifier = "==25.5.0" },
     { name = "whitenoise", specifier = "==6.8.2" },
 ]
 

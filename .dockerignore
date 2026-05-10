@@ -1,0 +1,34 @@
+# Version control
+.git
+.gitignore
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+
+# Python cache
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+
+# Build artifacts
+staticfiles/
+media/
+*.sqlite3
+
+# Dev tools
+node_modules/
+.agents/
+e2e/
+
+# Test output
+.pytest_cache/
+htmlcov/

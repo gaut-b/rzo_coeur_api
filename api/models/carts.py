@@ -14,12 +14,40 @@ if TYPE_CHECKING:
     from .articles import Article
 
 
+class CartQuerySet(models.QuerySet):
+    """Custom QuerySet for Cart with status-based filtering methods."""
+
+    def by_status(self, status: str) -> "CartQuerySet":
+        """
+        Filter carts by their computed status.
+
+        Maps the logical status to the underlying field conditions used
+        by the Cart.status property, so filtering stays consistent with
+        the model definition.
+
+        Parameters:
+            status (str): One of 'PENDING', 'ASSIGNED', or 'COLLECTED'.
+
+        Returns:
+            CartQuerySet: Filtered queryset matching the given status.
+        """
+        if status == CartStatus.PENDING.value:
+            return self.filter(recipient__isnull=True)
+        if status == CartStatus.ASSIGNED.value:
+            return self.filter(recipient__isnull=False, collected_at__isnull=True)
+        if status == CartStatus.COLLECTED.value:
+            return self.filter(collected_at__isnull=False)
+        raise ValueError(f"Invalid cart status: '{status}'.")
+
+
 class Cart(models.Model):
     id: int  # type: ignore[assignment]
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name="carts")
     recipient = models.ForeignKey(Recipient, on_delete=models.CASCADE, related_name="carts", null=True, blank=True)
     collected_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
+
+    objects: CartQuerySet = CartQuerySet.as_manager()  # type: ignore[assignment]
 
     if TYPE_CHECKING:
         articles: "RelatedManager[Article]"

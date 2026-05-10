@@ -81,6 +81,14 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "200/day",
+        "user": "2000/day",
+    },
 }
 
 # Add BrowsableAPIRenderer only in development
@@ -338,6 +346,7 @@ if not DEBUG:
     # Enable HSTS: browsers will only connect via HTTPS for 1 year.
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
     # Prevent cookies from being sent over HTTP.
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
