@@ -31,5 +31,5 @@ class Cashier(models.Model):
         return f"{self.user} ({role} at {self.shop.name})"
 
     class Meta:
-        verbose_name = _("caissier")
-        verbose_name_plural = _("caissiers")
+        verbose_name = _("vendeur")
+        verbose_name_plural = _("vendeurs")

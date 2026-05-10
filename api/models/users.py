@@ -20,6 +20,11 @@ if TYPE_CHECKING:
 class CustomUser(AbstractUser):
     username = None  # type: ignore
     email = models.EmailField(_("email address"), unique=True)
+    is_staff = models.BooleanField(
+        _("staff"),
+        default=False,
+        help_text=_("Designates whether the user can log into this admin site."),
+    )
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS: list[str] = []
