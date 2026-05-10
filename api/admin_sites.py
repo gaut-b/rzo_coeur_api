@@ -189,7 +189,7 @@ class CustomAdminSite(admin.AdminSite):
                 else:
                     # User doesn't have the required role
                     context = {
-                        "title": f"{self.site_title} Login",
+                        "title": _("Connexion — %(site)s") % {"site": self.site_title},
                         "site_title": self.site_title,
                         "site_header": self.site_header,
                         "error_message": self.get_permission_denied_message(),
@@ -199,7 +199,7 @@ class CustomAdminSite(admin.AdminSite):
             else:
                 # Invalid credentials
                 context = {
-                    "title": f"{self.site_title} Login",
+                    "title": _("Connexion — %(site)s") % {"site": self.site_title},
                     "site_title": self.site_title,
                     "site_header": self.site_header,
                     "error_message": _("Veuillez saisir une adresse e-mail et un mot de passe corrects."),
@@ -209,7 +209,7 @@ class CustomAdminSite(admin.AdminSite):
 
         # GET request - show login form
         context = {
-            "title": f"{self.site_title} Login",
+            "title": _("Connexion — %(site)s") % {"site": self.site_title},
             "site_title": self.site_title,
             "site_header": self.site_header,
             "site": self,
