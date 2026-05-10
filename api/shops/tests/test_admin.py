@@ -121,7 +121,7 @@ class CustomAdminSiteTests(TestCase):
         """Test that GET request to login shows the login form."""
         response = self.client.get(reverse("shop_admin:login"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Admin magasin Login")
+        self.assertContains(response, "Connexion — Admin magasin")
 
     def test_has_permission_inactive_user(self):
         """Test has_permission returns False for inactive user."""

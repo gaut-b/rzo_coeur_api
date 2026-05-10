@@ -361,7 +361,7 @@ class CartAttributionAdminSite(CustomAdminSite):
 
     def get_permission_denied_message(self):
         """Custom message for cart attribution access denied."""
-        return _("Vous n'avez pas la permission d'accéder à l'interface du centre social.")
+        return _("Vous n'avez pas la permission d'accéder à l'interface d'attribution des paniers.")
 
 
 cart_attrib_admin_site = CartAttributionAdminSite(name="cart_attrib_admin")

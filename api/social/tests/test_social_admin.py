@@ -15,9 +15,9 @@ class SocialAdminSiteTests(TestCase):
 
     def test_site_configuration(self):
         """Test that SocialAdminSite has correct configuration"""
-        self.assertEqual(self.site.site_header, "Administration Centre Social")
-        self.assertEqual(self.site.site_title, "Centre Social")
-        self.assertEqual(self.site.index_title, "Bienvenue dans l'interface du centre social")
+        self.assertEqual(str(self.site.site_header), "Administration Centre Social")
+        self.assertEqual(str(self.site.site_title), "Centre Social")
+        self.assertEqual(str(self.site.index_title), "Bienvenue dans l'interface du centre social")
 
     def test_has_permission_inactive_user(self):
         """Test has_permission returns False for inactive user"""
