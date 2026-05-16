@@ -1,6 +1,7 @@
 import uuid
 
 from django.core.files.storage import default_storage
+from django.db import transaction
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
@@ -9,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from api.models import Article
-from api.shops.permissions import IsCashier
+from api.shops.permissions import IsCashier, IsShopManager
 from api.users.permissions import IsClient
 
 from .serializers import (
@@ -40,7 +41,7 @@ class ArticleCreateView(APIView):
     cashier's shop.
     """
 
-    permission_classes = [IsCashier]
+    permission_classes = [IsCashier | IsShopManager]
 
     @extend_schema(
         summary="Create multiple articles in bulk",
@@ -78,7 +79,8 @@ class ArticleCreateView(APIView):
         serializer = BulkArticleCreateSerializer(data=request.data, context={"request": request})
 
         if serializer.is_valid():
-            created_articles = serializer.save()
+            with transaction.atomic():
+                created_articles = serializer.save()
             response_serializer = ArticleSerializer(created_articles, many=True)
 
             return Response(

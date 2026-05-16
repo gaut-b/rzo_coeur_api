@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 
 from api.enums import CartStatus
 from api.models import Cart, Recipient
-from api.shops.permissions import IsCashier
+from api.shops.permissions import IsCashier, IsShopManager
 
 from .permissions import IsRecipient
 from .serializers import CartCollectSerializer, CartSerializer
@@ -82,17 +82,9 @@ class RecipientCartListView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            # Map status to underlying field conditions:
-            # - PENDING: recipient is None (won't match since we filter by
-            #   recipient__user)
-            # - ASSIGNED: recipient is not None AND collected_at is None
-            # - COLLECTED: recipient is not None AND collected_at is not None
-            if status_param == CartStatus.PENDING.value:
-                carts = carts.filter(recipient__isnull=True)
-            elif status_param == CartStatus.ASSIGNED.value:
-                carts = carts.filter(collected_at__isnull=True)
-            elif status_param == CartStatus.COLLECTED.value:
-                carts = carts.filter(collected_at__isnull=False)
+            # Map status to underlying field conditions via CartQuerySet.by_status(),
+            # which mirrors the Cart.status property logic.
+            carts = carts.by_status(status_param)
 
         # Paginate results
         paginator = PageNumberPagination()
@@ -105,7 +97,7 @@ class RecipientCartListView(APIView):
 class CartCollectView(APIView):
     """API endpoint for marking a cart as collected by a cashier."""
 
-    permission_classes = [IsCashier]
+    permission_classes = [IsCashier | IsShopManager]
 
     @extend_schema(
         summary="Mark cart as collected",
@@ -162,10 +154,10 @@ class CartCollectView(APIView):
 class CartDetailView(APIView):
     """
     Retrieve a cart by its ID.
-    Only accessible by cashiers for carts from their shop.
+    Only accessible by cashiers and shop managers for carts from their shop.
     """
 
-    permission_classes = [IsCashier]
+    permission_classes = [IsCashier | IsShopManager]
 
     @extend_schema(
         summary="Retrieve cart by ID",

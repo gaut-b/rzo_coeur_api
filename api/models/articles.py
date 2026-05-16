@@ -18,7 +18,13 @@ class Article(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        indexes = [models.Index(fields=["barcode"])]
+        indexes = [
+            models.Index(fields=["barcode"]),
+            # Composite index optimizing the most frequent query pattern:
+            # articles available in a given shop (cart__isnull=True filters
+            # are applied on top of a shop filter by social workers).
+            models.Index(fields=["shop", "cart"], name="article_shop_cart_idx"),
+        ]
 
     def __str__(self) -> str:
         return self.name

@@ -3,6 +3,7 @@ import secrets
 from django import forms
 from django.conf import settings
 from django.contrib import admin
+from django.db import transaction
 
 from api.admin_sites import (
     AddressLocationAdminForm,
@@ -100,25 +101,29 @@ class SocialCashierCreationForm(forms.ModelForm):
             raise forms.ValidationError("Cannot create cashier, insufficient rights.")
 
         generated_password = secrets.token_urlsafe(20)
-        user = CustomUser.objects.create_user(
-            email=self.cleaned_data["email"],
-            password=generated_password,
-            first_name=self.cleaned_data["first_name"],
-            last_name=self.cleaned_data["last_name"],
-        )
+        with transaction.atomic():
+            user = CustomUser.objects.create_user(
+                email=self.cleaned_data["email"],
+                password=generated_password,
+                first_name=self.cleaned_data["first_name"],
+                last_name=self.cleaned_data["last_name"],
+            )
 
-        cashier = super().save(commit=False)
-        cashier.user = user
-        cashier.is_shop_manager = True
+            cashier = super().save(commit=False)
+            cashier.user = user
+            cashier.is_shop_manager = True
 
-        if commit:
-            cashier.save()
+            if commit:
+                cashier.save()
 
-        send_account_welcome_email(
-            user,
-            callback_url="/shop-admin/login/",
-            request=self.request,
-        )
+            request = self.request
+            transaction.on_commit(
+                lambda: send_account_welcome_email(
+                    user,
+                    callback_url="/shop-admin/login/",
+                    request=request,
+                )
+            )
         return cashier
 
 
@@ -172,27 +177,31 @@ class SocialWorkerCreationForm(forms.ModelForm):
             raise forms.ValidationError("Cannot create user, insufficient rights.")
 
         generated_password = secrets.token_urlsafe(20)
-        user = CustomUser.objects.create_user(
-            email=self.cleaned_data["email"],
-            password=generated_password,
-            first_name=self.cleaned_data["first_name"],
-            last_name=self.cleaned_data["last_name"],
-        )
+        with transaction.atomic():
+            user = CustomUser.objects.create_user(
+                email=self.cleaned_data["email"],
+                password=generated_password,
+                first_name=self.cleaned_data["first_name"],
+                last_name=self.cleaned_data["last_name"],
+            )
 
-        socialworker = super().save(commit=False)
-        socialworker.user = user
-        if self.request.user.socialworker:
-            socialworker.social_center = self.request.user.socialworker.social_center
-        socialworker.is_social_admin = False
+            socialworker = super().save(commit=False)
+            socialworker.user = user
+            if self.request.user.socialworker:
+                socialworker.social_center = self.request.user.socialworker.social_center
+            socialworker.is_social_admin = False
 
-        if commit:
-            socialworker.save()
+            if commit:
+                socialworker.save()
 
-        send_account_welcome_email(
-            user,
-            callback_url="/social-admin/login/",
-            request=self.request,
-        )
+            request = self.request
+            transaction.on_commit(
+                lambda: send_account_welcome_email(
+                    user,
+                    callback_url="/social-admin/login/",
+                    request=request,
+                )
+            )
         return socialworker
 
 
@@ -222,25 +231,29 @@ class SocialWorkerStaffCreationForm(forms.ModelForm):
     def save(self, commit=True):
         """Create the linked CustomUser then the SocialWorker."""
         generated_password = secrets.token_urlsafe(20)
-        user = CustomUser.objects.create_user(
-            email=self.cleaned_data["email"],
-            password=generated_password,
-            first_name=self.cleaned_data["first_name"],
-            last_name=self.cleaned_data["last_name"],
-        )
+        with transaction.atomic():
+            user = CustomUser.objects.create_user(
+                email=self.cleaned_data["email"],
+                password=generated_password,
+                first_name=self.cleaned_data["first_name"],
+                last_name=self.cleaned_data["last_name"],
+            )
 
-        socialworker = super().save(commit=False)
-        socialworker.user = user
-        socialworker.is_social_admin = False
+            socialworker = super().save(commit=False)
+            socialworker.user = user
+            socialworker.is_social_admin = False
 
-        if commit:
-            socialworker.save()
+            if commit:
+                socialworker.save()
 
-        send_account_welcome_email(
-            user,
-            callback_url="/social-admin/login/",
-            request=self.request,
-        )
+            request = self.request
+            transaction.on_commit(
+                lambda: send_account_welcome_email(
+                    user,
+                    callback_url="/social-admin/login/",
+                    request=request,
+                )
+            )
         return socialworker
 
 
@@ -268,26 +281,30 @@ class RecipientCreationForm(forms.ModelForm):
             raise forms.ValidationError("Cannot create user, insufficient rights.")
 
         generated_password = secrets.token_urlsafe(20)
-        user = CustomUser.objects.create_user(
-            email=self.cleaned_data["email"],
-            password=generated_password,
-            first_name=self.cleaned_data["first_name"],
-            last_name=self.cleaned_data["last_name"],
-        )
+        with transaction.atomic():
+            user = CustomUser.objects.create_user(
+                email=self.cleaned_data["email"],
+                password=generated_password,
+                first_name=self.cleaned_data["first_name"],
+                last_name=self.cleaned_data["last_name"],
+            )
 
-        recipient = super().save(commit=False)
-        recipient.user = user
-        if hasattr(self.request.user, "socialworker"):
-            recipient.social_center = self.request.user.socialworker.social_center
+            recipient = super().save(commit=False)
+            recipient.user = user
+            if hasattr(self.request.user, "socialworker"):
+                recipient.social_center = self.request.user.socialworker.social_center
 
-        if commit:
-            recipient.save()
+            if commit:
+                recipient.save()
 
-        send_account_welcome_email(
-            user,
-            callback_url=settings.MOBILE_APP_CALLBACK_URL,
-            request=self.request,
-        )
+            request = self.request
+            transaction.on_commit(
+                lambda: send_account_welcome_email(
+                    user,
+                    callback_url=settings.MOBILE_APP_CALLBACK_URL,
+                    request=request,
+                )
+            )
         return recipient
 
 
@@ -317,24 +334,28 @@ class RecipientStaffCreationForm(forms.ModelForm):
     def save(self, commit=True):
         """Create the linked CustomUser then the Recipient."""
         generated_password = secrets.token_urlsafe(20)
-        user = CustomUser.objects.create_user(
-            email=self.cleaned_data["email"],
-            password=generated_password,
-            first_name=self.cleaned_data["first_name"],
-            last_name=self.cleaned_data["last_name"],
-        )
+        with transaction.atomic():
+            user = CustomUser.objects.create_user(
+                email=self.cleaned_data["email"],
+                password=generated_password,
+                first_name=self.cleaned_data["first_name"],
+                last_name=self.cleaned_data["last_name"],
+            )
 
-        recipient = super().save(commit=False)
-        recipient.user = user
+            recipient = super().save(commit=False)
+            recipient.user = user
 
-        if commit:
-            recipient.save()
+            if commit:
+                recipient.save()
 
-        send_account_welcome_email(
-            user,
-            callback_url=settings.MOBILE_APP_CALLBACK_URL,
-            request=self.request,
-        )
+            request = self.request
+            transaction.on_commit(
+                lambda: send_account_welcome_email(
+                    user,
+                    callback_url=settings.MOBILE_APP_CALLBACK_URL,
+                    request=request,
+                )
+            )
         return recipient
 
 

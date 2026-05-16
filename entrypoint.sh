@@ -1,12 +1,21 @@
 #!/bin/sh
 
+set -e
+
 if [ "$DATABASE" = "postgres" ]
 then
     echo "Waiting for postgres..."
 
-    while ! nc -z "$SQL_HOST" "$SQL_PORT"; do
-      sleep 0.1
+    RETRIES=60
+    until nc -z "$SQL_HOST" "$SQL_PORT" || [ "$RETRIES" -eq 0 ]; do
+        sleep 0.5
+        RETRIES=$(( RETRIES - 1 ))
     done
+
+    if [ "$RETRIES" -eq 0 ]; then
+        echo "PostgreSQL did not become available within 30 seconds. Exiting."
+        exit 1
+    fi
 
     echo "PostgreSQL started"
 fi

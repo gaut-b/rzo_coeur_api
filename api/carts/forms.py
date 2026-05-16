@@ -81,6 +81,12 @@ class ArticleToCartForm(ActionForm):
             Article._meta.get_field("cart"),
             cart_attrib_admin_site,
         )
+        # Re-setting the queryset triggers widget.choices = self.choices,
+        # which links a ModelChoiceIterator to the new widget instead of
+        # the plain list that AutocompleteSelect initialises with.  Without
+        # this, AutocompleteSelect.optgroups raises
+        # AttributeError: 'list' object has no attribute 'field'.
+        self.fields["cart"].queryset = self.fields["cart"].queryset
         if hasattr(self, "request") and hasattr(self.request.user, "socialworker"):
             social_center = self.request.user.socialworker.social_center
             self.fields["cart"].queryset = Cart.objects.filter(
