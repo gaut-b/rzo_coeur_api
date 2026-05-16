@@ -5,7 +5,7 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("api", "0015_alter_article_options_alter_cart_options_and_more"),
+        ("api", "0016_alter_article_options_alter_cart_options_and_more"),
     ]
 
     operations = [

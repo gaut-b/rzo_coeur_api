@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("api", "0014_cart_created_at"),
+        ("api", "0015_article_shop_cart_index"),
     ]
 
     operations = [
