@@ -24,6 +24,7 @@ dependencies = [
     "boto3==1.38.0",
     "django-storages[s3]==1.14.6",
     "pillow==11.2.1",
+    "django-anymail[brevo]>=14.0",
 ]
 
 [dependency-groups]
