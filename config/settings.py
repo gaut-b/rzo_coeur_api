@@ -355,7 +355,7 @@ if not DEBUG:
     CSRF_COOKIE_SECURE = True
 
 # Email configuration
-DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@reseauxducoeur.fr")
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "contact@leresos.com")
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
 # Password-reset links are valid for 24 hours.
