@@ -14,6 +14,7 @@ from django.core.mail import EmailMessage
 from django.template.loader import render_to_string
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
+from django.utils.translation import gettext_lazy as _
 
 from .models import CustomUser
 
@@ -58,7 +59,7 @@ def send_account_welcome_email(
         "reset_url": reset_url,
     }
 
-    subject = "Bienvenue sur Les Réseaux du Coeur — Activez votre compte"
+    subject = _("Bienvenue sur Les Réseaux du Coeur — Activez votre compte")
     html_body = render_to_string("emails/welcome_email.html", context)
 
     try:

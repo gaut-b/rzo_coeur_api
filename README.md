@@ -265,6 +265,26 @@ uv run python manage.py seed_data --env dev
 Fixture files live in `api/fixtures/dev/` (one JSON file per entity type).
 Add or edit entries in those files to extend the dataset without touching Python code.
 
+## Internationalisation (i18n)
+
+The application is fully translated in French (`LANGUAGE_CODE = "fr-fr"`). Translation strings live in `locale/fr/LC_MESSAGES/django.po`; the compiled binary `django.mo` is **committed** to the repo so no extra step is needed after a `git pull`.
+
+### Update translations after changing source strings
+
+Whenever you add or change a `_("…")` call, run:
+
+```sh
+# Extract new/changed strings (venv directories are ignored automatically)
+make messages
+
+# Edit locale/fr/LC_MESSAGES/django.po, fill in the new msgstr values, then compile:
+make compilemessages
+```
+
+The `--ignore` flags for `venv/` and `.venv/` are encoded in the `Makefile` targets so you never need to pass them manually.
+
+> **Note:** `compilemessages` requires the `gettext` system package (`brew install gettext` on macOS, `apt-get install gettext` on Debian/Ubuntu). It is **not** needed at runtime — only when regenerating `.mo` files.
+
 ## Contributors
 
 - [Clement Viel](https://github.com/ClementViel)

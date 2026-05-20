@@ -1,0 +1,461 @@
+# French translations for this project.
+# Copyright (C) 2026 THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# Translations maintained by the project authors.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: this project\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-05-10 17:02+0000\n"
+"PO-Revision-Date: 2026-05-03 16:39+0000\n"
+"Last-Translator: Project Authors\n"
+"Language-Team: French\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+#: api/admin_sites.py:108 api/shops/admin.py:78 api/shops/admin.py:483
+#: api/social/admin.py:368 api/social/admin.py:555 api/social/admin.py:815
+#: api/social/admin.py:1019
+msgid "Adresse"
+msgstr ""
+
+#: api/admin_sites.py:128
+msgid "Coordonnées GPS"
+msgstr ""
+
+#: api/admin_sites.py:154
+msgid "Vous n'avez pas la permission d'accéder à cette zone."
+msgstr ""
+
+#: api/admin_sites.py:192 api/admin_sites.py:202 api/admin_sites.py:212
+#, python-format
+msgid "Connexion — %(site)s"
+msgstr ""
+
+#: api/admin_sites.py:205
+msgid "Veuillez saisir une adresse e-mail et un mot de passe corrects."
+msgstr ""
+
+#: api/articles/admin.py:24 api/shops/admin.py:615
+msgid "Informations sur l'article"
+msgstr ""
+
+#: api/articles/admin.py:30 api/shops/admin.py:619
+msgid "Images"
+msgstr ""
+
+#: api/articles/admin.py:36 api/shops/admin.py:623
+msgid "Relations"
+msgstr ""
+
+#: api/articles/admin.py:42 api/shops/admin.py:627
+msgid "Horodatages"
+msgstr ""
+
+#: api/carts/admin.py:75 api/shops/admin.py:243 api/shops/admin.py:426
+#: api/social/admin.py:426 api/social/admin.py:497 api/social/admin.py:541
+#: api/social/admin.py:687 api/social/admin.py:757 api/social/admin.py:801
+#: api/social/admin.py:967 api/users/admin.py:60
+msgid "E-mail"
+msgstr ""
+
+#: api/carts/admin.py:81 api/shops/admin.py:249 api/shops/admin.py:432
+#: api/social/admin.py:432 api/social/admin.py:503 api/social/admin.py:693
+#: api/social/admin.py:763 api/social/admin.py:973 api/users/admin.py:66
+msgid "Prénom"
+msgstr ""
+
+#: api/carts/admin.py:87 api/shops/admin.py:255 api/shops/admin.py:438
+#: api/social/admin.py:438 api/social/admin.py:509 api/social/admin.py:535
+#: api/social/admin.py:699 api/social/admin.py:769 api/social/admin.py:795
+#: api/social/admin.py:979 api/users/admin.py:72
+msgid "Nom"
+msgstr ""
+
+#: api/carts/admin.py:354 api/carts/admin.py:355
+msgid "Attribution des paniers"
+msgstr ""
+
+#: api/carts/admin.py:356
+msgid "Interface de création et attribution de paniers"
+msgstr ""
+
+#: api/carts/admin.py:364
+msgid ""
+"Vous n'avez pas la permission d'accéder à l'interface d'attribution des "
+"paniers."
+msgstr ""
+
+#: api/emails.py:62
+msgid "Bienvenue sur Les Réseaux du Coeur — Activez votre compte"
+msgstr ""
+
+#: api/managers.py:23
+msgid "The Email must be set"
+msgstr "L'adresse e-mail doit être renseignée."
+
+#: api/managers.py:25
+msgid "The Password must be set"
+msgstr "Le mot de passe doit être renseigné."
+
+#: api/managers.py:43
+msgid "Superuser must have is_staff=True."
+msgstr "Le superutilisateur doit avoir is_staff=True."
+
+#: api/managers.py:45
+msgid "Superuser must have is_superuser=True."
+msgstr "Le superutilisateur doit avoir is_superuser=True."
+
+#: api/models/articles.py:22
+msgid "article"
+msgstr ""
+
+#: api/models/articles.py:23
+msgid "articles"
+msgstr ""
+
+#: api/models/carts.py:29
+msgid "panier"
+msgstr ""
+
+#: api/models/carts.py:30
+msgid "paniers"
+msgstr ""
+
+#: api/models/shops.py:14
+msgid "magasin"
+msgstr ""
+
+#: api/models/shops.py:15
+msgid "magasins"
+msgstr ""
+
+#: api/models/shops.py:34
+msgid "vendeur"
+msgstr ""
+
+#: api/models/shops.py:35
+msgid "vendeurs"
+msgstr ""
+
+#: api/models/social.py:23
+msgid "centre social"
+msgstr ""
+
+#: api/models/social.py:24
+msgid "centres sociaux"
+msgstr ""
+
+#: api/models/social.py:44
+msgid "travailleur social"
+msgstr ""
+
+#: api/models/social.py:45
+msgid "travailleurs sociaux"
+msgstr ""
+
+#: api/models/social.py:56
+msgid "bénéficiaire"
+msgstr ""
+
+#: api/models/social.py:57
+msgid "bénéficiaires"
+msgstr ""
+
+#: api/models/users.py:22
+msgid "email address"
+msgstr "adresse e-mail"
+
+#: api/models/users.py:24
+msgid "staff"
+msgstr "Staff"
+
+#: api/models/users.py:27
+msgid "Designates whether the user can log into this admin site."
+msgstr ""
+
+#: api/models/users.py:80
+msgid "client"
+msgstr ""
+
+#: api/models/users.py:81
+msgid "clients"
+msgstr ""
+
+#: api/shops/admin.py:76 api/social/admin.py:366
+msgid "Informations générales"
+msgstr ""
+
+#: api/shops/admin.py:91 api/social/admin.py:381
+msgid ""
+"Commencez à saisir dans le champ adresse pour voir des suggestions. Les "
+"champs structurés ci-dessous sont remplis automatiquement mais peuvent être "
+"modifiés."
+msgstr ""
+
+#: api/shops/admin.py:235 api/shops/admin.py:393 api/shops/admin.py:411
+#: api/social/admin.py:418 api/social/admin.py:460 api/social/admin.py:478
+#: api/social/admin.py:485 api/social/admin.py:682 api/social/admin.py:721
+#: api/social/admin.py:738 api/social/admin.py:745 api/social/admin.py:938
+#: api/social/admin.py:955
+msgid "Informations utilisateur"
+msgstr ""
+
+#: api/shops/admin.py:236 api/social/admin.py:959
+msgid "Affectation magasin"
+msgstr ""
+
+#: api/shops/admin.py:237 api/shops/admin.py:406 api/shops/admin.py:415
+#: api/shops/admin.py:444 api/social/admin.py:420 api/social/admin.py:473
+msgid "Rôle"
+msgstr ""
+
+#: api/shops/admin.py:270
+msgid "Gestion des magasins"
+msgstr ""
+
+#: api/shops/admin.py:271
+msgid "Admin magasin"
+msgstr ""
+
+#: api/shops/admin.py:272
+msgid "Bienvenue dans l'interface d'administration des magasins"
+msgstr ""
+
+#: api/shops/admin.py:280
+msgid "Vous n'avez pas la permission d'accéder à l'interface magasin."
+msgstr ""
+
+#: api/shops/admin.py:405 api/social/admin.py:950
+msgid "Magasin"
+msgstr ""
+
+#: api/shops/admin.py:418
+msgid ""
+"Sélectionnez si cet utilisateur doit être un caissier classique ou un "
+"responsable."
+msgstr ""
+
+#: api/shops/admin.py:442
+msgid "Responsable"
+msgstr ""
+
+#: api/shops/admin.py:442
+msgid "Caissier"
+msgstr ""
+
+#: api/shops/admin.py:448 api/social/admin.py:514 api/social/admin.py:774
+#: api/social/admin.py:984
+msgid "Jamais"
+msgstr ""
+
+#: api/shops/admin.py:450 api/social/admin.py:516 api/social/admin.py:776
+#: api/social/admin.py:986
+msgid "Dernière connexion"
+msgstr ""
+
+#: api/shops/admin.py:456 api/social/admin.py:522 api/social/admin.py:782
+#: api/social/admin.py:992
+msgid "Actif"
+msgstr ""
+
+#: api/shops/admin.py:463 api/social/admin.py:529 api/social/admin.py:789
+#: api/social/admin.py:999
+msgid "Date d'inscription"
+msgstr ""
+
+#: api/shops/admin.py:469 api/social/admin.py:1005
+msgid "Nom du magasin"
+msgstr ""
+
+#: api/shops/admin.py:644
+msgid "Statut"
+msgstr ""
+
+#: api/social/admin.py:419 api/social/admin.py:472 api/social/admin.py:489
+#: api/social/admin.py:733 api/social/admin.py:749
+msgid "Centre social"
+msgstr ""
+
+#: api/social/admin.py:1177
+msgid "Administration Centre Social"
+msgstr ""
+
+#: api/social/admin.py:1178
+msgid "Centre Social"
+msgstr ""
+
+#: api/social/admin.py:1179
+msgid "Bienvenue dans l'interface du centre social"
+msgstr ""
+
+#: api/social/admin.py:1187
+msgid "Vous n'avez pas la permission d'accéder à l'interface du centre social."
+msgstr ""
+
+#: api/templates/admin/custom_admin_login.html:32
+msgid "E-mail :"
+msgstr ""
+
+#: api/templates/admin/custom_admin_login.html:44
+msgid "Mot de passe :"
+msgstr ""
+
+#: api/templates/admin/custom_admin_login.html:56
+msgid "Se connecter"
+msgstr ""
+
+#: api/templates/admin/custom_admin_login.html:65
+msgid "Mot de passe oublié ?"
+msgstr ""
+
+#: api/templates/emails/welcome_email.html:7
+msgid "Bienvenue sur Les Réseaux du Coeur"
+msgstr ""
+
+#: api/templates/emails/welcome_email.html:73
+#: api/templates/registration/password_reset_confirm.html:8
+#: api/templates/registration/password_reset_confirm.html:17
+#: api/templates/registration/password_reset_done.html:8
+#: api/templates/registration/password_reset_done.html:17
+#: api/templates/registration/password_reset_email.html:72
+#: api/templates/registration/password_reset_email.html:100
+msgid "Les Réseaux du Coeur"
+msgstr ""
+
+#: api/templates/emails/welcome_email.html:77
+#, python-format
+msgid "Bienvenue, %(first)s %(last)s !"
+msgstr ""
+
+#: api/templates/emails/welcome_email.html:80
+msgid ""
+"Votre compte a été créé sur la plateforme\n"
+"          <strong>Les Réseaux du Coeur</strong>. Pour l'activer, vous devez\n"
+"          définir votre mot de passe en cliquant sur le bouton ci-dessous."
+msgstr ""
+
+#: api/templates/emails/welcome_email.html:86
+msgid ""
+"Ce lien est <strong>valable 24 heures</strong>. Passé ce délai, vous\n"
+"          pourrez en demander un nouveau via le lien\n"
+"          <em>«&nbsp;Mot de passe oublié&nbsp;? »</em> sur la page de "
+"connexion."
+msgstr ""
+
+#: api/templates/emails/welcome_email.html:92
+msgid "Activer mon compte"
+msgstr ""
+
+#: api/templates/emails/welcome_email.html:96
+msgid ""
+"Si le bouton ne fonctionne pas, copiez-collez ce lien dans votre navigateur :"
+msgstr ""
+
+#: api/templates/emails/welcome_email.html:104
+msgid "Si vous n'êtes pas concerné par ce message, ignorez-le simplement."
+msgstr ""
+
+#: api/templates/registration/password_reset_confirm.html:8
+msgid "Nouveau mot de passe"
+msgstr ""
+
+#: api/templates/registration/password_reset_confirm.html:24
+msgid "Choisir un nouveau mot de passe"
+msgstr ""
+
+#: api/templates/registration/password_reset_confirm.html:27
+msgid "Veuillez corriger les erreurs ci-dessous."
+msgstr ""
+
+#: api/templates/registration/password_reset_confirm.html:40
+msgid "Nouveau mot de passe :"
+msgstr ""
+
+#: api/templates/registration/password_reset_confirm.html:60
+msgid "Confirmer le mot de passe :"
+msgstr ""
+
+#: api/templates/registration/password_reset_confirm.html:80
+msgid "Enregistrer le nouveau mot de passe"
+msgstr ""
+
+#: api/templates/registration/password_reset_confirm.html:86
+msgid ""
+"Ce lien de réinitialisation est invalide ou a expiré (validité : 24\n"
+"            heures). Veuillez\n"
+"            <a href=\"/auth/password_reset/\">faire une nouvelle demande</a>."
+msgstr ""
+
+#: api/templates/registration/password_reset_done.html:8
+#: api/templates/registration/password_reset_done.html:23
+msgid "Email envoyé"
+msgstr ""
+
+#: api/templates/registration/password_reset_done.html:25
+msgid ""
+"Si un compte correspond à l'adresse indiquée, vous allez recevoir d'ici "
+"quelques minutes un email contenant un lien pour réinitialiser votre mot de "
+"passe."
+msgstr ""
+
+#: api/templates/registration/password_reset_done.html:28
+msgid ""
+"Ce lien sera valable pendant <strong>24 heures</strong>. Si vous ne\n"
+"            recevez pas d'email, vérifiez votre dossier spam ou\n"
+"            <a href=\"/auth/password_reset/\">réessayez</a>."
+msgstr ""
+
+#: api/templates/registration/password_reset_email.html:7
+msgid "Réinitialisation de mot de passe — Les Réseaux du Coeur"
+msgstr ""
+
+#: api/templates/registration/password_reset_email.html:74
+msgid "Réinitialisation de votre mot de passe"
+msgstr ""
+
+#: api/templates/registration/password_reset_email.html:75
+#, python-format
+msgid "Bonjour %(first)s %(last)s,"
+msgstr ""
+
+#: api/templates/registration/password_reset_email.html:77
+msgid ""
+"Vous avez demandé la réinitialisation de votre mot de passe pour le\n"
+"          service <strong>Les Réseaux du Coeur</strong>."
+msgstr ""
+
+#: api/templates/registration/password_reset_email.html:81
+msgid ""
+"Ce lien est <strong>valable 24 heures</strong>. Passé ce délai, vous\n"
+"          devrez faire une nouvelle demande."
+msgstr ""
+
+#: api/templates/registration/password_reset_email.html:88
+msgid "Réinitialiser mon mot de passe"
+msgstr ""
+
+#: api/templates/registration/password_reset_email.html:91
+msgid "Si le bouton ne fonctionne pas, copiez-collez ce lien :"
+msgstr ""
+
+#: api/templates/registration/password_reset_email.html:97
+msgid ""
+"Si vous n'avez pas effectué cette demande, ignorez simplement cet email."
+msgstr ""
+
+#: api/users/admin.py:14
+msgid "Informations personnelles"
+msgstr ""
+
+#: api/users/admin.py:16
+msgid "Permissions"
+msgstr ""
+
+#: api/users/admin.py:27
+msgid "Dates importantes"
+msgstr ""

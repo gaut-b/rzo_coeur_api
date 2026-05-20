@@ -3,6 +3,7 @@ import secrets
 from django import forms
 from django.contrib import admin
 from django.utils.html import format_html
+from django.utils.translation import gettext_lazy as _
 
 from api.admin_sites import (
     AddressLocationAdminForm,
@@ -72,9 +73,9 @@ class ShopAdmin(AddressLocationAdminMixin, admin.ModelAdmin):
     autocomplete_fields = ["social_center"]
 
     fieldsets = (
-        ("General Information", {"fields": ("name", "social_center")}),
+        (_("Informations générales"), {"fields": ("name", "social_center")}),
         (
-            "Address",
+            _("Adresse"),
             {
                 "fields": (
                     "address",
@@ -86,10 +87,9 @@ class ShopAdmin(AddressLocationAdminMixin, admin.ModelAdmin):
                     "longitude",
                     "display_coordinates",
                 ),
-                "description": (
-                    "Start typing in the address field to see suggestions. "
-                    "The structured fields below are auto-filled but can be "
-                    "edited."
+                "description": _(
+                    "Commencez à saisir dans le champ adresse pour voir des suggestions. "
+                    "Les champs structurés ci-dessous sont remplis automatiquement mais peuvent être modifiés."
                 ),
             },
         ),
@@ -232,27 +232,27 @@ class CashierAdmin(admin.ModelAdmin):
     autocomplete_fields = ["user", "shop"]
 
     fieldsets = (
-        ("User Information", {"fields": ("user",)}),
-        ("Shop Assignment", {"fields": ("shop",)}),
-        ("Role", {"fields": ("is_shop_manager",)}),
+        (_("Informations utilisateur"), {"fields": ("user",)}),
+        (_("Affectation magasin"), {"fields": ("shop",)}),
+        (_("Rôle"), {"fields": ("is_shop_manager",)}),
     )
 
     def get_email(self, obj):
         return obj.user.email
 
-    get_email.short_description = "Email"
+    get_email.short_description = _("E-mail")
     get_email.admin_order_field = "user__email"
 
     def get_first_name(self, obj):
         return obj.user.first_name
 
-    get_first_name.short_description = "First Name"
+    get_first_name.short_description = _("Prénom")
     get_first_name.admin_order_field = "user__first_name"
 
     def get_last_name(self, obj):
         return obj.user.last_name
 
-    get_last_name.short_description = "Last Name"
+    get_last_name.short_description = _("Nom")
     get_last_name.admin_order_field = "user__last_name"
 
 
@@ -267,9 +267,9 @@ class ShopAdminSite(CustomAdminSite):
     Accessible at /shop-admin/
     """
 
-    site_header = "Shop Management"
-    site_title = "Shop Admin"
-    index_title = "Welcome to Shop Administration"
+    site_header = _("Gestion des magasins")
+    site_title = _("Admin magasin")
+    index_title = _("Bienvenue dans l'interface d'administration des magasins")
 
     def check_user_permission(self, user):
         """Check if user has a cashier profile or is staff."""
@@ -277,7 +277,7 @@ class ShopAdminSite(CustomAdminSite):
 
     def get_permission_denied_message(self):
         """Custom message for shop admin access denied."""
-        return "You do not have permission to access the shop admin."
+        return _("Vous n'avez pas la permission d'accéder à l'interface magasin.")
 
 
 class CashierCreationForm(forms.ModelForm):
@@ -390,7 +390,7 @@ class CashierShopAdmin(admin.ModelAdmin):
 
     edit_fieldsets = (
         (
-            "User Information",
+            _("Informations utilisateur"),
             {
                 "fields": (
                     "first_name",
@@ -402,20 +402,20 @@ class CashierShopAdmin(admin.ModelAdmin):
                 )
             },
         ),
-        ("Shop", {"fields": ("get_shop_name", "get_shop_address")}),
-        ("Role", {"fields": ("is_shop_manager",)}),
+        (_("Magasin"), {"fields": ("get_shop_name", "get_shop_address")}),
+        (_("Rôle"), {"fields": ("is_shop_manager",)}),
     )
 
     add_fieldsets = (
         (
-            "User Information",
+            _("Informations utilisateur"),
             {"fields": ("email", "first_name", "last_name")},
         ),
         (
-            "Role",
+            _("Rôle"),
             {
                 "fields": ("role",),
-                "description": ("Select whether this user should be a regular cashier or a shop manager."),
+                "description": _("Sélectionnez si cet utilisateur doit être un caissier classique ou un responsable."),
             },
         ),
     )
@@ -423,50 +423,50 @@ class CashierShopAdmin(admin.ModelAdmin):
     def get_email(self, obj):
         return obj.user.email
 
-    get_email.short_description = "Email"
+    get_email.short_description = _("E-mail")
     get_email.admin_order_field = "user__email"
 
     def get_first_name(self, obj):
         return obj.user.first_name
 
-    get_first_name.short_description = "First Name"
+    get_first_name.short_description = _("Prénom")
     get_first_name.admin_order_field = "user__first_name"
 
     def get_last_name(self, obj):
         return obj.user.last_name
 
-    get_last_name.short_description = "Last Name"
+    get_last_name.short_description = _("Nom")
     get_last_name.admin_order_field = "user__last_name"
 
     def get_role(self, obj):
-        return "Manager" if obj.is_shop_manager else "Cashier"
+        return _("Responsable") if obj.is_shop_manager else _("Caissier")
 
-    get_role.short_description = "Role"
+    get_role.short_description = _("Rôle")
 
     def get_user_last_login(self, obj):
         """Display the last login date of the linked user."""
-        return obj.user.last_login or "Never"
+        return obj.user.last_login or _("Jamais")
 
-    get_user_last_login.short_description = "Last login"
+    get_user_last_login.short_description = _("Dernière connexion")
 
     def get_user_is_active(self, obj):
         """Display the active status of the linked user."""
         return obj.user.is_active
 
-    get_user_is_active.short_description = "Active"
+    get_user_is_active.short_description = _("Actif")
     get_user_is_active.boolean = True
 
     def get_user_date_joined(self, obj):
         """Display the date the linked user joined."""
         return obj.user.date_joined
 
-    get_user_date_joined.short_description = "Date joined"
+    get_user_date_joined.short_description = _("Date d'inscription")
 
     def get_shop_name(self, obj):
         """Display the cashier's shop name."""
         return obj.shop.name
 
-    get_shop_name.short_description = "Shop name"
+    get_shop_name.short_description = _("Nom du magasin")
 
     def get_shop_address(self, obj):
         """Display the cashier's shop address."""
@@ -480,7 +480,7 @@ class CashierShopAdmin(admin.ModelAdmin):
         )
         return ", ".join(parts) or "—"
 
-    get_shop_address.short_description = "Address"
+    get_shop_address.short_description = _("Adresse")
 
     def get_readonly_fields(self, request, obj=None):
         """Shop info and user metadata are read-only when editing."""
@@ -612,19 +612,19 @@ class ArticleShopAdmin(admin.ModelAdmin):
 
     fieldsets = [
         (
-            "Article Information",
+            _("Informations sur l'article"),
             {"fields": ["name", "barcode", "brand_label", "get_status"]},
         ),
         (
-            "Images",
+            _("Images"),
             {"fields": ["img_url", "thumb_url"]},
         ),
         (
-            "Relationships",
+            _("Relations"),
             {"fields": ["client", "shop", "cart"]},
         ),
         (
-            "Timestamps",
+            _("Horodatages"),
             {"fields": ["created_at", "updated_at"]},
         ),
     ]
@@ -641,7 +641,7 @@ class ArticleShopAdmin(admin.ModelAdmin):
         else:  # PENDING
             return format_html('<span style="color: blue;">In Cart (Pending)</span>')
 
-    get_status.short_description = "Status"
+    get_status.short_description = _("Statut")
 
     def get_queryset(self, request):
         """Filter articles by the logged-in user's shop. Staff see all."""

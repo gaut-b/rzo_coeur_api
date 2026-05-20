@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 from .base import AddressLocationMixin
 from .social import SocialCenter
@@ -8,6 +9,10 @@ from .users import CustomUser
 class Shop(AddressLocationMixin):
     name = models.CharField(max_length=100)
     social_center = models.ForeignKey(SocialCenter, on_delete=models.CASCADE, related_name="shops")
+
+    class Meta:
+        verbose_name = _("magasin")
+        verbose_name_plural = _("magasins")
 
     def __str__(self) -> str:
         return self.name
@@ -26,5 +31,5 @@ class Cashier(models.Model):
         return f"{self.user} ({role} at {self.shop.name})"
 
     class Meta:
-        verbose_name = "Cashier"
-        verbose_name_plural = "Cashiers"
+        verbose_name = _("vendeur")
+        verbose_name_plural = _("vendeurs")

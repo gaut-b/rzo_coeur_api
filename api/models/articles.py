@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 from .carts import Cart
 from .shops import Shop
@@ -18,6 +19,8 @@ class Article(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        verbose_name = _("article")
+        verbose_name_plural = _("articles")
         indexes = [
             models.Index(fields=["barcode"]),
             # Composite index optimizing the most frequent query pattern:

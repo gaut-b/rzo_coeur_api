@@ -36,10 +36,11 @@ class TestMainAdminAccess:
 
         # Django's built-in admin rejects non-staff with an error message
         # on the login page — it does not redirect them to the index.
-        login_page.expect_error(
-            anon_page,
-            "Please enter the correct email address and password",
-        )
+        # Assert on stable behaviour: still on the login page and an
+        # .errornote element is present, without matching translated text
+        # that can change across Django versions.
+        login_page.expect_on_login_page(anon_page)
+        login_page.expect_error(anon_page, "")
 
     def test_staff_user_can_login_via_form(self, anon_page: Page) -> None:
         """

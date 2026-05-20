@@ -28,7 +28,7 @@ class TestShopAdminAccess:
         """
         login_page = AdminLoginPage(BASE_URL, "shop-admin")
         login_page.login(anon_page, "e2e-social-worker@test.local", E2E_PASSWORD)
-        login_page.expect_error(anon_page, "You do not have permission")
+        login_page.expect_error(anon_page, "Vous n'avez pas la permission")
 
     def test_cashier_can_login_via_form(self, anon_page: Page) -> None:
         """
