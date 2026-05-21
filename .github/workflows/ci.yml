@@ -19,9 +19,13 @@ env:
   # IMAGE_BASE is the full registry path used as prefix for all service images
   IMAGE_BASE: ghcr.io/${{ github.repository }}
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     services:
       postgres:
@@ -81,7 +85,7 @@ jobs:
           uv run python manage.py test
 
   build:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
       - uses: actions/checkout@v4
@@ -110,7 +114,7 @@ jobs:
           retention-days: 1
 
   e2e:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: [test, lint, build]
 
     steps:
@@ -163,7 +167,7 @@ jobs:
           retention-days: 30
 
   lint:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
       - uses: actions/checkout@v4
@@ -191,7 +195,7 @@ jobs:
           uv run ruff format --check .
 
   push:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: [e2e]
     # Only run on manual trigger
     if: github.event_name == 'workflow_dispatch'
@@ -250,7 +254,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: push
     # Only deploy on manual trigger
     if: github.event_name == 'workflow_dispatch'
