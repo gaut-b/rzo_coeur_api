@@ -14,6 +14,35 @@ from django.views.decorators.cache import never_cache
 from .models import CustomUser
 
 
+class UniqueEmailMixin:
+    """
+    Mixin for admin forms that include an email field linked to CustomUser.
+
+    Validates that the submitted email is not already in use by another
+    CustomUser. For edit forms, the current user's own email is excluded
+    from the uniqueness check so that saving without changing the email
+    remains valid.
+    """
+
+    def clean_email(self) -> str:
+        """
+        Raise ValidationError if the email is taken by another CustomUser.
+
+        Returns:
+            str: The validated email address.
+        """
+        email = self.cleaned_data["email"].strip()
+        qs = CustomUser.objects.filter(email__iexact=email)
+        if self.instance and self.instance.pk:
+            if isinstance(self.instance, CustomUser):
+                qs = qs.exclude(pk=self.instance.pk)
+            elif hasattr(self.instance, "user"):
+                qs = qs.exclude(pk=self.instance.user.pk)
+        if qs.exists():
+            raise forms.ValidationError(_("Un utilisateur avec cette adresse email existe déjà."))
+        return email
+
+
 class AddressLocationAdminForm(forms.ModelForm):
     """Base form for models with address and location fields."""
 

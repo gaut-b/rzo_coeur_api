@@ -9,6 +9,7 @@ from api.admin_sites import (
     AddressLocationAdminForm,
     AddressLocationAdminMixin,
     CustomAdminSite,
+    UniqueEmailMixin,
 )
 from api.emails import send_account_welcome_email
 from api.models import Article, Cashier, CustomUser, Shop
@@ -280,7 +281,7 @@ class ShopAdminSite(CustomAdminSite):
         return _("Vous n'avez pas la permission d'accéder à l'interface magasin.")
 
 
-class CashierCreationForm(forms.ModelForm):
+class CashierCreationForm(UniqueEmailMixin, forms.ModelForm):
     """
     Custom form for creating cashiers with role selection.
     The shop field is automatically filled from the logged-in manager's shop.
@@ -335,7 +336,7 @@ class CashierCreationForm(forms.ModelForm):
         return cashier
 
 
-class CashierShopChangeForm(forms.ModelForm):
+class CashierShopChangeForm(UniqueEmailMixin, forms.ModelForm):
     """
     Change form for Cashier: exposes user fields inline and allows
     role editing. Keeps the same structure as the social admin change form.
