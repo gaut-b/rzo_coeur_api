@@ -193,8 +193,9 @@ jobs:
   push:
     runs-on: ubuntu-latest
     needs: [e2e]
-    # Only run on manual trigger
-    if: github.event_name == 'workflow_dispatch'
+    # Only run on pushes to main (not PRs)
+    if: github.ref == 'refs/heads/main'
+    environment: production
     permissions:
       contents: read
       packages: write
@@ -248,19 +249,3 @@ jobs:
             ${{ env.IMAGE_BASE }}/webhook:sha-${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs: push
-    # Only deploy on manual trigger
-    if: github.event_name == 'workflow_dispatch'
-
-    steps:
-      - name: Trigger deploy via webhook
-        run: |
-          curl -X POST \
-            https://${{ secrets.VPS_HOST }}:9000/hooks/deploy-rzo \
-            -H "X-Deploy-Token: ${{ secrets.WEBHOOK_SECRET }}" \
-            --fail \
-            --max-time 300 \
-            --proto '=https'
