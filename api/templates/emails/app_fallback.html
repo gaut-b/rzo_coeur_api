@@ -5,9 +5,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>
-      {% if action == "reset_password" %}Réinitialisation du mot de passe | Les
-      Réseaux du Coeur {% else %}Confirmation d'email | Les Réseaux du Coeur {%
-      endif %}
+      {% if action == "reset_password" %}Réinitialisation du mot de passe | Les Réseaux du Coeur
+      {% else %}Confirmation d'email | Les Réseaux du Coeur
+      {% endif %}
     </title>
     <style>
       body {
@@ -191,9 +191,9 @@
       <div class="footer">Les Réseaux du Coeur</div>
     </div>
 
-    {# JS auto-redirect only for reset-password — verify-email confirms
-    server-side. #} {% if action == "reset_password" %} {{
-    deep_link|json_script:"deep-link-url" }}
+    {# JS auto-redirect only for reset-password — verify-email confirms server-side. #}
+    {% if action == "reset_password" %}
+    {{ deep_link|json_script:"deep-link-url" }}
     <script>
       (function () {
         var el = document.getElementById('deep-link-url');

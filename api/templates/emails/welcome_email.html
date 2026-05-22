@@ -74,16 +74,12 @@
       </div>
 
       <div class="body">
-        <h2>
-          {% blocktrans with first=user.first_name last=user.last_name
-          %}Bienvenue, {{ first }} {{ last }} !{% endblocktrans %}
-        </h2>
+        <h2>{% blocktrans with first=user.first_name last=user.last_name %}Bienvenue, {{ first }} {{ last }} !{% endblocktrans %}</h2>
 
         <p>
           {% blocktrans %}Votre compte a été créé sur la plateforme
           <strong>Les Réseaux du Coeur</strong>. Pour l'activer, vous devez
-          définir votre mot de passe en cliquant sur le bouton ci-dessous.{%
-          endblocktrans %}
+          définir votre mot de passe en cliquant sur le bouton ci-dessous.{% endblocktrans %}
         </p>
 
         <div class="notice">
@@ -100,8 +96,7 @@
         </p>
 
         <p>
-          {% trans "Si le bouton ne fonctionne pas, copiez-collez ce lien dans
-          votre navigateur :" %}
+          {% trans "Si le bouton ne fonctionne pas, copiez-collez ce lien dans votre navigateur :" %}
         </p>
         <p style="word-break: break-all; font-size: 13px; color: #555555">
           {{ reset_url }}
@@ -109,8 +104,7 @@
       </div>
 
       <div class="footer">
-        {% trans "Si vous n'êtes pas concerné par ce message, ignorez-le
-        simplement." %}
+        {% trans "Si vous n'êtes pas concerné par ce message, ignorez-le simplement." %}
         <br />
         Les Réseaux du Coeur
       </div>
