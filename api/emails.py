@@ -12,6 +12,7 @@ from urllib.parse import urlencode
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import EmailMessage
 from django.template.loader import render_to_string
+from django.templatetags.static import static
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.utils.translation import gettext_lazy as _
@@ -52,11 +53,13 @@ def send_account_welcome_email(
     token = default_token_generator.make_token(user)
     reset_path = f"/auth/reset/{uid}/{token}/?{urlencode({'callbackUrl': callback_url})}"
     reset_url = request.build_absolute_uri(reset_path)
+    logo_url = request.build_absolute_uri(static("logo.png"))
 
     context = {
         "user": user,
         "callback_url": callback_url,
         "reset_url": reset_url,
+        "logo_url": logo_url,
     }
 
     subject = _("Bienvenue sur Les Réseaux du Coeur — Activez votre compte")
