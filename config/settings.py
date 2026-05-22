@@ -358,7 +358,7 @@ if not DEBUG:
 # Email configuration
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "contact@leresos.com")
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
-ACCOUNT_EMAIL_SUBJECT_PREFIX = os.environ.get("ACCOUNT_EMAIL_SUBJECT_PREFIX", "Le réSOS du coeur")
+ACCOUNT_EMAIL_SUBJECT_PREFIX = os.environ.get("ACCOUNT_EMAIL_SUBJECT_PREFIX", "[Le réSOS du coeur] ")
 
 # Password-reset links are valid for 24 hours.
 PASSWORD_RESET_TIMEOUT = 86400
@@ -382,6 +382,7 @@ ANDROID_SHA256_FINGERPRINT = os.environ.get("ANDROID_SHA256_FINGERPRINT", "")
 # Use custom allauth account adapter so that email confirmation links point to
 # Universal Link paths (/app/verify-email/) instead of Django views.
 ACCOUNT_ADAPTER = "api.auth_views.MobileAccountAdapter"
+
 
 if DEBUG:
     # Use Mailhog for local development
