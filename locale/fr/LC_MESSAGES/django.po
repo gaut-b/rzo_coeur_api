@@ -91,7 +91,7 @@ msgid ""
 msgstr ""
 
 #: api/emails.py:62
-msgid "Bienvenue sur Les Réseaux du Coeur — Activez votre compte"
+msgid "Bienvenue sur Le réSOS du coeur — Activez votre compte"
 msgstr ""
 
 #: api/managers.py:23
@@ -314,7 +314,7 @@ msgid "Mot de passe oublié ?"
 msgstr ""
 
 #: api/templates/emails/welcome_email.html:7
-msgid "Bienvenue sur Les Réseaux du Coeur"
+msgid "Bienvenue sur Le réSOS du coeur"
 msgstr ""
 
 #: api/templates/emails/welcome_email.html:73
@@ -324,7 +324,7 @@ msgstr ""
 #: api/templates/registration/password_reset_done.html:17
 #: api/templates/registration/password_reset_email.html:72
 #: api/templates/registration/password_reset_email.html:100
-msgid "Les Réseaux du Coeur"
+msgid "Le réSOS du coeur"
 msgstr ""
 
 #: api/templates/emails/welcome_email.html:77
@@ -335,7 +335,7 @@ msgstr ""
 #: api/templates/emails/welcome_email.html:80
 msgid ""
 "Votre compte a été créé sur la plateforme\n"
-"          <strong>Les Réseaux du Coeur</strong>. Pour l'activer, vous devez\n"
+"          <strong>Le réSOS du coeur</strong>. Pour l'activer, vous devez\n"
 "          définir votre mot de passe en cliquant sur le bouton ci-dessous."
 msgstr ""
 
@@ -411,7 +411,7 @@ msgid ""
 msgstr ""
 
 #: api/templates/registration/password_reset_email.html:7
-msgid "Réinitialisation de mot de passe — Les Réseaux du Coeur"
+msgid "Réinitialisation de mot de passe — Le réSOS du coeur"
 msgstr ""
 
 #: api/templates/registration/password_reset_email.html:74
@@ -426,7 +426,7 @@ msgstr ""
 #: api/templates/registration/password_reset_email.html:77
 msgid ""
 "Vous avez demandé la réinitialisation de votre mot de passe pour le\n"
-"          service <strong>Les Réseaux du Coeur</strong>."
+"          service <strong>Le réSOS du coeur</strong>."
 msgstr ""
 
 #: api/templates/registration/password_reset_email.html:81

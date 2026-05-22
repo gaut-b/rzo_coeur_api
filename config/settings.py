@@ -104,8 +104,8 @@ else:
     ]
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "Les réseaux du coeur API",
-    "DESCRIPTION": 'API for the "Les réseaux du coeur" application',
+    "TITLE": "Le réSOS du coeur API",
+    "DESCRIPTION": 'API for the "Le réSOS du coeur" application',
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
     # OTHER SETTINGS
@@ -358,6 +358,7 @@ if not DEBUG:
 # Email configuration
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "contact@leresos.com")
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
+ACCOUNT_EMAIL_SUBJECT_PREFIX = os.environ.get("ACCOUNT_EMAIL_SUBJECT_PREFIX", "Le réSOS du coeur")
 
 # Password-reset links are valid for 24 hours.
 PASSWORD_RESET_TIMEOUT = 86400
@@ -367,6 +368,7 @@ MOBILE_APP_CALLBACK_URL = os.environ.get("MOBILE_APP_CALLBACK_URL", "rzo://activ
 
 # Custom URL scheme used by the mobile app for deep links on the fallback page.
 MOBILE_APP_SCHEME = os.environ.get("MOBILE_APP_SCHEME", "rzo")
+
 
 # ---------------------------------------------------------------------------
 # Universal Links / App Links — .well-known configuration

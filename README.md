@@ -1,8 +1,8 @@
 <h1 align="center">
   <img alt="logo" src="./assets/icon.png" width="124px" style="border-radius:10px"/><br/>
-Les réseaux du coeur (backend)</h1>
+Le réSOS du coeur (backend)</h1>
 
-rzo_coeur_api is a backend application built with Django. This project is the backend part of a project called “Les réseaux du coeur”, whose principle is similar to the "pending coffee" but for food products.
+rzo_coeur_api is a backend application built with Django. This project is the backend part of a project called “Le réSOS du coeur”, whose principle is similar to the "pending coffee" but for food products.
 
 The mobile apps of the project can be found [on this repo](https://github.com/gaut-b/reseau-coeur-mobile-app)
 

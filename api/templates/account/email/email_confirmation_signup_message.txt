@@ -1,6 +1,6 @@
 {% autoescape off %}Bonjour {{ user.first_name }}{% if user.first_name %} {{ user.last_name }}{% endif %},
 
-Merci de vous être inscrit sur Les Réseaux du Coeur.
+Merci de vous être inscrit sur Le réSOS du coeur.
 
 Cliquez sur le lien ci-dessous pour confirmer votre adresse email. Ce lien est
 valable 3 jours.
@@ -10,5 +10,5 @@ valable 3 jours.
 Si vous n'avez pas créé ce compte, ignorez simplement cet email.
 
 ---
-Les Réseaux du Coeur
+Le réSOS du coeur
 {% endautoescape %}
