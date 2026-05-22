@@ -10,6 +10,7 @@ from api.admin_sites import (
     AddressLocationAdminForm,
     AddressLocationAdminMixin,
     CustomAdminSite,
+    UniqueEmailMixin,
 )
 from api.emails import send_account_welcome_email
 from api.enums import UserRole
@@ -22,7 +23,7 @@ from api.users.admin import HiddenCustomUserAdmin
 # ---------------------------------------------------------------------------
 
 
-class UserInfoChangeForm(forms.ModelForm):
+class UserInfoChangeForm(UniqueEmailMixin, forms.ModelForm):
     """
     Base form for editing models with a linked CustomUser.
 
@@ -74,7 +75,7 @@ class SocialRecipientChangeForm(UserInfoChangeForm):
         fields = ["social_center"]
 
 
-class SocialCashierCreationForm(forms.ModelForm):
+class SocialCashierCreationForm(UniqueEmailMixin, forms.ModelForm):
     """
     Form for creating a shop manager (cashier with is_shop_manager=True)
     from the social admin site. Shop choices are restricted to shops linked
@@ -154,7 +155,7 @@ class SocialCenterAdminForm(AddressLocationAdminForm):
         ]
 
 
-class SocialWorkerCreationForm(forms.ModelForm):
+class SocialWorkerCreationForm(UniqueEmailMixin, forms.ModelForm):
     """
     Custom form for creating a social worker.
     Used by social admins — social_center is auto-filled from the user's
@@ -206,7 +207,7 @@ class SocialWorkerCreationForm(forms.ModelForm):
         return socialworker
 
 
-class SocialWorkerStaffCreationForm(forms.ModelForm):
+class SocialWorkerStaffCreationForm(UniqueEmailMixin, forms.ModelForm):
     """
     Custom form for creating a social worker, used by staff.
     Exposes social_center as a selectable field.
@@ -258,7 +259,7 @@ class SocialWorkerStaffCreationForm(forms.ModelForm):
         return socialworker
 
 
-class RecipientCreationForm(forms.ModelForm):
+class RecipientCreationForm(UniqueEmailMixin, forms.ModelForm):
     """
     Custom form for creating a Recipient.
     Used by social admins — social_center is auto-filled from the user's
@@ -309,7 +310,7 @@ class RecipientCreationForm(forms.ModelForm):
         return recipient
 
 
-class RecipientStaffCreationForm(forms.ModelForm):
+class RecipientStaffCreationForm(UniqueEmailMixin, forms.ModelForm):
     """
     Custom form for creating a Recipient, used by staff.
     Exposes social_center as a selectable field.

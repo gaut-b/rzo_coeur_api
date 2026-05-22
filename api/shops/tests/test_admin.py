@@ -7,7 +7,7 @@ from django.test import Client, RequestFactory, TestCase
 from django.urls import reverse
 
 from api.models import Cashier, CustomUser, Shop, SocialCenter
-from api.shops.admin import shop_admin_site
+from api.shops.admin import CashierCreationForm, CashierShopChangeForm, shop_admin_site
 
 
 class CustomAdminSiteTests(TestCase):
@@ -232,3 +232,89 @@ class ShopAdminAccessControlTests(TestCase):
         response = self.client.get(f"/shop-admin/api/cashier/{self.manager2.pk}/change/")
         # Should be forbidden or not found
         self.assertIn(response.status_code, [302, 403, 404])
+
+
+class CashierFormEmailUniquenessTests(TestCase):
+    """Test duplicate email validation on shop admin cashier forms."""
+
+    def setUp(self):
+        """Create fixtures: a shop, a manager, and an existing user."""
+        self.social_center = SocialCenter.objects.create(
+            name="Centre Test",
+            mail="centre@test.com",
+        )
+        self.shop = Shop.objects.create(
+            name="Magasin Test",
+            social_center=self.social_center,
+        )
+        self.manager_user = CustomUser.objects.create_user(
+            email="manager@test.com",
+            password="testpass123",
+        )
+        self.manager = Cashier.objects.create(
+            user=self.manager_user,
+            shop=self.shop,
+            is_shop_manager=True,
+        )
+        self.existing_user = CustomUser.objects.create_user(
+            email="existing@example.com",
+            password="testpass123",
+        )
+        self.existing_cashier = Cashier.objects.create(
+            user=self.existing_user,
+            shop=self.shop,
+            is_shop_manager=False,
+        )
+        self.request = type("Request", (), {"user": self.manager_user})()
+
+    def _creation_data(self, email="new@example.com"):
+        return {
+            "email": email,
+            "first_name": "Prénom",
+            "last_name": "Nom",
+            "role": "False",
+        }
+
+    def test_creation_form_rejects_duplicate_email(self):
+        """CashierCreationForm raises validation error for existing email."""
+        form = CashierCreationForm(
+            data=self._creation_data("existing@example.com"),
+            request=self.request,
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("email", form.errors)
+
+    def test_creation_form_accepts_new_email(self):
+        """CashierCreationForm is valid when email is not yet in use."""
+        form = CashierCreationForm(
+            data=self._creation_data("brand_new@example.com"),
+            request=self.request,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_change_form_rejects_email_taken_by_another_user(self):
+        """CashierShopChangeForm raises error if email belongs to another user."""
+        form = CashierShopChangeForm(
+            data={
+                "email": "existing@example.com",
+                "first_name": "Prénom",
+                "last_name": "Nom",
+                "is_shop_manager": False,
+            },
+            instance=self.manager,
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("email", form.errors)
+
+    def test_change_form_allows_keeping_own_email(self):
+        """CashierShopChangeForm is valid when the user keeps their current email."""
+        form = CashierShopChangeForm(
+            data={
+                "email": "manager@test.com",
+                "first_name": "Prénom",
+                "last_name": "Nom",
+                "is_shop_manager": True,
+            },
+            instance=self.manager,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
