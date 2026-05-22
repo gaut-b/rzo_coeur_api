@@ -1,3 +1,4 @@
+{% load static %}
 <!doctype html>
 <html lang="fr">
   <head>
@@ -24,15 +25,15 @@
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
       }
       .header {
-        background-color: #417690;
+        background-color: #055e21;
         color: #ffffff;
         padding: 24px 32px;
         text-align: center;
       }
-      .header h1 {
-        margin: 0;
-        font-size: 22px;
-        font-weight: 700;
+      .header img {
+        max-height: 60px;
+        display: block;
+        margin: 0 auto;
       }
       .body {
         padding: 32px;
@@ -40,14 +41,14 @@
         line-height: 1.6;
       }
       .body h2 {
-        color: #417690;
+        color: #055e21;
         margin-top: 0;
       }
       .btn {
         display: inline-block;
         margin: 20px 0;
         padding: 12px 28px;
-        background-color: #417690;
+        background-color: #055e21;
         color: #ffffff !important;
         text-decoration: none;
         border-radius: 4px;
@@ -58,11 +59,11 @@
         margin: 8px 0;
         padding: 10px 24px;
         background-color: transparent;
-        color: #417690 !important;
+        color: #055e21 !important;
         text-decoration: none;
         border-radius: 4px;
         font-weight: bold;
-        border: 2px solid #417690;
+        border: 2px solid #055e21;
       }
       .footer {
         background-color: #f4f4f4;
@@ -72,8 +73,8 @@
         text-align: center;
       }
       .notice {
-        background-color: #fff3cd;
-        border-left: 4px solid #ffc107;
+        background-color: rgba(242, 225, 20, 0.15);
+        border-left: 4px solid #f2e114;
         padding: 12px 16px;
         margin: 16px 0;
         border-radius: 2px;
@@ -96,7 +97,7 @@
   <body>
     <div class="container">
       <div class="header">
-        <h1>Les Réseaux du Coeur</h1>
+        <img src="{% static 'logo.png' %}" alt="Les Réseaux du Coeur" />
       </div>
 
       <div class="body">
@@ -134,59 +135,57 @@
           </p>
         </div>
 
+        {% else %} {% if verified %}
+        <h2>Adresse email confirmée !</h2>
+        <p>
+          Votre adresse email a bien été confirmée. Vous pouvez maintenant vous
+          connecter à l’application
+          <strong>Les Réseaux du Coeur</strong>.
+        </p>
+
+        <div class="action-buttons">
+          <p>
+            <a href="{{ deep_link }}" class="btn" id="open-app-btn">
+              Ouvrir l’application
+            </a>
+          </p>
+        </div>
+
+        <hr />
+
+        <p style="text-align: center; font-size: 14px; color: #555555">
+          Vous n’avez pas encore l’application ?
+        </p>
+        <div class="action-buttons">
+          <p>
+            <a
+              href="https://apps.apple.com"
+              class="btn-secondary"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Télécharger sur l’App Store
+            </a>
+          </p>
+          <p>
+            <a
+              href="https://play.google.com"
+              class="btn-secondary"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Télécharger sur Google Play
+            </a>
+          </p>
+        </div>
         {% else %}
-          {% if verified %}
-            <h2>Adresse email confirmée !</h2>
-            <p>
-              Votre adresse email a bien été confirmée. Vous pouvez maintenant
-              vous connecter à l’application
-              <strong>Les Réseaux du Coeur</strong>.
-            </p>
-
-            <div class="action-buttons">
-              <p>
-                <a href="{{ deep_link }}" class="btn" id="open-app-btn">
-                  Ouvrir l’application
-                </a>
-              </p>
-            </div>
-
-            <hr />
-
-            <p style="text-align: center; font-size: 14px; color: #555555">
-              Vous n’avez pas encore l’application ?
-            </p>
-            <div class="action-buttons">
-              <p>
-                <a
-                  href="https://apps.apple.com"
-                  class="btn-secondary"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Télécharger sur l’App Store
-                </a>
-              </p>
-              <p>
-                <a
-                  href="https://play.google.com"
-                  class="btn-secondary"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Télécharger sur Google Play
-                </a>
-              </p>
-            </div>
-          {% else %}
-            <h2>Lien invalide ou expiré</h2>
-            <p>
-              Ce lien de confirmation est invalide ou a déjà été utilisé. Si
-              vous n’avez pas encore confirmé votre adresse email, vous pouvez
-              en demander un nouveau depuis l’application.
-            </p>
-          {% endif %}
-        {% endif %}
+        <h2>Lien invalide ou expiré</h2>
+        <p>
+          Ce lien de confirmation est invalide ou a déjà été utilisé. Si vous
+          n’avez pas encore confirmé votre adresse email, vous pouvez en
+          demander un nouveau depuis l’application.
+        </p>
+        {% endif %} {% endif %}
       </div>
 
       <div class="footer">Les Réseaux du Coeur</div>

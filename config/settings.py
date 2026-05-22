@@ -228,6 +228,7 @@ _script_name = os.environ.get("FORCE_SCRIPT_NAME", "").rstrip("/")
 STATIC_URL = f"{_script_name}/static/" if _script_name else "static/"
 MEDIA_URL = f"{_script_name}/media/" if _script_name else "media/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [BASE_DIR / "assets"]
 
 # ---------------------------------------------------------------------------
 # Media / Object Storage (MinIO / S3-compatible)
