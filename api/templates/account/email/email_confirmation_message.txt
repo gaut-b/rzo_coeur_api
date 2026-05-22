@@ -8,5 +8,5 @@ Réseaux du Coeur. Ce lien est valable 3 jours.
 Si vous n'avez pas effectué cette demande, ignorez simplement cet email.
 
 ---
-Les Réseaux du Coeur
+Le réSOS du coeur
 {% endautoescape %}

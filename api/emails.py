@@ -1,5 +1,5 @@
 """
-api/emails.py — Transactional email helpers for the Les Réseaux du Coeur API.
+api/emails.py — Transactional email helpers for the Le réSOS du coeur API.
 
 All emails are sent in French.  Functions in this module should be called
 from admin form saves and are intentionally kept free of Django request
@@ -62,7 +62,7 @@ def send_account_welcome_email(
         "logo_url": logo_url,
     }
 
-    subject = _("Bienvenue sur Les Réseaux du Coeur — Activez votre compte")
+    subject = _("Bienvenue sur Le réSOS du coeur — Activez votre compte")
     html_body = render_to_string("emails/welcome_email.html", context)
 
     try:

@@ -4,7 +4,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Confirmez votre adresse email — Les Réseaux du Coeur</title>
+    <title>Confirmez votre adresse email</title>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -72,7 +72,7 @@
       <div class="header">
         <img
           src="{{ request.scheme }}://{{ request.get_host }}{% get_static_prefix %}logo.png"
-          alt="Les Réseaux du Coeur"
+          alt="Le réSOS du coeur"
         />
       </div>
 
@@ -80,12 +80,11 @@
         <h2>Confirmez votre adresse email</h2>
 
         <p>
-          Bonjour {% if user.first_name %}{{ user.first_name }} {{
-          user.last_name }}{% endif %},
+          Bonjour {% if user.first_name %}{{ user.first_name }} {{ user.last_name }}{% endif %},
         </p>
 
         <p>
-          Merci de vous être inscrit sur <strong>Les Réseaux du Coeur</strong>.
+          Merci de vous être inscrit sur <strong>Le réSOS du coeur</strong>.
           Cliquez sur le bouton ci-dessous pour confirmer votre adresse email et
           activer votre compte.
         </p>
@@ -112,7 +111,7 @@
         <p>Si vous n'avez pas créé ce compte, ignorez simplement cet email.</p>
       </div>
 
-      <div class="footer">Les Réseaux du Coeur</div>
+      <div class="footer">Le réSOS du coeur</div>
     </div>
   </body>
 </html>

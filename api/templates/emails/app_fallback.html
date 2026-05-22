@@ -5,8 +5,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>
-      {% if action == "reset_password" %}Réinitialisation du mot de passe | Les Réseaux du Coeur
-      {% else %}Confirmation d'email | Les Réseaux du Coeur
+      {% if action == "reset_password" %}Réinitialisation du mot de passe | Le réSOS du coeur
+      {% else %}Confirmation d'email | Le réSOS du coeur
       {% endif %}
     </title>
     <style>
@@ -97,14 +97,14 @@
   <body>
     <div class="container">
       <div class="header">
-        <img src="{% static 'logo.png' %}" alt="Les Réseaux du Coeur" />
+        <img src="{% static 'logo.png' %}" alt="Le réSOS du coeur" />
       </div>
 
       <div class="body">
         {% if action == "reset_password" %}
         <h2>Réinitialisation de votre mot de passe</h2>
         <p>
-          Si vous avez l'application <strong>Les Réseaux du Coeur</strong>
+          Si vous avez l'application <strong>Le réSOS du coeur</strong>
           installée sur votre appareil, appuyez sur le bouton ci-dessous pour
           l'ouvrir et continuer la réinitialisation.
         </p>
@@ -140,7 +140,7 @@
         <p>
           Votre adresse email a bien été confirmée. Vous pouvez maintenant vous
           connecter à l’application
-          <strong>Les Réseaux du Coeur</strong>.
+          <strong>Le réSOS du coeur</strong>.
         </p>
 
         <div class="action-buttons">
@@ -188,7 +188,7 @@
         {% endif %} {% endif %}
       </div>
 
-      <div class="footer">Les Réseaux du Coeur</div>
+      <div class="footer">Le réSOS du coeur</div>
     </div>
 
     {# JS auto-redirect only for reset-password — verify-email confirms server-side. #}

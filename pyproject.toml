@@ -1,7 +1,7 @@
 [project]
 name = "rzo-coeur-api"
 version = "1.0.0"
-description = "Backend API for Les réseaux du coeur"
+description = "Backend API for Le réSOS du coeur"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "GPL-3.0-or-later"
