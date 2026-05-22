@@ -193,8 +193,9 @@ jobs:
   push:
     runs-on: ubuntu-latest
     needs: [e2e]
-    # Only run on manual trigger
-    if: github.event_name == 'workflow_dispatch'
+    # Only run on pushes to main (not PRs)
+    if: github.ref == 'refs/heads/main'
+    environment: production
     permissions:
       contents: read
       packages: write
@@ -252,8 +253,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: push
-    # Only deploy on manual trigger
-    if: github.event_name == 'workflow_dispatch'
+    # Only deploy on pushes to main (not PRs)
+    if: github.ref == 'refs/heads/main'
 
     steps:
       - name: Trigger deploy via webhook
