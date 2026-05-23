@@ -363,11 +363,9 @@ ACCOUNT_EMAIL_SUBJECT_PREFIX = os.environ.get("ACCOUNT_EMAIL_SUBJECT_PREFIX", "[
 # Password-reset links are valid for 24 hours.
 PASSWORD_RESET_TIMEOUT = 86400
 
-# Deep-link used as callbackUrl for recipient welcome emails (mobile app).
-MOBILE_APP_CALLBACK_URL = os.environ.get("MOBILE_APP_CALLBACK_URL", "rzo://activate")
-
-# Custom URL scheme used by the mobile app for deep links on the fallback page.
-MOBILE_APP_SCHEME = os.environ.get("MOBILE_APP_SCHEME", "rzo")
+# Custom URL scheme used by the mobile app for deep links
+# (e.g. rzo-coeur-mobile-app://sign-in  on the password-reset success page).
+MOBILE_APP_SCHEME = os.environ.get("MOBILE_APP_SCHEME", "rzo-coeur-mobile-app")
 
 
 # ---------------------------------------------------------------------------
