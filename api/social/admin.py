@@ -303,7 +303,7 @@ class RecipientCreationForm(UniqueEmailMixin, forms.ModelForm):
             transaction.on_commit(
                 lambda: send_account_welcome_email(
                     user,
-                    callback_url=settings.MOBILE_APP_CALLBACK_URL,
+                    callback_url=f"{settings.MOBILE_APP_SCHEME}://sign-in",
                     request=request,
                 )
             )
@@ -354,7 +354,7 @@ class RecipientStaffCreationForm(UniqueEmailMixin, forms.ModelForm):
             transaction.on_commit(
                 lambda: send_account_welcome_email(
                     user,
-                    callback_url=settings.MOBILE_APP_CALLBACK_URL,
+                    callback_url=f"{settings.MOBILE_APP_SCHEME}://sign-in",
                     request=request,
                 )
             )
