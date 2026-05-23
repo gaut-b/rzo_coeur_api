@@ -171,3 +171,40 @@ class CartAdminPage:
     def expect_no_access(self, page: Page) -> None:
         """Assert that access was denied (error message or redirect to login)."""
         expect(page.locator(".errornote")).to_be_visible()
+
+    def assign_recipient_and_save(self, page: Page, cart_id: int, recipient_search: str = "") -> None:
+        """
+        Navigate to a cart change page, pick a recipient via the Select2
+        autocomplete, and save.
+
+        Parameters
+        ----------
+        cart_id:
+            Django pk of the cart to edit.
+        recipient_search:
+            Text to type into the autocomplete search box to narrow results.
+        """
+        page.goto(f"{self.carts_url}{cart_id}/change/")
+        self._select_autocomplete(page, "id_recipient", search_text=recipient_search)
+        page.locator('[name="_save"]').click()
+        expect(page).to_have_url(re.compile(rf"/cart-admin/api/cart/{cart_id}/change/"))
+
+    def notify_recipient(self, page: Page, cart_id: int) -> None:
+        """
+        Navigate to a cart change page and click the
+        "Notifier le bénéficiaire" button.
+
+        Expects the page to reload (redirect back to the same URL) with a
+        success message.
+        """
+        page.goto(f"{self.carts_url}{cart_id}/change/")
+        page.locator('[name="_notify_recipient"]').click()
+        expect(page).to_have_url(re.compile(rf"/cart-admin/api/cart/{cart_id}/change/"))
+        expect(page.locator(".success")).to_be_visible(timeout=10_000)
+
+    def expect_notify_button_disabled(self, page: Page, cart_id: int) -> None:
+        """Assert that the notify button is present but disabled."""
+        page.goto(f"{self.carts_url}{cart_id}/change/")
+        btn = page.locator('[name="_notify_recipient"]')
+        expect(btn).to_be_visible()
+        expect(btn).to_be_disabled()

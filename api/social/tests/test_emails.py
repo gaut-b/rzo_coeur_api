@@ -176,3 +176,124 @@ class SendAccountWelcomeEmailTests(TestCase):
         ):
             # Must not raise.
             send_account_welcome_email(self.user, "/social-admin/login/", self.request)
+
+
+# ---------------------------------------------------------------------------
+# SendCartAvailableEmailTests
+# ---------------------------------------------------------------------------
+
+
+@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+class SendCartAvailableEmailTests(TestCase):
+    """Unit tests for ``send_cart_available_email``."""
+
+    def setUp(self) -> None:
+        from api.emails import send_cart_available_email
+        from api.models import Article, Cart, Client, Recipient, Shop, SocialCenter
+
+        self.send = send_cart_available_email
+        self.request = RequestFactory().get("/")
+
+        center = SocialCenter.objects.create(name="Centre Test", mail="c@t.com")
+        self.shop = Shop.objects.create(
+            name="Épicerie du Coin",
+            social_center=center,
+            street_number="12",
+            street_name="Rue de la Paix",
+            postal_code="75001",
+            city="Paris",
+        )
+        recipient_user = CustomUser.objects.create_user(
+            email="beneficiaire@test.com",
+            password="pass",
+            first_name="Marie",
+            last_name="Dupont",
+        )
+        self.recipient = Recipient.objects.create(user=recipient_user, social_center=center)
+        client_user = CustomUser.objects.create_user(email="client@test.com", password="pass")
+        self.client = Client.objects.create(user=client_user)
+        self.cart = Cart.objects.create(shop=self.shop, recipient=self.recipient)
+        self.article = Article.objects.create(
+            name="Pâtes",
+            barcode=1111111111,
+            brand_label="Barilla",
+            shop=self.shop,
+            client=self.client,
+            cart=self.cart,
+        )
+
+    # ------------------------------------------------------------------
+    # Guard — no recipient
+    # ------------------------------------------------------------------
+
+    def test_raises_when_cart_has_no_recipient(self) -> None:
+        """A cart without a recipient must raise ValueError immediately."""
+        from api.models import Cart
+
+        cart_no_recipient = Cart.objects.create(shop=self.shop)
+        with self.assertRaises(ValueError):
+            self.send(cart_no_recipient, self.request)
+        # No email must have been sent.
+        self.assertEqual(len(mail.outbox), 0)
+
+    # ------------------------------------------------------------------
+    # Recipient and subject
+    # ------------------------------------------------------------------
+
+    def test_sends_to_recipient_email(self) -> None:
+        """The email must be addressed to the recipient's email."""
+        self.send(self.cart, self.request)
+        self.assertEqual(mail.outbox[0].to, ["beneficiaire@test.com"])
+
+    def test_subject_is_correct(self) -> None:
+        """The subject must match the expected French notification string."""
+        self.send(self.cart, self.request)
+        self.assertIn("panier", mail.outbox[0].subject.lower())
+
+    def test_exactly_one_email_is_sent(self) -> None:
+        """Each call must produce exactly one outgoing message."""
+        self.send(self.cart, self.request)
+        self.assertEqual(len(mail.outbox), 1)
+
+    # ------------------------------------------------------------------
+    # Body content
+    # ------------------------------------------------------------------
+
+    def test_body_contains_article_name(self) -> None:
+        """The email body must include the article name."""
+        self.send(self.cart, self.request)
+        self.assertIn("Pâtes", mail.outbox[0].body)
+
+    def test_body_contains_brand_label(self) -> None:
+        """The email body must include the brand label."""
+        self.send(self.cart, self.request)
+        self.assertIn("Barilla", mail.outbox[0].body)
+
+    def test_body_contains_shop_name(self) -> None:
+        """The email body must include the shop name."""
+        self.send(self.cart, self.request)
+        self.assertIn("Épicerie du Coin", mail.outbox[0].body)
+
+    def test_body_contains_recipient_first_name(self) -> None:
+        """The email body must greet the recipient by first name."""
+        self.send(self.cart, self.request)
+        self.assertIn("Marie", mail.outbox[0].body)
+
+    # ------------------------------------------------------------------
+    # Resilience — email-send failure must propagate
+    # ------------------------------------------------------------------
+
+    def test_send_failure_propagates(self) -> None:
+        """
+        Unlike the welcome email, a sending failure must re-raise so that
+        the admin action can display an error message to the social worker.
+        """
+        with (
+            patch(
+                "django.core.mail.EmailMessage.send",
+                side_effect=OSError("SMTP down"),
+            ),
+            self.assertLogs("api.emails", level="ERROR"),
+        ):
+            with self.assertRaises(OSError):
+                self.send(self.cart, self.request)

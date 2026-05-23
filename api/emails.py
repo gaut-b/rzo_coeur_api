@@ -17,7 +17,7 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.utils.translation import gettext_lazy as _
 
-from .models import CustomUser
+from .models import Cart, CustomUser
 
 logger = logging.getLogger(__name__)
 
@@ -81,3 +81,61 @@ def send_account_welcome_email(
             user.email,
             user.pk,
         )
+
+
+def send_cart_available_email(cart: Cart, request) -> None:
+    """
+    Send a notification email to a recipient informing them that a basket
+    is available for pick-up in a shop.
+
+    The email (in French) contains:
+    - A greeting with the recipient's name.
+    - The list of articles in the basket (name and brand label when present).
+    - The shop name and address where the basket can be collected.
+
+    Parameters
+    ----------
+    cart:
+        The Cart instance to notify about.  Must have a non-null recipient.
+    request:
+        The current Django HttpRequest, used to build absolute URLs
+        (logo, etc.).
+
+    Raises
+    ------
+    ValueError
+        If the cart has no recipient assigned.
+    """
+    if cart.recipient is None:
+        raise ValueError(f"Cannot send notification for cart #{cart.pk}: no recipient assigned.")
+
+    articles = cart.articles.order_by("name").select_related()
+    logo_url = request.build_absolute_uri(static("logo.png"))
+    recipient_user = cart.recipient.user
+
+    context = {
+        "cart": cart,
+        "articles": articles,
+        "shop": cart.shop,
+        "recipient": recipient_user,
+        "logo_url": logo_url,
+    }
+
+    subject = _("Un panier est disponible pour vous — Le réSOS du coeur")
+    html_body = render_to_string("emails/cart_available_email.html", context)
+
+    try:
+        email = EmailMessage(
+            subject=subject,
+            body=html_body,
+            to=[recipient_user.email],
+        )
+        email.content_subtype = "html"
+        email.send()
+    except Exception:
+        logger.exception(
+            "Failed to send cart available email to %s (cart pk=%s)",
+            recipient_user.email,
+            cart.pk,
+        )
+        raise

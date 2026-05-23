@@ -14,7 +14,7 @@ Covers:
 - ArticleToCartForm: only PENDING carts from same social center
 """
 
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from django.contrib.auth import get_user_model
 from django.http import HttpResponseRedirect
@@ -630,3 +630,171 @@ class CreateCartActionTests(TestCase):
     def test_create_cart_in_actions(self):
         """create_cart must be a registered action."""
         self.assertIn("create_cart", self.admin_instance.actions)
+
+
+# ---------------------------------------------------------------------------
+# CartAttribAdmin — recipient notification
+# ---------------------------------------------------------------------------
+
+
+class CartAttribAdminNotifyTests(TestCase):
+    """
+    Tests for the ``_notify_recipient`` POST action in CartAttribAdmin.
+
+    Covers field layout, readonly state, successful notification, and
+    error handling (no recipient, email failure).
+    """
+
+    def setUp(self):
+        self.admin_instance = CartAttribAdmin(Cart, cart_attrib_admin_site)
+        self.center = make_social_center()
+        self.shop = make_shop(self.center)
+        self.sw = make_social_worker(self.center)
+        self.recipient = make_recipient(self.center, "benef@test.com")
+
+    # ------------------------------------------------------------------
+    # get_fields / get_readonly_fields
+    # ------------------------------------------------------------------
+
+    def test_assigned_cart_fields_include_notified_at(self):
+        """get_fields for an ASSIGNED cart must include notified_at."""
+        cart = make_cart(self.shop, recipient=self.recipient)
+        request = make_request(self.sw.user)
+        fields = self.admin_instance.get_fields(request, cart)
+        self.assertIn("notified_at", fields)
+
+    def test_assigned_cart_readonly_includes_notified_at(self):
+        """get_readonly_fields for an ASSIGNED cart must list notified_at."""
+        cart = make_cart(self.shop, recipient=self.recipient)
+        request = make_request(self.sw.user)
+        readonly = self.admin_instance.get_readonly_fields(request, cart)
+        self.assertIn("notified_at", readonly)
+
+    def test_collected_cart_fields_include_notified_at(self):
+        """get_fields for a COLLECTED cart must include notified_at."""
+        cart = make_cart(self.shop, recipient=self.recipient, collected=True)
+        request = make_request(self.sw.user)
+        fields = self.admin_instance.get_fields(request, cart)
+        self.assertIn("notified_at", fields)
+
+    def test_collected_cart_readonly_includes_notified_at(self):
+        """get_readonly_fields for a COLLECTED cart must list notified_at."""
+        cart = make_cart(self.shop, recipient=self.recipient, collected=True)
+        request = make_request(self.sw.user)
+        readonly = self.admin_instance.get_readonly_fields(request, cart)
+        self.assertIn("notified_at", readonly)
+
+    def test_pending_cart_fields_exclude_notified_at(self):
+        """get_fields for a PENDING cart (no recipient) must not show notified_at."""
+        cart = make_cart(self.shop)
+        request = make_request(self.sw.user)
+        fields = self.admin_instance.get_fields(request, cart)
+        self.assertNotIn("notified_at", fields)
+
+    # ------------------------------------------------------------------
+    # response_change — successful notification
+    # ------------------------------------------------------------------
+
+    def test_notify_calls_email_function(self):
+        """_notify_recipient must call send_cart_available_email."""
+        cart = make_cart(self.shop, recipient=self.recipient)
+        request = make_request_with_messages(self.sw.user)
+        request.method = "POST"
+        request.POST = {"_notify_recipient": "1"}
+        request.path = f"/cart-admin/api/cart/{cart.pk}/change/"
+
+        with patch("api.emails.send_cart_available_email") as mock_send:
+            self.admin_instance.response_change(request, cart)
+
+        mock_send.assert_called_once_with(cart, request)
+
+    def test_notify_sets_notified_at(self):
+        """_notify_recipient must persist notified_at on the cart."""
+        cart = make_cart(self.shop, recipient=self.recipient)
+        self.assertIsNone(cart.notified_at)
+        request = make_request_with_messages(self.sw.user)
+        request.method = "POST"
+        request.POST = {"_notify_recipient": "1"}
+        request.path = f"/cart-admin/api/cart/{cart.pk}/change/"
+
+        with patch("api.emails.send_cart_available_email"):
+            self.admin_instance.response_change(request, cart)
+
+        cart.refresh_from_db()
+        self.assertIsNotNone(cart.notified_at)
+
+    def test_notify_redirects_to_same_page(self):
+        """_notify_recipient must redirect back to the change page."""
+        cart = make_cart(self.shop, recipient=self.recipient)
+        request = make_request_with_messages(self.sw.user)
+        request.method = "POST"
+        request.POST = {"_notify_recipient": "1"}
+        request.path = f"/cart-admin/api/cart/{cart.pk}/change/"
+
+        with patch("api.emails.send_cart_available_email"):
+            response = self.admin_instance.response_change(request, cart)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], request.path)
+
+    # ------------------------------------------------------------------
+    # response_change — error cases
+    # ------------------------------------------------------------------
+
+    def test_notify_without_recipient_shows_error(self):
+        """_notify_recipient on a PENDING cart must add an error message."""
+        from django.contrib.messages import get_messages
+
+        cart = make_cart(self.shop)
+        request = make_request_with_messages(self.sw.user)
+        request.method = "POST"
+        request.POST = {"_notify_recipient": "1"}
+        request.path = f"/cart-admin/api/cart/{cart.pk}/change/"
+
+        self.admin_instance.response_change(request, cart)
+
+        msgs = [str(m) for m in get_messages(request)]
+        self.assertTrue(any("bénéficiaire" in m.lower() for m in msgs))
+
+    def test_notify_without_recipient_does_not_send_email(self):
+        """No email must be dispatched when the cart has no recipient."""
+        cart = make_cart(self.shop)
+        request = make_request_with_messages(self.sw.user)
+        request.method = "POST"
+        request.POST = {"_notify_recipient": "1"}
+        request.path = f"/cart-admin/api/cart/{cart.pk}/change/"
+
+        with patch("api.emails.send_cart_available_email") as mock_send:
+            self.admin_instance.response_change(request, cart)
+
+        mock_send.assert_not_called()
+
+    def test_notify_email_exception_shows_error(self):
+        """An email-send failure must surface as an admin error message."""
+        from django.contrib.messages import get_messages
+
+        cart = make_cart(self.shop, recipient=self.recipient)
+        request = make_request_with_messages(self.sw.user)
+        request.method = "POST"
+        request.POST = {"_notify_recipient": "1"}
+        request.path = f"/cart-admin/api/cart/{cart.pk}/change/"
+
+        with patch("api.emails.send_cart_available_email", side_effect=OSError("SMTP")):
+            self.admin_instance.response_change(request, cart)
+
+        msgs = [str(m) for m in get_messages(request)]
+        self.assertTrue(any("échoué" in m for m in msgs))
+
+    def test_notify_email_exception_does_not_update_notified_at(self):
+        """notified_at must not be updated if the email send raises."""
+        cart = make_cart(self.shop, recipient=self.recipient)
+        request = make_request_with_messages(self.sw.user)
+        request.method = "POST"
+        request.POST = {"_notify_recipient": "1"}
+        request.path = f"/cart-admin/api/cart/{cart.pk}/change/"
+
+        with patch("api.emails.send_cart_available_email", side_effect=OSError("SMTP")):
+            self.admin_instance.response_change(request, cart)
+
+        cart.refresh_from_db()
+        self.assertIsNone(cart.notified_at)

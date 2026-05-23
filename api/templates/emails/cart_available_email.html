@@ -1,0 +1,178 @@
+{% load i18n %}
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% trans "Un panier est disponible pour vous" %}</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        max-width: 600px;
+        margin: 40px auto;
+        background: #ffffff;
+        border-radius: 6px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        background-color: #055e21;
+        color: #ffffff;
+        padding: 24px 32px;
+        text-align: center;
+      }
+      .header img {
+        max-height: 60px;
+        display: block;
+        margin: 0 auto;
+      }
+      .body {
+        padding: 32px;
+        color: #333333;
+        line-height: 1.6;
+      }
+      .body h2 {
+        color: #055e21;
+        margin-top: 0;
+      }
+      .section-title {
+        font-weight: bold;
+        color: #055e21;
+        margin-top: 24px;
+        margin-bottom: 8px;
+        font-size: 15px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .articles-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 8px;
+      }
+      .articles-table th {
+        background-color: #055e21;
+        color: #ffffff;
+        padding: 8px 12px;
+        text-align: left;
+        font-size: 13px;
+      }
+      .articles-table td {
+        padding: 8px 12px;
+        border-bottom: 1px solid #e8e8e8;
+        font-size: 14px;
+      }
+      .articles-table tr:last-child td {
+        border-bottom: none;
+      }
+      .articles-table tr:nth-child(even) td {
+        background-color: #f9f9f9;
+      }
+      .shop-card {
+        background-color: #f4f4f4;
+        border-left: 4px solid #055e21;
+        padding: 12px 16px;
+        border-radius: 2px;
+        font-size: 14px;
+        margin-bottom: 8px;
+      }
+      .shop-card strong {
+        display: block;
+        font-size: 15px;
+        color: #055e21;
+        margin-bottom: 4px;
+      }
+      .notice {
+        background-color: rgba(242, 225, 20, 0.15);
+        border-left: 4px solid #f2e114;
+        padding: 12px 16px;
+        margin: 24px 0;
+        border-radius: 2px;
+        font-size: 14px;
+      }
+      .footer {
+        background-color: #f4f4f4;
+        padding: 16px 32px;
+        font-size: 13px;
+        color: #888888;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <img src="{{ logo_url }}" alt="Le réSOS du coeur" />
+      </div>
+
+      <div class="body">
+        <h2>
+          {% blocktrans with first=recipient.first_name last=recipient.last_name %}
+            Bonjour {{ first }} {{ last }},
+          {% endblocktrans %}
+        </h2>
+
+        <p>
+          {% blocktrans %}
+            Un panier vous a été attribué sur la plateforme
+            <strong>Le réSOS du coeur</strong>.
+            Vous pouvez le récupérer directement en magasin, en présentant
+            l'application lors de votre passage en caisse.
+          {% endblocktrans %}
+        </p>
+
+        <p class="section-title">{% trans "Contenu du panier" %}</p>
+        <table class="articles-table">
+          <thead>
+            <tr>
+              <th>{% trans "Produit" %}</th>
+              <th>{% trans "Marque" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for article in articles %}
+            <tr>
+              <td>{{ article.name }}</td>
+              <td>{{ article.brand_label|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="2" style="color: #888888; font-style: italic;">
+                {% trans "Aucun article" %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <p class="section-title">{% trans "Magasin de retrait" %}</p>
+        <div class="shop-card">
+          <strong>{{ shop.name }}</strong>
+          {% if shop.street_number or shop.street_name %}
+            {{ shop.street_number }} {{ shop.street_name }}<br />
+          {% endif %}
+          {% if shop.postal_code or shop.city %}
+            {{ shop.postal_code }} {{ shop.city }}
+          {% endif %}
+        </div>
+
+        <div class="notice">
+          {% blocktrans %}
+            Présentez simplement l'application <strong>Le réSOS du coeur</strong>
+            au moment du passage en caisse après avoir récupéré vos articles. Aucun paiement ne vous sera demandé.
+          {% endblocktrans %}
+        </div>
+      </div>
+
+      <div class="footer">
+        {% trans "Si vous n'êtes pas concerné par ce message, ignorez-le simplement." %}
+        <br />
+        Le réSOS du coeur
+      </div>
+    </div>
+  </body>
+</html>

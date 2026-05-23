@@ -1,0 +1,39 @@
+{% extends "admin/change_form.html" %}
+{% load i18n %}
+
+{% block submit_buttons_bottom %}
+  {{ block.super }}
+
+  {% if original %}
+    {% if original.recipient and original.status != "COLLECTED" %}
+      {# Cart assigned to a recipient and not yet collected: button is active #}
+      <div class="submit-row">
+        <input
+          type="submit"
+          name="_notify_recipient"
+          value="{% trans "Notifier le bénéficiaire par e-mail" %}"
+          class="default"
+        />
+        {% if original.notified_at %}
+          <p class="help" style="display:inline; margin-left: 12px; color: #666;">
+            {% blocktrans with date=original.notified_at|date:"d/m/Y" time=original.notified_at|time:"H:i" %}
+              Dernière notification envoyée le {{ date }} à {{ time }}.
+            {% endblocktrans %}
+          </p>
+        {% endif %}
+      </div>
+    {% else %}
+      {# No recipient or cart collected: button is disabled #}
+      <div class="submit-row">
+        <input
+          type="submit"
+          name="_notify_recipient"
+          value="{% trans "Notifier le bénéficiaire par e-mail" %}"
+          class="default"
+          disabled
+          title="{% if original.status == 'COLLECTED' %}{% trans "Le panier a déjà été collecté." %}{% else %}{% trans "Aucun bénéficiaire assigné à ce panier." %}{% endif %}"
+        />
+      </div>
+    {% endif %}
+  {% endif %}
+{% endblock %}

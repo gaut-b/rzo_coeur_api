@@ -6,12 +6,16 @@ Covers the /cart-admin/ interface:
   - Social worker can create a cart directly from the article list
   - Social worker can add articles to an existing cart (bulk action)
   - Social worker can delete a cart by unchecking all articles on the edit page
+  - Social worker can notify a recipient by email once a cart is assigned
 """
 
+import time
+
 import pytest
+import requests
 from playwright.sync_api import Page, expect
 
-from e2e.conftest import BASE_URL, E2E_PASSWORD
+from e2e.conftest import BASE_URL, E2E_PASSWORD, MAILHOG_API_URL
 from e2e.pages.admin_login_page import AdminLoginPage
 from e2e.pages.admin_page import AdminPage
 from e2e.pages.cart_admin_page import CartAdminPage
@@ -116,3 +120,54 @@ class TestCartAdmin:
         page_admin_obj.mark_cart_as_collected(staff_page, cart_id=cart_id)
         page_obj.goto_articles(cart_admin_page)
         page_obj.expect_articles_not_visible(cart_admin_page)
+
+
+@pytest.mark.usefixtures("django_server")
+class TestCartNotification:
+    """Tests for the 'Notifier le bénéficiaire' button on the cart change page."""
+
+    def _wait_for_email(self, recipient_email: str, timeout: float = 10.0) -> list[dict]:
+        """Poll Mailhog until at least one email for *recipient_email* arrives."""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            response = requests.get(f"{MAILHOG_API_URL}/api/v2/messages", timeout=5)
+            messages = [
+                m for m in response.json().get("items", []) if recipient_email in m.get("Raw", {}).get("To", [])
+            ]
+            if messages:
+                return messages
+            time.sleep(0.5)
+        pytest.fail(f"No email delivered to {recipient_email!r} in Mailhog within {timeout}s.")
+
+    def test_notify_button_disabled_for_pending_cart(self, cart_admin_page: Page) -> None:
+        """
+        The notify button must be disabled when no recipient is assigned
+        (PENDING cart).
+        """
+        page_obj = CartAdminPage(BASE_URL)
+        cart_id = page_obj.create_cart(cart_admin_page, article_indices=[0])
+        assert cart_id > 0
+        page_obj.expect_notify_button_disabled(cart_admin_page, cart_id)
+
+    def test_notify_sends_email_to_recipient(self, cart_admin_page: Page) -> None:
+        """
+        A social worker assigns a recipient to a cart and clicks 'Notifier'.
+        Mailhog must receive exactly one email addressed to the recipient.
+        """
+        page_obj = CartAdminPage(BASE_URL)
+        cart_id = page_obj.create_cart(cart_admin_page, article_indices=[0])
+        assert cart_id > 0
+
+        # Assign the seeded e2e recipient to the cart.
+        page_obj.assign_recipient_and_save(
+            cart_admin_page,
+            cart_id,
+            recipient_search="e2e-recipient",
+        )
+
+        # Send the notification.
+        page_obj.notify_recipient(cart_admin_page, cart_id)
+
+        # Verify delivery in Mailhog.
+        messages = self._wait_for_email("e2e-recipient@test.local")
+        assert len(messages) >= 1, "Expected at least one notification email."

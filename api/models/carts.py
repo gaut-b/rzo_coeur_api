@@ -47,6 +47,12 @@ class Cart(models.Model):
     recipient = models.ForeignKey(Recipient, on_delete=models.CASCADE, related_name="carts", null=True, blank=True)
     collected_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
+    notified_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_("notifié le"),
+        help_text=_("Date et heure de la dernière notification envoyée au bénéficiaire."),
+    )
 
     objects: CartQuerySet = CartQuerySet.as_manager()  # type: ignore[assignment]
 
