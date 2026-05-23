@@ -321,10 +321,7 @@ class TestPostPasswordSetRedirect:
         assert (
             f"callbackUrl={mobile_scheme}%3A%2F%2Fsign-in" in reset_url
             or f"callbackUrl={mobile_scheme}://sign-in" in reset_url
-        ), (
-            f"Recipient welcome email reset URL does not contain the mobile deep link "
-            f"as callbackUrl. URL: {reset_url!r}"
-        )
+        ), f"Recipient welcome email reset URL does not contain the mobile deep link as callbackUrl. URL: {reset_url!r}"
 
     def test_forgot_password_respects_callback_url(self, shop_manager_page: Page, anon_page: Page) -> None:
         """
