@@ -11,31 +11,36 @@ Extends Django's built-in password-reset views to:
      (this covers both the welcome-email flow and the classic
      "Mot de passe oublié" flow).
   3. Block client and recipient users from using this admin reset flow —
-     they have their own dedicated API flow.
+     they reset via the auth_kit API, which generates a standard Django
+     web-form link via ``mobile_password_reset_url_generator``.
 """
 
 import logging
-from html import escape as html_escape
 from urllib.parse import urlencode
 
 from allauth.account.adapter import DefaultAccountAdapter
 from allauth.account.models import EmailAddress, get_emailconfirmation_model
-from allauth.account.utils import user_pk_to_url_str
 from django.conf import settings
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.forms import PasswordResetForm
+from django.contrib.auth.tokens import default_token_generator
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import render
-from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils.encoding import force_bytes
+from django.utils.http import url_has_allowed_host_and_scheme, urlsafe_base64_encode
 from django.views import View
 
 from .models import CustomUser
 
 logger = logging.getLogger(__name__)
 
-# Roles that may NOT use the admin password-reset flow.
-# Clients and recipients have their own API-based flow.
-_BLOCKED_ROLES = {"CLIENT", "RECIPIENT"}
+# Roles that belong to mobile-app users (CLIENT, RECIPIENT).
+# These users reset their password through the app flow, not the admin web form.
+_MOBILE_USER_ROLES = {"CLIENT", "RECIPIENT"}
+
+# Session key used to pass the 'mobile reset' flag from the confirm view to
+# the complete view across Django's internal post-save redirect.
+_SESSION_MOBILE_RESET_KEY = "_password_reset_is_mobile"
 
 
 class AdminPasswordResetForm(PasswordResetForm):
@@ -51,10 +56,10 @@ class AdminPasswordResetForm(PasswordResetForm):
         """
         Yield only the users eligible for admin password reset.
 
-        Excludes clients and recipients — they reset via the mobile API.
+        Excludes mobile users (CLIENT, RECIPIENT) — they reset via the app API.
         """
         for user in super().get_users(email):
-            if user.role not in _BLOCKED_ROLES:
+            if user.role not in _MOBILE_USER_ROLES:
                 yield user
 
 
@@ -94,16 +99,11 @@ def _is_allowed_callback_url(url: str, request: HttpRequest) -> bool:
     """
     Return True if *url* is safe to redirect to after password reset.
 
-    Accepts:
-    - Same-host relative/absolute URLs (Django's standard open-redirect
-      check using ``url_has_allowed_host_and_scheme``).
-    - The configured ``MOBILE_APP_CALLBACK_URL`` deep-link (custom scheme,
-      e.g. ``rzo://activate``), which is whitelisted explicitly because
-      ``url_has_allowed_host_and_scheme`` rejects non-HTTP schemes.
+    Accepts same-host relative/absolute URLs only (Django's standard
+    open-redirect check using ``url_has_allowed_host_and_scheme``).
+    Used by admin flows that pass ``?callbackUrl=`` to redirect back
+    to the correct back-office login page after a successful reset.
     """
-    mobile_callback = getattr(settings, "MOBILE_APP_CALLBACK_URL", "")
-    if mobile_callback and url == mobile_callback:
-        return True
     return url_has_allowed_host_and_scheme(
         url=url,
         allowed_hosts={request.get_host()},
@@ -146,47 +146,21 @@ class CustomPasswordResetConfirmView(auth_views.PasswordResetConfirmView):
 
     def form_valid(self, form):
         """
-        Save the new password and redirect.
+        Save the new password, mark the email verified, and redirect.
 
-        For mobile deep-link callbacks (e.g. ``rzo://activate``), Django's
-        ``HttpResponseRedirect`` rejects non-HTTP schemes with
-        ``DisallowedRedirect``.  We handle those cases manually: save the
-        password, clear the internal session token, mark the email verified,
-        then return a minimal HTML page that uses ``<meta http-equiv=refresh>``
-        and ``window.location`` to trigger the deep link on the device.
-
-        For ordinary HTTP(S) / relative-path callbacks we delegate to the
-        parent (which saves the password and optionally logs the user in),
-        then mark the email verified.
+        Delegates password saving to the parent view, then ensures the
+        user's email is marked as verified in allauth's EmailAddress table.
+        This covers both the mobile API reset flow (web form) and the admin
+        "Mot de passe oublié" flow.
         """
         user: CustomUser = form.user
-        callback_url = self.request.POST.get("callbackUrl") or self.request.GET.get("callbackUrl", "")
-        mobile_url = getattr(settings, "MOBILE_APP_CALLBACK_URL", "")
 
-        if mobile_url and callback_url == mobile_url:
-            # Deep-link path: HttpResponseRedirect would raise DisallowedRedirect
-            # for non-HTTP schemes, so we manage the save and response ourselves.
-            form.save()
-            self.request.session.pop(auth_views.INTERNAL_RESET_SESSION_TOKEN, None)
-            try:
-                EmailAddress.objects.update_or_create(
-                    user=user,
-                    email=user.email,
-                    defaults={"verified": True, "primary": True},
-                )
-            except Exception:
-                logger.exception("Failed to mark email as verified for user pk=%s", user.pk)
-            safe_url = html_escape(callback_url)
-            return HttpResponse(
-                f'<!doctype html><html lang="fr"><head><meta charset="utf-8">'
-                f'<meta http-equiv="refresh" content="0;url={safe_url}">'
-                f"</head><body>"
-                f'<script>window.location.href = "{safe_url}";</script>'
-                f"<p>Redirection en cours\u2026</p>"
-                f"</body></html>"
-            )
+        # Store a hint for CustomPasswordResetCompleteView so the success
+        # page shows the right UI: deep-link button for mobile users (CLIENT)
+        # or back-office login links for admin users.
+        self.request.session[_SESSION_MOBILE_RESET_KEY] = user.role in _MOBILE_USER_ROLES
 
-        # Standard HTTP / relative-path redirect: delegate to parent.
+        # Delegate to parent (saves password, optionally logs the user in).
         response = super().form_valid(form)
         try:
             EmailAddress.objects.update_or_create(
@@ -247,20 +221,24 @@ class MobileAccountAdapter(DefaultAccountAdapter):
 def mobile_password_reset_url_generator(
     request: HttpRequest,
     user: CustomUser,
-    temp_key: str,
+    temp_key: str,  # noqa: ARG001 — unused; we generate a Django token instead
 ) -> str:
     """
-    Generate a Universal Link URL for the password reset email (mobile clients).
+    Generate a Django web-form URL for the password reset email (mobile clients).
 
     auth_kit calls this function (configured via
     ``AUTH_KIT["PASSWORD_RESET_URL_GENERATOR"]``) to build the link included
     in the password reset email sent to ``Client`` users.
 
-    The URL points to ``/app/reset-password/`` — a path registered in the
-    ``/.well-known/apple-app-site-association`` and
-    ``/.well-known/assetlinks.json`` files so that iOS and Android open the
-    app directly.  When the app is not installed, the browser shows the
-    ``AppResetPasswordFallbackView`` branded fallback page.
+    The URL points to Django's standard password-reset confirm view
+    (``/auth/reset/<uidb64>/<token>/``), so the user fills in their new
+    password in a browser rather than inside the mobile app.  After a
+    successful reset the confirmation page shows a deep-link button back
+    to the app login screen.
+
+    We discard *temp_key* (allauth's own token format) and generate a
+    fresh Django token so that the link works with the existing
+    ``CustomPasswordResetConfirmView``.
 
     Parameters
     ----------
@@ -269,34 +247,50 @@ def mobile_password_reset_url_generator(
     user:
         The user requesting a password reset.
     temp_key:
-        The allauth password-reset token (plain, not encoded).
+        Allauth's reset token — intentionally unused here.
     """
-    uid = user_pk_to_url_str(user)
-    reset_path = "/app/reset-password/?" + urlencode({"uid": uid, "token": temp_key})
+    uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    reset_path = f"/auth/reset/{uidb64}/{token}/"
     return request.build_absolute_uri(reset_path)
+
+
+class CustomPasswordResetCompleteView(auth_views.PasswordResetCompleteView):
+    """
+    Password-reset success view.
+
+    Extends Django's ``PasswordResetCompleteView`` to inject
+    ``mobile_login_url`` (built from ``settings.MOBILE_APP_SCHEME``) into
+    the template context, so the deep-link button is never hardcoded.
+    """
+
+    def get_context_data(self, **kwargs) -> dict:
+        """Add ``mobile_login_url`` and ``is_mobile_reset`` to the template context."""
+        context = super().get_context_data(**kwargs)
+        context["mobile_login_url"] = f"{settings.MOBILE_APP_SCHEME}://sign-in"
+        # Pop the flag set by CustomPasswordResetConfirmView.form_valid.
+        # Default False (show admin links) for direct URL access.
+        context["is_mobile_reset"] = self.request.session.pop(_SESSION_MOBILE_RESET_KEY, False)
+        return context
 
 
 class AppResetPasswordFallbackView(View):
     """
-    Fallback web page for password reset Universal Links.
+    Fallback page for old password-reset Universal Links.
 
-    Shown when the user taps the password reset link in a browser (app not
-    installed or link opened outside the device).  A JS redirect immediately
-    tries the custom-scheme deep link (``rzo://reset-password?uid=…&token=…``).
-    If the app is not installed the browser stays on this page, which shows
-    a branded message and a direct link to the standard web reset form.
+    Old emails (sent before the mobile reset flow was simplified) pointed
+    to ``/app/reset-password/?uid=…&token=…`` using allauth tokens.  Those
+    tokens are incompatible with the current Django web-form confirm view,
+    so this page informs the user that the link has expired and directs
+    them to request a new reset.
     """
 
     def get(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
-        """Render the fallback page with the appropriate deep link."""
-        uid = request.GET.get("uid", "")
-        token = request.GET.get("token", "")
-        app_scheme = getattr(settings, "MOBILE_APP_SCHEME", "rzo")
-        deep_link = f"{app_scheme}://reset-password?" + urlencode({"uid": uid, "token": token})
+        """Render the expired-link page."""
         return render(
             request,
             "emails/app_fallback.html",
-            {"action": "reset_password", "deep_link": deep_link},
+            {"action": "reset_password"},
         )
 
 
@@ -309,7 +303,7 @@ class AppVerifyEmailFallbackView(View):
 
     1. Confirms the email server-side immediately (allauth ``confirm()``).
     2. Renders a branded page and tries to open the app login screen via the
-       custom-scheme deep link (``rzo://login``).
+       custom-scheme deep link (``rzo-coeur-mobile-app://sign-in``).
     3. If the app is not installed, the browser stays on this page which tells
        the user their email is confirmed and invites them to download the app.
 
@@ -337,7 +331,7 @@ class AppVerifyEmailFallbackView(View):
                 pass
 
         # Deep link to the app login screen (email is already confirmed here).
-        deep_link = f"{app_scheme}://login"
+        deep_link = f"{app_scheme}://sign-in"
         return render(
             request,
             "emails/app_fallback.html",
@@ -369,9 +363,11 @@ class AppleAppSiteAssociationView(View):
                     {
                         "appIDs": [ios_app_id],
                         "components": [
+                            # /app/reset-password/* kept for backward compatibility
+                            # with old emails; new emails go directly to /auth/reset/
+                            # which is handled by the browser (web form).
                             {"/": "/app/reset-password/*"},
                             {"/": "/app/verify-email/*"},
-                            {"/": "/auth/reset/*"},
                         ],
                     }
                 ]

@@ -3,20 +3,21 @@ Tests for api/auth_views.py — custom password-reset views.
 
 Coverage targets
 ----------------
-- ``_is_allowed_callback_url``: same-host paths, cross-host URLs, configured
-  deep-link, unknown custom scheme, empty string.
+- ``_is_allowed_callback_url``: same-host paths, cross-host URLs, empty string.
 - ``AdminPasswordResetForm.get_users``: CLIENT and RECIPIENT roles are silently
   blocked; CASHIER and SOCIAL_WORKER roles are allowed through.
 - ``CustomPasswordResetView.form_valid``: ``callbackUrl`` query param is
   forwarded into the password-reset email; blocked roles receive no email.
 - ``CustomPasswordResetConfirmView.dispatch``: ``callbackUrl`` is preserved in
   the Location header when Django's internal token-validation redirect fires.
-- ``CustomPasswordResetConfirmView.form_valid`` — deep-link path: returns an
-  HTML page with ``<meta http-equiv="refresh">``; allauth EmailAddress is
-  marked as verified.
-- ``CustomPasswordResetConfirmView.form_valid`` — standard path: redirects to
-  a safe ``callbackUrl``; falls back to the default success URL for cross-host
-  or missing callbacks; allauth EmailAddress is marked as verified.
+- ``CustomPasswordResetConfirmView.form_valid``: redirects to a safe
+  ``callbackUrl``; falls back to the default success URL for cross-host or
+  missing callbacks; allauth EmailAddress is marked as verified; success page
+  contains the ``rzo-coeur-mobile-app://sign-in`` deep link.
+- ``mobile_password_reset_url_generator``: generates a Django web-form URL
+  (``/auth/reset/<uidb64>/<token>/``) with a valid Django token.
+- ``AppResetPasswordFallbackView``: shows an expired-link message and links
+  to the password-reset request form.
 """
 
 from allauth.account.models import EmailAddress
@@ -65,24 +66,13 @@ class IsAllowedCallbackUrlTests(SimpleTestCase):
         """An absolute URL pointing at a different host must be blocked."""
         self.assertFalse(_is_allowed_callback_url("http://evil.com/steal", self.request))
 
-    @override_settings(MOBILE_APP_CALLBACK_URL="rzo://activate")
-    def test_configured_deep_link_is_allowed(self) -> None:
-        """The exact deep-link value from settings passes the whitelist check."""
-        self.assertTrue(_is_allowed_callback_url("rzo://activate", self.request))
-
-    @override_settings(MOBILE_APP_CALLBACK_URL="rzo://activate")
-    def test_different_custom_scheme_is_rejected(self) -> None:
-        """A custom-scheme URL that does not match the whitelisted value is blocked."""
-        self.assertFalse(_is_allowed_callback_url("evil://hack", self.request))
-
     def test_empty_string_is_rejected(self) -> None:
         """An empty string is not a valid redirect target."""
         self.assertFalse(_is_allowed_callback_url("", self.request))
 
-    @override_settings(MOBILE_APP_CALLBACK_URL="")
-    def test_deep_link_rejected_when_mobile_url_not_configured(self) -> None:
-        """When MOBILE_APP_CALLBACK_URL is blank, custom schemes are not whitelisted."""
-        self.assertFalse(_is_allowed_callback_url("rzo://activate", self.request))
+    def test_custom_scheme_url_is_rejected(self) -> None:
+        """Non-HTTP/S custom-scheme URLs (e.g. rzo://) are not valid admin callbacks."""
+        self.assertFalse(_is_allowed_callback_url("rzo://sign-in", self.request))
 
 
 # ---------------------------------------------------------------------------
@@ -238,22 +228,6 @@ class CustomPasswordResetViewTests(TestCase):
         self.assertNotIn("evil.com", mail.outbox[0].body)
         self.assertNotIn("callbackUrl", mail.outbox[0].body)
 
-    @override_settings(MOBILE_APP_CALLBACK_URL="rzo://activate")
-    def test_whitelisted_deep_link_is_forwarded_in_email(self) -> None:
-        """
-        The configured deep-link value must pass validation and appear
-        (percent-encoded) in the reset email.
-        """
-        from django.core import mail
-
-        self.client.post(
-            "/auth/password_reset/?callbackUrl=rzo://activate",
-            {"email": "cashier@test.com"},
-        )
-
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertIn("callbackUrl=rzo%3A%2F%2Factivate", mail.outbox[0].body)
-
 
 # ---------------------------------------------------------------------------
 # CustomPasswordResetConfirmView helpers
@@ -282,7 +256,6 @@ def _uid_token(user: CustomUser) -> tuple[str, str]:
 # ---------------------------------------------------------------------------
 
 
-@override_settings(MOBILE_APP_CALLBACK_URL="rzo://activate")
 class CustomPasswordResetConfirmViewDispatchTests(TestCase):
     """Verify that callbackUrl survives Django's internal token-redirect."""
 
@@ -317,88 +290,20 @@ class CustomPasswordResetConfirmViewDispatchTests(TestCase):
 # ---------------------------------------------------------------------------
 
 
-@override_settings(
-    MOBILE_APP_CALLBACK_URL="rzo://activate",
-    AUTH_PASSWORD_VALIDATORS=[],
-)
-class CustomPasswordResetConfirmViewDeepLinkTests(TestCase):
-    """
-    Tests for the deep-link (non-HTTP scheme) branch of form_valid.
-
-    When callbackUrl equals MOBILE_APP_CALLBACK_URL, Django's
-    HttpResponseRedirect cannot be used (it rejects non-HTTP schemes), so the
-    view returns a plain HTML page with a meta-refresh instead.
-    """
-
-    def setUp(self) -> None:
-        self.user = _make_confirm_user("deeplink@test.com")
-        self.uid, self.token = _uid_token(self.user)
-        # Trigger Django's internal token-to-session redirect so that a
-        # subsequent POST to the set-password URL has a valid session.
-        response = self.client.get(f"/auth/reset/{self.uid}/{self.token}/")
-        self.assertEqual(response.status_code, 302)
-        self.set_password_url = f"/auth/reset/{self.uid}/set-password/"
-
-    def test_returns_html_response_with_meta_refresh(self) -> None:
-        """The deep-link path must return 200 HTML (not a redirect)."""
-        response = self.client.post(
-            f"{self.set_password_url}?callbackUrl=rzo://activate",
-            {"new_password1": _NEW_PASS, "new_password2": _NEW_PASS},
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'meta http-equiv="refresh"', response.content)
-        self.assertIn(b"rzo://activate", response.content)
-
-    @override_settings(MOBILE_APP_CALLBACK_URL="rzo://activate&source=email")
-    def test_deep_link_url_is_html_escaped_in_response(self) -> None:
-        """
-        The deep-link URL is passed through html.escape before being embedded
-        in the HTML response.  A URL containing ``&`` must appear as ``&amp;``
-        so that the meta-refresh attribute and the JS assignment are safe.
-        """
-        # Re-trigger the token-validation GET with the new deep-link value so
-        # the session is fresh for this whitelisted URL.
-        user = _make_confirm_user("deeplink_esc@test.com")
-        uid, token = _uid_token(user)
-        self.client.get(f"/auth/reset/{uid}/{token}/")
-        set_password_url = f"/auth/reset/{uid}/set-password/"
-
-        response = self.client.post(
-            f"{set_password_url}?callbackUrl=rzo://activate%26source%3Demail",
-            {"new_password1": _NEW_PASS, "new_password2": _NEW_PASS},
-        )
-
-        self.assertEqual(response.status_code, 200)
-        # The raw ``&`` must be escaped as ``&amp;`` in the HTML.
-        self.assertIn(b"&amp;", response.content)
-        self.assertNotIn(b"rzo://activate&source", response.content)
-
-    def test_deep_link_marks_email_address_as_verified(self) -> None:
-        """After the deep-link flow, allauth EmailAddress must be verified."""
-        self.client.post(
-            f"{self.set_password_url}?callbackUrl=rzo://activate",
-            {"new_password1": _NEW_PASS, "new_password2": _NEW_PASS},
-        )
-
-        self.assertTrue(EmailAddress.objects.filter(user=self.user, verified=True).exists())
-
-
 # ---------------------------------------------------------------------------
-# CustomPasswordResetConfirmView.form_valid — standard HTTP/relative path
+# CustomPasswordResetConfirmView.form_valid
 # ---------------------------------------------------------------------------
 
 
-@override_settings(
-    MOBILE_APP_CALLBACK_URL="rzo://activate",
-    AUTH_PASSWORD_VALIDATORS=[],
-)
+@override_settings(AUTH_PASSWORD_VALIDATORS=[])
 class CustomPasswordResetConfirmViewStandardPathTests(TestCase):
     """
-    Tests for the standard (HTTP/relative) branch of form_valid.
+    Tests for CustomPasswordResetConfirmView.form_valid.
 
-    For ordinary callbacks the view delegates to Django's parent and then
-    marks the email address as verified.
+    For all resets (admin and mobile), the view delegates to Django's parent,
+    marks the email address as verified, and either redirects to a safe
+    ``callbackUrl`` (admin flow) or to the default success URL (mobile flow).
+    The success page embeds a ``rzo_coeur_mobile_app://sign-in`` deep link.
     """
 
     def _setup_session(self, email: str) -> tuple[CustomUser, str]:
@@ -501,6 +406,37 @@ class CustomPasswordResetConfirmViewStandardPathTests(TestCase):
             fetch_redirect_response=False,
         )
 
+    def test_success_page_has_deeplink_button_for_mobile_user(self) -> None:
+        """Mobile (CLIENT) users must see the rzo-coeur-mobile-app://sign-in deep-link button."""
+        _user, set_password_url = self._setup_session("sw6@test.com")
+        # Assign CLIENT role so the done page shows the app deep-link.
+        Client.objects.create(user=_user)
+        self.client.post(
+            set_password_url,
+            {"new_password1": _NEW_PASS, "new_password2": _NEW_PASS},
+        )
+
+        response = self.client.get("/auth/reset/done/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "rzo-coeur-mobile-app://sign-in")
+        self.assertNotContains(response, "/social-admin/login/")
+
+    def test_success_page_has_admin_links_for_admin_user(self) -> None:
+        """Admin users (no CLIENT role) must see back-office login links, not the app button."""
+        _user, set_password_url = self._setup_session("sw7@test.com")
+        # No Client profile → role is None → admin/fallback UI.
+        self.client.post(
+            set_password_url,
+            {"new_password1": _NEW_PASS, "new_password2": _NEW_PASS},
+        )
+
+        response = self.client.get("/auth/reset/done/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "/social-admin/login/")
+        self.assertNotContains(response, "open-app-btn")
+
 
 # ---------------------------------------------------------------------------
 # MobileAccountAdapter.get_email_confirmation_url
@@ -576,36 +512,51 @@ class MobilePasswordResetUrlGeneratorTests(TestCase):
             last_name="User",
         )
 
-    def test_url_points_to_app_reset_path(self) -> None:
-        """The generated URL must be rooted at /app/reset-password/."""
+    def test_url_points_to_django_reset_confirm_path(self) -> None:
+        """The generated URL must point to the Django web-form reset path."""
         from api.auth_views import mobile_password_reset_url_generator
 
         request = RequestFactory().get("/")
-        url = mobile_password_reset_url_generator(request, self.user, "tok123")
+        url = mobile_password_reset_url_generator(request, self.user, "ignored_allauth_token")
 
-        self.assertIn("/app/reset-password/", url)
+        self.assertIn("/auth/reset/", url)
 
-    def test_url_contains_uid_and_token(self) -> None:
-        """uid and token query params must both appear in the URL."""
+    def test_url_contains_valid_django_token(self) -> None:
+        """The URL must embed a token that Django's confirm view accepts."""
         from api.auth_views import mobile_password_reset_url_generator
 
         request = RequestFactory().get("/")
-        url = mobile_password_reset_url_generator(request, self.user, "sometoken")
+        url = mobile_password_reset_url_generator(request, self.user, "ignored")
 
-        self.assertIn("uid=", url)
-        self.assertIn("token=sometoken", url)
+        # Extract uidb64 and token from /auth/reset/<uidb64>/<token>/
+        import re
 
-    def test_uid_is_base36_encoded(self) -> None:
-        """uid must be the allauth base36-encoded primary key (not raw UUID/int)."""
-        from allauth.account.utils import user_pk_to_url_str
+        match = re.search(r"/auth/reset/([^/]+)/([^/]+)/", url)
+        self.assertIsNotNone(match, "URL does not match /auth/reset/<uid>/<token>/ pattern")
+        uidb64, token = match.group(1), match.group(2)
 
+        # Django's token generator must accept this token.
+        from django.utils.encoding import force_str
+        from django.utils.http import urlsafe_base64_decode
+
+        user_pk = force_str(urlsafe_base64_decode(uidb64))
+        decoded_user = CustomUser.objects.get(pk=user_pk)
+        self.assertTrue(
+            default_token_generator.check_token(decoded_user, token),
+            "Token in URL is not valid for the user",
+        )
+
+    def test_allauth_token_is_ignored(self) -> None:
+        """
+        The allauth temp_key argument must NOT appear in the generated URL —
+        we generate a Django token instead.
+        """
         from api.auth_views import mobile_password_reset_url_generator
 
         request = RequestFactory().get("/")
-        url = mobile_password_reset_url_generator(request, self.user, "tok")
-        expected_uid = user_pk_to_url_str(self.user)
+        url = mobile_password_reset_url_generator(request, self.user, "allauth_specific_token_xyz")
 
-        self.assertIn(f"uid={expected_uid}", url)
+        self.assertNotIn("allauth_specific_token_xyz", url)
 
 
 # ---------------------------------------------------------------------------
@@ -613,34 +564,32 @@ class MobilePasswordResetUrlGeneratorTests(TestCase):
 # ---------------------------------------------------------------------------
 
 
-@override_settings(MOBILE_APP_SCHEME="rzo")
+@override_settings(MOBILE_APP_SCHEME="rzo-coeur-mobile-app")
 class AppResetPasswordFallbackViewTests(SimpleTestCase):
-    """Tests for the /app/reset-password/ fallback web page."""
+    """Tests for the /app/reset-password/ fallback page (expired-link page)."""
 
     def test_get_returns_200(self) -> None:
         """GET /app/reset-password/ must return HTTP 200."""
         response = self.client.get("/app/reset-password/")
         self.assertEqual(response.status_code, 200)
 
-    def test_response_contains_deep_link_with_uid_and_token(self) -> None:
-        """The rendered page must embed a deep link containing uid and token."""
-        response = self.client.get(
-            "/app/reset-password/",
-            {"uid": "abc123", "token": "tok456"},
-        )
+    def test_response_shows_expired_message(self) -> None:
+        """The page must inform the user that the link has expired."""
+        response = self.client.get("/app/reset-password/")
+        self.assertContains(response, "expir")
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "uid=abc123")
-        self.assertContains(response, "token=tok456")
+    def test_response_links_to_new_reset_form(self) -> None:
+        """The page must provide a link to /auth/password_reset/ for a new request."""
+        response = self.client.get("/app/reset-password/")
+        self.assertContains(response, "/auth/password_reset/")
 
-    def test_response_uses_mobile_app_scheme(self) -> None:
-        """The deep link must use the MOBILE_APP_SCHEME defined in settings."""
-        response = self.client.get("/app/reset-password/", {"uid": "x", "token": "y"})
-
-        self.assertContains(response, "rzo://reset-password")
+    def test_no_deeplink_in_response(self) -> None:
+        """The page must NOT attempt a rzo-coeur-mobile-app:// deep-link redirect (tokens are invalid)."""
+        response = self.client.get("/app/reset-password/", {"uid": "abc", "token": "xyz"})
+        self.assertNotContains(response, "rzo-coeur-mobile-app://reset-password")
 
     def test_missing_params_do_not_crash(self) -> None:
-        """GET without uid/token query params must not raise — empty strings used."""
+        """GET without uid/token query params must not raise."""
         response = self.client.get("/app/reset-password/")
         self.assertEqual(response.status_code, 200)
 
@@ -650,7 +599,7 @@ class AppResetPasswordFallbackViewTests(SimpleTestCase):
 # ---------------------------------------------------------------------------
 
 
-@override_settings(MOBILE_APP_SCHEME="rzo")
+@override_settings(MOBILE_APP_SCHEME="rzo-coeur-mobile-app")
 class AppVerifyEmailFallbackViewTests(TestCase):
     """Tests for the /app/verify-email/ fallback web page."""
 
@@ -671,7 +620,7 @@ class AppVerifyEmailFallbackViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_response_contains_login_deep_link_when_verified(self) -> None:
-        """The confirmed page must embed the rzo://login deep link when email is verified."""
+        """The confirmed page must embed the rzo-coeur-mobile-app://sign-in deep link when email is verified."""
         from allauth.account.models import EmailAddress, get_emailconfirmation_model
 
         # Create a real user + email confirmation entry so verification succeeds.
@@ -688,7 +637,7 @@ class AppVerifyEmailFallbackViewTests(TestCase):
         response = self.client.get("/app/verify-email/", {"key": confirmation.key})
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "rzo://login")
+        self.assertContains(response, "rzo-coeur-mobile-app://sign-in")
         self.assertContains(response, "Adresse email confirm\u00e9e")
 
 
@@ -723,8 +672,10 @@ class AppleAppSiteAssociationViewTests(SimpleTestCase):
 
     def test_payload_covers_all_required_paths(self) -> None:
         """
-        The AASA must declare components for /app/reset-password/,
-        /app/verify-email/ and /auth/reset/ (recipient welcome emails).
+        The AASA must declare components for /app/reset-password/ (backward
+        compat for old emails) and /app/verify-email/.  /auth/reset/ is
+        intentionally absent — those URLs are now handled by the browser
+        (Django web form).
         """
         import json
 
@@ -742,9 +693,9 @@ class AppleAppSiteAssociationViewTests(SimpleTestCase):
             any("/app/verify-email/" in p for p in declared_paths),
             "Missing /app/verify-email/* in AASA components",
         )
-        self.assertTrue(
+        self.assertFalse(
             any("/auth/reset/" in p for p in declared_paths),
-            "Missing /auth/reset/* in AASA components",
+            "/auth/reset/* must not be in AASA — browser should handle it",
         )
 
 

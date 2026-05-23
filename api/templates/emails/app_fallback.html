@@ -102,35 +102,17 @@
 
       <div class="body">
         {% if action == "reset_password" %}
-        <h2>Réinitialisation de votre mot de passe</h2>
+        {# Old reset-password links (allauth tokens) are no longer valid.
+           Show an expired-link page and direct users to request a new reset. #}
+        <h2>Lien expiré ou invalide</h2>
         <p>
-          Si vous avez l'application <strong>Le réSOS du coeur</strong>
-          installée sur votre appareil, appuyez sur le bouton ci-dessous pour
-          l'ouvrir et continuer la réinitialisation.
-        </p>
-
-        <div class="notice">
-          Si l'application ne s'ouvre pas automatiquement, appuyez sur
-          <strong>« Ouvrir dans l'application »</strong> ci-dessous.
-        </div>
-
-        <div class="action-buttons">
-          <p>
-            <a href="{{ deep_link }}" class="btn" id="open-app-btn">
-              Ouvrir dans l'application
-            </a>
-          </p>
-        </div>
-
-        <hr />
-
-        <p style="text-align: center; font-size: 14px; color: #555555">
-          Vous préférez utiliser un navigateur ?
+          Ce lien de réinitialisation est expiré ou invalide. Veuillez
+          demander un nouveau lien de réinitialisation de mot de passe.
         </p>
         <div class="action-buttons">
           <p>
-            <a href="/auth/password_reset/" class="btn-secondary">
-              Réinitialiser via le navigateur
+            <a href="/auth/password_reset/" class="btn">
+              Demander un nouveau lien
             </a>
           </p>
         </div>
@@ -191,8 +173,8 @@
       <div class="footer">Le réSOS du coeur</div>
     </div>
 
-    {# JS auto-redirect only for reset-password — verify-email confirms server-side. #}
-    {% if action == "reset_password" %}
+    {# JS auto-redirect only for verify-email (reset-password links are expired). #}
+    {% if action == "verify_email" and deep_link %}
     {{ deep_link|json_script:"deep-link-url" }}
     <script>
       (function () {

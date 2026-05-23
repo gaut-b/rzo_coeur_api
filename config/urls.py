@@ -27,6 +27,7 @@ from api.auth_views import (
     AppleAppSiteAssociationView,
     AppResetPasswordFallbackView,
     AppVerifyEmailFallbackView,
+    CustomPasswordResetCompleteView,
     CustomPasswordResetConfirmView,
     CustomPasswordResetView,
 )
@@ -96,7 +97,7 @@ urlpatterns = [
     ),
     path(
         "auth/reset/done/",
-        auth_views.PasswordResetCompleteView.as_view(
+        CustomPasswordResetCompleteView.as_view(
             template_name="registration/password_reset_complete.html",
         ),
         name="password_reset_complete",

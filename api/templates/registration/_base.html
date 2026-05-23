@@ -1,0 +1,21 @@
+{% load static %}
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}Le réSOS du coeur{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'api/css/auth.css' %}" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <img src="{% static 'logo.png' %}" alt="Le réSOS du coeur" />
+      </div>
+      <div class="body">
+        {% block content %}{% endblock %}
+      </div>
+      <div class="footer">Le réSOS du coeur</div>
+    </div>
+  </body>
+</html>
