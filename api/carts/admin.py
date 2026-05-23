@@ -332,7 +332,7 @@ class CartAttribAdmin(admin.ModelAdmin):
         return hasattr(request.user, "socialworker") or request.user.is_staff
 
     def has_add_permission(self, request):
-        return request.user.is_staff or (request.user.is_authenticated and hasattr(request.user, "socialworker"))
+        return False
 
     def has_change_permission(self, request, obj=None):
         if not request.user.is_authenticated:
