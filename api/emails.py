@@ -27,7 +27,7 @@ _SUBJECT_PREFIX: str = settings.ACCOUNT_EMAIL_SUBJECT_PREFIX
 # regardless of which host triggers the email (admin page, management command,
 # etc.).  Uses API_URL instead of the request's host because internal admin
 # requests originate from localhost and would produce an inaccessible URL.
-_LOGO_URL: str = f"{settings.API_URL.rstrip('/')}/" f"{settings.STATIC_URL.lstrip('/')}logo.png"
+_LOGO_URL: str = f"{settings.API_URL.rstrip('/')}/{settings.STATIC_URL.lstrip('/')}logo.png"
 
 logger = logging.getLogger(__name__)
 

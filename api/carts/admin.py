@@ -354,7 +354,7 @@ class CartAttribAdmin(admin.ModelAdmin):
             if obj.recipient is None:
                 self.message_user(
                     request,
-                    "Impossible d'envoyer la notification : aucun bénéficiaire " "n'est assigné à ce panier.",
+                    "Impossible d'envoyer la notification : aucun bénéficiaire n'est assigné à ce panier.",
                     level=messages.ERROR,
                 )
             else:
