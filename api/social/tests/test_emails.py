@@ -149,7 +149,7 @@ class SendAccountWelcomeEmailTests(TestCase):
 
         self.assertEqual(
             mail.outbox[0].subject,
-            "Bienvenue sur Le réSOS du coeur — Activez votre compte",
+            "[Le réSOS du coeur] Activez votre compte",
         )
 
     def test_exactly_one_email_is_sent(self) -> None:

@@ -9,15 +9,25 @@ dependencies where possible so that they can be tested in isolation.
 import logging
 from urllib.parse import urlencode
 
+from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import EmailMessage
 from django.template.loader import render_to_string
-from django.templatetags.static import static
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.utils.translation import gettext_lazy as _
 
 from .models import Cart, CustomUser
+
+# Prefix applied to all outgoing email subjects, kept in sync with allauth's
+# ACCOUNT_EMAIL_SUBJECT_PREFIX so every email looks consistent.
+_SUBJECT_PREFIX: str = settings.ACCOUNT_EMAIL_SUBJECT_PREFIX
+
+# Absolute URL of the logo image, built from API_URL so it resolves correctly
+# regardless of which host triggers the email (admin page, management command,
+# etc.).  Uses API_URL instead of the request's host because internal admin
+# requests originate from localhost and would produce an inaccessible URL.
+_LOGO_URL: str = f"{settings.API_URL.rstrip('/')}/" f"{settings.STATIC_URL.lstrip('/')}logo.png"
 
 logger = logging.getLogger(__name__)
 
@@ -53,17 +63,16 @@ def send_account_welcome_email(
     token = default_token_generator.make_token(user)
     reset_path = f"/auth/reset/{uid}/{token}/?{urlencode({'callbackUrl': callback_url})}"
     reset_url = request.build_absolute_uri(reset_path)
-    logo_url = request.build_absolute_uri(static("logo.png"))
 
     context = {
         "user": user,
         "callback_url": callback_url,
         "reset_url": reset_url,
-        "logo_url": logo_url,
+        "logo_url": _LOGO_URL,
     }
 
-    subject = _("Bienvenue sur Le réSOS du coeur — Activez votre compte")
-    html_body = render_to_string("emails/welcome_email.html", context)
+    subject = f"{_SUBJECT_PREFIX}{_('Activez votre compte')}"
+    html_body = render_to_string("emails/welcome_email.html", context, request=request)
 
     try:
         email = EmailMessage(
@@ -110,7 +119,6 @@ def send_cart_available_email(cart: Cart, request) -> None:
         raise ValueError(f"Cannot send notification for cart #{cart.pk}: no recipient assigned.")
 
     articles = cart.articles.order_by("name").select_related()
-    logo_url = request.build_absolute_uri(static("logo.png"))
     recipient_user = cart.recipient.user
 
     context = {
@@ -118,11 +126,18 @@ def send_cart_available_email(cart: Cart, request) -> None:
         "articles": articles,
         "shop": cart.shop,
         "recipient": recipient_user,
-        "logo_url": logo_url,
+        "logo_url": _LOGO_URL,
     }
 
-    subject = _("Un panier est disponible pour vous — Le réSOS du coeur")
-    html_body = render_to_string("emails/cart_available_email.html", context)
+    subject = f"{_SUBJECT_PREFIX}{_('Un panier est disponible pour vous')}"
+    html_body = render_to_string("emails/cart_available_email.html", context, request=request)
+
+    logger.info(
+        "Cart available email — to=%s subject=%r body_preview=\n%s",
+        recipient_user.email,
+        subject,
+        html_body,
+    )
 
     try:
         email = EmailMessage(

@@ -277,8 +277,8 @@ AWS_S3_ADDRESSING_STYLE = "path"
 # public-facing addresses:
 #   http://localhost/storage/articles-photos  (dev)
 #   https://api.example.com/storage/articles-photos  (prod)
-_api_url = os.environ.get("API_URL", "http://localhost").rstrip("/")
-MINIO_PUBLIC_URL = f"{_api_url}/storage/{AWS_STORAGE_BUCKET_NAME}"
+API_URL = os.environ.get("API_URL", "http://localhost").rstrip("/")
+MINIO_PUBLIC_URL = f"{API_URL}/storage/{AWS_STORAGE_BUCKET_NAME}"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

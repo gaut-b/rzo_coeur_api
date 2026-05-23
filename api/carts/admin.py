@@ -204,7 +204,7 @@ class ArticleAttrAdmin(AdminActionFormsMixin, admin.ModelAdmin):
 
 
 class CartAttribAdmin(admin.ModelAdmin):
-    list_display = ["id", "shop", "status", "created_at", "collected_at"]
+    list_display = ["id", "shop", "status", "created_at", "notified_at", "collected_at"]
     autocomplete_fields = ["shop", "recipient"]
     search_fields = ["id", "shop__name"]
     change_form_template = "admin/api/cart/change_form.html"
@@ -375,6 +375,13 @@ class CartAttribAdmin(admin.ModelAdmin):
                         "L'envoi de la notification a échoué. Veuillez réessayer.",
                         level=messages.ERROR,
                     )
+            return HttpResponseRedirect(request.path)
+
+        # For a regular save, stay on the change page rather than
+        # redirecting to the changelist so the social worker can
+        # immediately click "Notifier le bénéficiaire" after assigning
+        # a recipient.
+        if "_save" in request.POST:
             return HttpResponseRedirect(request.path)
 
         return super().response_change(request, obj)
