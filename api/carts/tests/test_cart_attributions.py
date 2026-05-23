@@ -292,10 +292,16 @@ class CartAttribAdminPermissionsTests(TestCase):
         request = make_request(user)
         self.assertFalse(self.admin.has_change_permission(request))
 
-    def test_social_worker_can_add(self):
-        """Any authenticated social worker must be able to create a cart."""
+    def test_nobody_can_add_cart_directly(self):
+        """Carts must be created via the article list action, not the Add button."""
         request = self._request(self.sw.user)
-        self.assertTrue(self.admin.has_add_permission(request))
+        self.assertFalse(self.admin.has_add_permission(request))
+
+    def test_staff_cannot_add_cart_on_cart_attrib_admin(self):
+        """Even staff must use the article action on cart-admin."""
+        staff = make_user("staff-add@test.com", is_staff=True)
+        request = make_request(staff)
+        self.assertFalse(self.admin.has_add_permission(request))
 
     def test_collected_cart_has_all_readonly_fields(self):
         """A COLLECTED cart must expose all fields as readonly."""
