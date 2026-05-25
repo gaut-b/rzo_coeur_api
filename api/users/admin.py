@@ -6,7 +6,7 @@ from unfold.admin import ModelAdmin
 from api.models import Client, CustomUser
 
 
-class CustomUserAdmin(ModelAdmin, UserAdmin):
+class CustomUserAdmin(UserAdmin, ModelAdmin):
     model = CustomUser
     list_display = ["email", "first_name", "last_name", "is_staff", "is_active"]
     list_filter = ["is_staff", "is_active"]

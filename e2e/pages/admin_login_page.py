@@ -25,6 +25,7 @@ class AdminLoginPage:
             Admin site path prefix without trailing slash
             (e.g. ``"shop-admin"``, ``"social-admin"``).
         """
+        self.site_prefix = site_prefix
         self.login_url = f"{base_url}/{site_prefix}/login/"
 
     def goto(self, page: Page) -> None:
@@ -35,7 +36,7 @@ class AdminLoginPage:
         """Fill in credentials and submit the login form."""
         # Pass ?next= explicitly so the admin redirect after login lands on
         # the admin index regardless of Django's LOGIN_REDIRECT_URL default.
-        next_path = "/" + self.login_url.split("//", 1)[-1].split("/", 1)[-1].replace("login/", "")
+        next_path = f"/{self.site_prefix}/"
         page.goto(f"{self.login_url}?next={next_path}")
         page.locator("#id_username").fill(email)
         page.locator("#id_password").fill(password)

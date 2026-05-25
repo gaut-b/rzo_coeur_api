@@ -92,9 +92,11 @@
                 </span>
             {% endcomponent %}
 
-            {% component "unfold/components/button.html" with href="/auth/password_reset/?callbackUrl="|add:request.path variant="secondary" class="w-full" %}
+            {% with encoded_path=request.path|urlencode %}
+            {% component "unfold/components/button.html" with href="/auth/password_reset/?callbackUrl="|add:encoded_path variant="secondary" class="w-full" %}
                 {% trans "Mot de passe oublié ?" %}
             {% endcomponent %}
+            {% endwith %}
         </div>
     </form>
 {% endblock %}
