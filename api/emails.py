@@ -9,15 +9,25 @@ dependencies where possible so that they can be tested in isolation.
 import logging
 from urllib.parse import urlencode
 
+from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import EmailMessage
 from django.template.loader import render_to_string
-from django.templatetags.static import static
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.utils.translation import gettext_lazy as _
 
-from .models import CustomUser
+from .models import Cart, CustomUser
+
+# Prefix applied to all outgoing email subjects, kept in sync with allauth's
+# ACCOUNT_EMAIL_SUBJECT_PREFIX so every email looks consistent.
+_SUBJECT_PREFIX: str = settings.ACCOUNT_EMAIL_SUBJECT_PREFIX
+
+# Absolute URL of the logo image, built from API_URL so it resolves correctly
+# regardless of which host triggers the email (admin page, management command,
+# etc.).  Uses API_URL instead of the request's host because internal admin
+# requests originate from localhost and would produce an inaccessible URL.
+_LOGO_URL: str = f"{settings.API_URL.rstrip('/')}/{settings.STATIC_URL.lstrip('/')}logo.png"
 
 logger = logging.getLogger(__name__)
 
@@ -53,17 +63,16 @@ def send_account_welcome_email(
     token = default_token_generator.make_token(user)
     reset_path = f"/auth/reset/{uid}/{token}/?{urlencode({'callbackUrl': callback_url})}"
     reset_url = request.build_absolute_uri(reset_path)
-    logo_url = request.build_absolute_uri(static("logo.png"))
 
     context = {
         "user": user,
         "callback_url": callback_url,
         "reset_url": reset_url,
-        "logo_url": logo_url,
+        "logo_url": _LOGO_URL,
     }
 
-    subject = _("Bienvenue sur Le réSOS du coeur — Activez votre compte")
-    html_body = render_to_string("emails/welcome_email.html", context)
+    subject = f"{_SUBJECT_PREFIX}{_('Activez votre compte')}"
+    html_body = render_to_string("emails/welcome_email.html", context, request=request)
 
     try:
         email = EmailMessage(
@@ -81,3 +90,67 @@ def send_account_welcome_email(
             user.email,
             user.pk,
         )
+
+
+def send_cart_available_email(cart: Cart, request) -> None:
+    """
+    Send a notification email to a recipient informing them that a basket
+    is available for pick-up in a shop.
+
+    The email (in French) contains:
+    - A greeting with the recipient's name.
+    - The list of articles in the basket (name and brand label when present).
+    - The shop name and address where the basket can be collected.
+
+    Parameters
+    ----------
+    cart:
+        The Cart instance to notify about.  Must have a non-null recipient.
+    request:
+        The current Django HttpRequest, used to build absolute URLs
+        (logo, etc.).
+
+    Raises
+    ------
+    ValueError
+        If the cart has no recipient assigned.
+    """
+    if cart.recipient is None:
+        raise ValueError(f"Cannot send notification for cart #{cart.pk}: no recipient assigned.")
+
+    articles = cart.articles.order_by("name").select_related()
+    recipient_user = cart.recipient.user
+
+    context = {
+        "cart": cart,
+        "articles": articles,
+        "shop": cart.shop,
+        "recipient": recipient_user,
+        "logo_url": _LOGO_URL,
+    }
+
+    subject = f"{_SUBJECT_PREFIX}{_('Un panier est disponible pour vous')}"
+    html_body = render_to_string("emails/cart_available_email.html", context, request=request)
+
+    logger.info(
+        "Cart available email — to=%s subject=%r body_preview=\n%s",
+        recipient_user.email,
+        subject,
+        html_body,
+    )
+
+    try:
+        email = EmailMessage(
+            subject=subject,
+            body=html_body,
+            to=[recipient_user.email],
+        )
+        email.content_subtype = "html"
+        email.send()
+    except Exception:
+        logger.exception(
+            "Failed to send cart available email to %s (cart pk=%s)",
+            recipient_user.email,
+            cart.pk,
+        )
+        raise

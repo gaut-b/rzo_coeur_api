@@ -1,6 +1,7 @@
 from django.contrib import admin, messages
 from django.http import HttpResponseRedirect
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.html import format_html, mark_safe
 from django.utils.translation import gettext_lazy as _
 
@@ -203,9 +204,10 @@ class ArticleAttrAdmin(AdminActionFormsMixin, admin.ModelAdmin):
 
 
 class CartAttribAdmin(admin.ModelAdmin):
-    list_display = ["id", "shop", "status", "created_at", "collected_at"]
+    list_display = ["id", "shop", "status", "created_at", "notified_at", "collected_at"]
     autocomplete_fields = ["shop", "recipient"]
     search_fields = ["id", "shop__name"]
+    change_form_template = "admin/api/cart/change_form.html"
 
     class Media:
         js = ("api/js/cart_attrib_confirm_delete.js",)
@@ -248,11 +250,21 @@ class CartAttribAdmin(admin.ModelAdmin):
         For a COLLECTED cart, replace the editable ``articles`` widget
         with the read-only ``get_articles_display`` method so that
         Django admin can render every field as plain text.
+        ``notified_at`` is shown as a read-only field when a recipient is
+        assigned (ASSIGNED or COLLECTED status).
         """
         if obj is None:
             return ["shop", "recipient"]
         if obj.status == "COLLECTED":
-            return ["shop", "recipient", "collected_at", "get_articles_display"]
+            return [
+                "shop",
+                "recipient",
+                "collected_at",
+                "notified_at",
+                "get_articles_display",
+            ]
+        if obj.status == "ASSIGNED":
+            return ["shop", "recipient", "collected_at", "notified_at", "articles"]
         return ["shop", "recipient", "collected_at", "articles"]
 
     def get_readonly_fields(self, request, obj=None):
@@ -261,12 +273,21 @@ class CartAttribAdmin(admin.ModelAdmin):
 
         For COLLECTED carts all fields are readonly so that the
         change view opens in pure view-only mode without any editable
-        widget.
+        widget.  ``notified_at`` is always readonly (managed by the
+        notification action, not edited manually).
         """
         if obj is None:
             return []
         if obj.status == "COLLECTED":
-            return ["shop", "recipient", "collected_at", "get_articles_display"]
+            return [
+                "shop",
+                "recipient",
+                "collected_at",
+                "notified_at",
+                "get_articles_display",
+            ]
+        if obj.status == "ASSIGNED":
+            return ["shop", "collected_at", "notified_at"]
         return ["shop", "collected_at"]
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
@@ -314,8 +335,12 @@ class CartAttribAdmin(admin.ModelAdmin):
 
     def response_change(self, request, obj):
         """
-        After saving, redirect to the changelist if the cart was deleted
-        because all articles were removed.
+        After saving, handle special POST actions.
+
+        - ``_cart_deleted``: redirect to the changelist when the cart was
+          deleted because all articles were removed.
+        - ``_notify_recipient``: send a notification email to the recipient
+          and update ``notified_at``.
         """
         if getattr(request, "_cart_deleted", False):
             self.message_user(
@@ -324,6 +349,41 @@ class CartAttribAdmin(admin.ModelAdmin):
                 level=messages.SUCCESS,
             )
             return HttpResponseRedirect(reverse("cart_attrib_admin:api_cart_changelist"))
+
+        if "_notify_recipient" in request.POST:
+            if obj.recipient is None:
+                self.message_user(
+                    request,
+                    "Impossible d'envoyer la notification : aucun bénéficiaire n'est assigné à ce panier.",
+                    level=messages.ERROR,
+                )
+            else:
+                from api.emails import send_cart_available_email
+
+                try:
+                    send_cart_available_email(obj, request)
+                    obj.notified_at = timezone.now()
+                    obj.save(update_fields=["notified_at"])
+                    self.message_user(
+                        request,
+                        f"Notification envoyée à {obj.recipient.user.email}.",
+                        level=messages.SUCCESS,
+                    )
+                except Exception:
+                    self.message_user(
+                        request,
+                        "L'envoi de la notification a échoué. Veuillez réessayer.",
+                        level=messages.ERROR,
+                    )
+            return HttpResponseRedirect(request.path)
+
+        # For a regular save, stay on the change page rather than
+        # redirecting to the changelist so the social worker can
+        # immediately click "Notifier le bénéficiaire" after assigning
+        # a recipient.
+        if "_save" in request.POST:
+            return HttpResponseRedirect(request.path)
+
         return super().response_change(request, obj)
 
     def has_view_permission(self, request, obj=None):
