@@ -6,8 +6,14 @@ from django.contrib.auth.models import AnonymousUser
 from django.test import Client, RequestFactory, TestCase
 from django.urls import reverse
 
-from api.models import Cashier, CustomUser, Shop, SocialCenter
-from api.shops.admin import CashierCreationForm, CashierShopChangeForm, shop_admin_site
+from api.models import Article, Cashier, CustomUser, Shop, SocialCenter
+from api.models import Client as DonorClient
+from api.shops.admin import (
+    ArticleExportForm,
+    CashierCreationForm,
+    CashierShopChangeForm,
+    shop_admin_site,
+)
 
 
 class CustomAdminSiteTests(TestCase):
@@ -318,3 +324,210 @@ class CashierFormEmailUniquenessTests(TestCase):
             instance=self.manager,
         )
         self.assertTrue(form.is_valid(), form.errors)
+
+
+# ---------------------------------------------------------------------------
+# ArticleExportForm validation
+# ---------------------------------------------------------------------------
+
+
+class ArticleExportFormTests(TestCase):
+    """Validate the date-range form used by the CSV export view."""
+
+    def test_empty_form_is_valid(self):
+        """Both fields are optional — a blank submission must be accepted."""
+        form = ArticleExportForm(data={})
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_valid_date_range_accepted(self):
+        """A range where date_from <= date_to must be accepted."""
+        form = ArticleExportForm(data={"date_from": "2026-01-01", "date_to": "2026-01-31"})
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_same_date_accepted(self):
+        """date_from == date_to is a valid single-day range."""
+        form = ArticleExportForm(data={"date_from": "2026-05-15", "date_to": "2026-05-15"})
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_inverted_range_rejected(self):
+        """date_from > date_to must trigger a non-field validation error."""
+        form = ArticleExportForm(data={"date_from": "2026-02-01", "date_to": "2026-01-01"})
+        self.assertFalse(form.is_valid())
+        self.assertIn(
+            "La date de début doit être antérieure à la date de fin.",
+            form.non_field_errors(),
+        )
+
+    def test_only_date_from_is_valid(self):
+        """Providing only date_from (no date_to) is accepted."""
+        form = ArticleExportForm(data={"date_from": "2026-05-01"})
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_only_date_to_is_valid(self):
+        """Providing only date_to (no date_from) is accepted."""
+        form = ArticleExportForm(data={"date_to": "2026-05-31"})
+        self.assertTrue(form.is_valid(), form.errors)
+
+
+# ---------------------------------------------------------------------------
+# CSV export view
+# ---------------------------------------------------------------------------
+
+
+class ArticleCsvExportViewTests(TestCase):
+    """
+    Tests for ArticleShopAdmin.export_csv_view.
+
+    Covers:
+    - Access control (non-manager redirected).
+    - GET renders the form with today and first-of-month defaults.
+    - POST with no date filter exports all shop articles.
+    - POST with date filter exports only matching articles.
+    - CSV structure (header row + data rows).
+    """
+
+    EXPORT_URL = "/shop-admin/api/article/export-csv/"
+
+    def setUp(self):
+        """Create a social centre, a shop, two cashier roles, and two articles."""
+        from datetime import datetime
+        from datetime import timezone as tz
+
+        self.social_center = SocialCenter.objects.create(name="SC Export", mail="sc@test.com")
+        self.shop = Shop.objects.create(name="Shop Export", social_center=self.social_center)
+
+        # Shop manager (has export access).
+        self.manager_user = CustomUser.objects.create_user(email="mgr-export@test.com", password="pass")
+        self.manager = Cashier.objects.create(user=self.manager_user, shop=self.shop, is_shop_manager=True)
+
+        # Regular cashier (no export access).
+        self.cashier_user = CustomUser.objects.create_user(email="csh-export@test.com", password="pass")
+        self.cashier_obj = Cashier.objects.create(user=self.cashier_user, shop=self.shop, is_shop_manager=False)
+
+        # A client to attach articles to.
+        self.client_user = CustomUser.objects.create_user(email="cli-export@test.com", password="pass")
+        self.donor = DonorClient.objects.create(user=self.client_user)
+
+        # Article in January 2026.
+        self.article_jan = Article.objects.create(
+            name="Yogurt",
+            barcode=111111,
+            client=self.donor,
+            shop=self.shop,
+        )
+        Article.objects.filter(pk=self.article_jan.pk).update(created_at=datetime(2026, 1, 15, 12, 0, tzinfo=tz.utc))
+        self.article_jan.refresh_from_db()
+
+        # Article in May 2026.
+        self.article_may = Article.objects.create(
+            name="Pasta",
+            barcode=222222,
+            client=self.donor,
+            shop=self.shop,
+        )
+        Article.objects.filter(pk=self.article_may.pk).update(created_at=datetime(2026, 5, 10, 9, 0, tzinfo=tz.utc))
+        self.article_may.refresh_from_db()
+
+    # --- access control ---
+
+    def test_non_manager_is_redirected(self):
+        """A regular cashier must be redirected away from the export URL."""
+        self.client.login(username="csh-export@test.com", password="pass")
+        response = self.client.get(self.EXPORT_URL)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/shop-admin/api/article/", response.url)
+
+    # --- GET ---
+
+    def test_get_renders_form(self):
+        """GET returns HTTP 200 with the export form."""
+        self.client.login(username="mgr-export@test.com", password="pass")
+        response = self.client.get(self.EXPORT_URL)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "id_date_from")
+        self.assertContains(response, "id_date_to")
+
+    def test_get_prefills_first_of_month_and_today(self):
+        """GET prefills date_from with the first of the current month."""
+        from datetime import date
+
+        self.client.login(username="mgr-export@test.com", password="pass")
+        response = self.client.get(self.EXPORT_URL)
+        today = date.today()
+        first_of_month = today.replace(day=1).isoformat()
+        today_str = today.isoformat()
+        self.assertContains(response, first_of_month)
+        self.assertContains(response, today_str)
+
+    # --- POST ---
+
+    def test_post_no_dates_exports_all_articles(self):
+        """POST with no dates returns a CSV containing all shop articles."""
+        from datetime import date
+
+        self.client.login(username="mgr-export@test.com", password="pass")
+        response = self.client.post(self.EXPORT_URL, data={})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
+        expected_filename = f'filename="export_resos_coeur-{date.today().isoformat()}.csv"'
+        self.assertIn(expected_filename, response["Content-Disposition"])
+        content = response.content.decode("utf-8-sig")  # strip BOM
+        self.assertIn("Yogurt", content)
+        self.assertIn("Pasta", content)
+
+    def test_post_date_from_filters_older_articles(self):
+        """POST with date_from=2026-05-01 excludes the January article."""
+        self.client.login(username="mgr-export@test.com", password="pass")
+        response = self.client.post(self.EXPORT_URL, data={"date_from": "2026-05-01"})
+        content = response.content.decode("utf-8-sig")
+        self.assertNotIn("Yogurt", content)
+        self.assertIn("Pasta", content)
+
+    def test_post_date_to_filters_newer_articles(self):
+        """POST with date_to=2026-01-31 excludes the May article."""
+        self.client.login(username="mgr-export@test.com", password="pass")
+        response = self.client.post(self.EXPORT_URL, data={"date_to": "2026-01-31"})
+        content = response.content.decode("utf-8-sig")
+        self.assertIn("Yogurt", content)
+        self.assertNotIn("Pasta", content)
+
+    def test_post_date_range_filters_correctly(self):
+        """POST with a range covering only May returns only the May article."""
+        self.client.login(username="mgr-export@test.com", password="pass")
+        response = self.client.post(
+            self.EXPORT_URL,
+            data={"date_from": "2026-05-01", "date_to": "2026-05-31"},
+        )
+        content = response.content.decode("utf-8-sig")
+        self.assertNotIn("Yogurt", content)
+        self.assertIn("Pasta", content)
+
+    def test_post_csv_has_header_and_data_rows(self):
+        """CSV must contain a header row followed by one data row per article."""
+        import csv
+        import io
+
+        self.client.login(username="mgr-export@test.com", password="pass")
+        response = self.client.post(self.EXPORT_URL, data={})
+        content = response.content.decode("utf-8-sig")
+        reader = csv.reader(io.StringIO(content))
+        rows = list(reader)
+        # 1 header + 2 articles.
+        self.assertEqual(len(rows), 3)
+        # Header contains expected columns.
+        header = rows[0]
+        self.assertIn("ID", header)
+        self.assertIn("Nom", header)
+        self.assertIn("Code-barres", header)
+        self.assertIn("E-mail client", header)
+
+    def test_post_inverted_dates_returns_form_with_errors(self):
+        """An inverted date range must re-render the form with an error, not a CSV."""
+        self.client.login(username="mgr-export@test.com", password="pass")
+        response = self.client.post(
+            self.EXPORT_URL,
+            data={"date_from": "2026-06-01", "date_to": "2026-01-01"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertNotEqual(response.get("Content-Type"), "text/csv; charset=utf-8")
+        self.assertContains(response, "La date de début doit être antérieure")

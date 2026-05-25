@@ -1,7 +1,12 @@
+import csv
 import secrets
+from datetime import date
 
 from django import forms
 from django.contrib import admin
+from django.http import HttpResponse
+from django.shortcuts import redirect, render
+from django.urls import path
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
@@ -581,11 +586,51 @@ class CashierShopAdmin(admin.ModelAdmin):
         )
 
 
+# ---------------------------------------------------------------------------
+# Article export form
+# ---------------------------------------------------------------------------
+
+
+class ArticleExportForm(forms.Form):
+    """
+    Form for filtering articles by date range before CSV export.
+    Both fields are optional: leaving them blank exports all articles.
+    """
+
+    date_from = forms.DateField(
+        required=False,
+        label=_("Du"),
+        widget=forms.DateInput(
+            attrs={"type": "date"},
+            format="%Y-%m-%d",
+        ),
+    )
+    date_to = forms.DateField(
+        required=False,
+        label=_("Au"),
+        widget=forms.DateInput(
+            attrs={"type": "date"},
+            format="%Y-%m-%d",
+        ),
+    )
+
+    def clean(self):
+        """Validate that date_from is not after date_to."""
+        cleaned = super().clean()
+        date_from = cleaned.get("date_from")
+        date_to = cleaned.get("date_to")
+        if date_from and date_to and date_from > date_to:
+            raise forms.ValidationError(_("La date de début doit être antérieure à la date de fin."))
+        return cleaned
+
+
 class ArticleShopAdmin(admin.ModelAdmin):
     """
     Read-only admin for viewing articles in the shop.
     Accessible to both cashiers and shop managers.
     """
+
+    change_list_template = "admin/shop_article_changelist.html"
 
     list_display = [
         "id",
@@ -678,6 +723,124 @@ class ArticleShopAdmin(admin.ModelAdmin):
     def has_module_permission(self, request):
         """Show module to shop users and staff."""
         return request.user.is_staff or (request.user.is_authenticated and hasattr(request.user, "cashier"))
+
+    # -----------------------------------------------------------------------
+    # CSV export
+    # -----------------------------------------------------------------------
+
+    def get_urls(self):
+        """Append a custom export-csv URL to the standard admin URLs."""
+        urls = super().get_urls()
+        export_url = [
+            path(
+                "export-csv/",
+                self.admin_site.admin_view(self.export_csv_view),
+                name="api_article_export_csv",
+            )
+        ]
+        return export_url + urls
+
+    def _is_shop_manager(self, request):
+        """Return True if the request user is a shop manager (or staff)."""
+        return request.user.is_staff or (hasattr(request.user, "cashier") and request.user.cashier.is_shop_manager)
+
+    def export_csv_view(self, request):
+        """
+        Custom admin view that renders a date-range form (GET) and returns
+        a CSV file of the shop's articles (POST). Restricted to shop managers.
+        """
+        if not self._is_shop_manager(request):
+            self.message_user(
+                request,
+                _("Vous n'avez pas la permission d'exporter les articles."),
+                level="error",
+            )
+            return redirect("{}:api_article_changelist".format(self.admin_site.name))
+
+        today = date.today()
+        initial = {
+            "date_from": today.replace(day=1),
+            "date_to": today,
+        }
+        form = ArticleExportForm(
+            request.POST if request.method == "POST" else None,
+            initial=initial,
+        )
+
+        if request.method == "POST" and form.is_valid():
+            return self._build_csv_response(
+                request,
+                date_from=form.cleaned_data.get("date_from"),
+                date_to=form.cleaned_data.get("date_to"),
+            )
+
+        context = {
+            **self.admin_site.each_context(request),
+            "form": form,
+            "title": _("Exporter les articles en CSV"),
+            "opts": self.model._meta,
+        }
+        return render(request, "admin/article_export_form.html", context)
+
+    def _build_csv_response(self, request, date_from, date_to):
+        """
+        Build and return an HttpResponse containing a CSV of articles for the
+        current shop, optionally filtered by created_at date range.
+
+        Parameters
+        ----------
+        request:
+            The current HTTP request (used to scope the queryset to the shop).
+        date_from : date | None
+            Inclusive lower bound on ``created_at`` (ignored when None).
+        date_to : date | None
+            Inclusive upper bound on ``created_at`` (ignored when None).
+        """
+        qs = self.get_queryset(request).select_related("client__user", "cart")
+        if date_from:
+            qs = qs.filter(created_at__date__gte=date_from)
+        if date_to:
+            qs = qs.filter(created_at__date__lte=date_to)
+
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        # UTF-8 BOM so Excel opens the file correctly without encoding issues.
+        filename = f"export_resos_coeur-{date.today().isoformat()}.csv"
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        response.write("\ufeff")
+
+        writer = csv.writer(response)
+        writer.writerow(
+            [
+                _("ID"),
+                _("Nom"),
+                _("Code-barres"),
+                _("Marque"),
+                _("E-mail client"),
+                _("ID panier"),
+                _("Statut panier"),
+                _("Date de création"),
+                _("Dernière mise à jour"),
+            ]
+        )
+
+        for article in qs.iterator():
+            cart_id = article.cart_id or ""
+            cart_status = article.cart.status if article.cart else ""
+            writer.writerow(
+                [
+                    article.id,
+                    article.name,
+                    article.barcode,
+                    article.brand_label,
+                    article.client.user.email,
+                    cart_id,
+                    cart_status,
+                    article.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                    article.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
+                ]
+            )
+
+        return response
 
 
 # ---------------------------------------------------------------------------
