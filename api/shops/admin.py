@@ -602,7 +602,7 @@ class ArticleExportForm(forms.Form):
         required=False,
         label=_("Du"),
         widget=forms.DateInput(
-            attrs={"type": "date"},
+            attrs={"type": "date", "class": "py-3 border border-base-200 rounded-default dark:border-base-700"},
             format="%Y-%m-%d",
         ),
     )
@@ -610,7 +610,7 @@ class ArticleExportForm(forms.Form):
         required=False,
         label=_("Au"),
         widget=forms.DateInput(
-            attrs={"type": "date"},
+            attrs={"type": "date", "class": "py-3 border border-base-200 rounded-default dark:border-base-700"},
             format="%Y-%m-%d",
         ),
     )
