@@ -147,7 +147,7 @@ class ShopAdminPage:
         assert re.match(
             r"export_resos_coeur-\d{4}-\d{2}-\d{2}\.csv",
             download.suggested_filename,
-        ), f"Expected a dated .csv download, got: " f"{download.suggested_filename!r}"
+        ), f"Expected a dated .csv download, got: {download.suggested_filename!r}"
         path = download.path()
         with open(path, encoding="utf-8-sig") as fh:
             return fh.read()
