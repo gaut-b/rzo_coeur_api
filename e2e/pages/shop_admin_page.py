@@ -141,7 +141,7 @@ class ShopAdminPage:
             page.locator("#id_date_to").fill(date_to)
 
         with page.expect_download() as dl_info:
-            page.locator('[type="submit"]').click()
+            page.get_by_role("button", name="Télécharger le CSV").click()
 
         download = dl_info.value
         assert re.match(
