@@ -9,6 +9,7 @@ from django.shortcuts import redirect, render
 from django.urls import path
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
+from unfold.admin import ModelAdmin
 
 from api.admin_sites import (
     AddressLocationAdminForm,
@@ -59,7 +60,7 @@ class SocialShopAdminForm(ShopAdminForm):
 # ---------------------------------------------------------------------------
 
 
-class ShopAdmin(AddressLocationAdminMixin, admin.ModelAdmin):
+class ShopAdmin(AddressLocationAdminMixin, ModelAdmin):
     """
     Standard admin for Shop model (main admin site / superusers).
     Includes address autocomplete and interactive map display.
@@ -220,7 +221,7 @@ class SocialShopAdmin(ShopAdmin):
 # ---------------------------------------------------------------------------
 
 
-class CashierAdmin(admin.ModelAdmin):
+class CashierAdmin(ModelAdmin):
     """
     Standard admin for Cashier (for superusers in main admin).
     Allows full control including shop selection.
@@ -378,7 +379,7 @@ class CashierShopChangeForm(UniqueEmailMixin, forms.ModelForm):
         return instance
 
 
-class CashierShopAdmin(admin.ModelAdmin):
+class CashierShopAdmin(ModelAdmin):
     """
     Admin for managing cashiers in the shop.
     Only accessible to shop managers.
@@ -601,7 +602,7 @@ class ArticleExportForm(forms.Form):
         required=False,
         label=_("Du"),
         widget=forms.DateInput(
-            attrs={"type": "date"},
+            attrs={"type": "date", "class": "py-3 border border-base-200 rounded-default dark:border-base-700"},
             format="%Y-%m-%d",
         ),
     )
@@ -609,7 +610,7 @@ class ArticleExportForm(forms.Form):
         required=False,
         label=_("Au"),
         widget=forms.DateInput(
-            attrs={"type": "date"},
+            attrs={"type": "date", "class": "py-3 border border-base-200 rounded-default dark:border-base-700"},
             format="%Y-%m-%d",
         ),
     )
@@ -624,7 +625,7 @@ class ArticleExportForm(forms.Form):
         return cleaned
 
 
-class ArticleShopAdmin(admin.ModelAdmin):
+class ArticleShopAdmin(ModelAdmin):
     """
     Read-only admin for viewing articles in the shop.
     Accessible to both cashiers and shop managers.

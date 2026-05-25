@@ -1,74 +1,102 @@
-{% load static %}
-{% load i18n %}
-{% get_current_language as LANGUAGE_CODE %}
-<!doctype html>
-<html lang="{{ LANGUAGE_CODE }}">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{{ title }} | {{ site_title }}</title>
-    <link rel="stylesheet" href="{% static 'admin/css/login.css' %}" />
-    <link rel="stylesheet" href="{% static 'admin/css/base.css' %}" />
-    <link rel="stylesheet" href="{% static 'admin/css/responsive.css' %}" />
-  </head>
-  <body class="login">
-    <div id="container">
-      <div id="header">
-        <div id="branding">
-          <h1 id="site-name">{{ site_header }}</h1>
-        </div>
-      </div>
+{% extends "unfold/layouts/unauthenticated.html" %}
+{% load static i18n unfold %}
 
-      <div id="content">
-        <div id="content-main">
-          {% if error_message %}
-          <p class="errornote">{{ error_message }}</p>
-          {% endif %}
+{% block title %}{{ title }} | {{ site_title }}{% endblock %}
 
-          <form method="post" id="login-form">
-            {% csrf_token %}
-
-            <div class="form-row">
-              <label for="id_username" class="required">{% trans "E-mail :" %}</label>
-              <input
-                type="email"
-                name="username"
-                id="id_username"
-                value="{{ username|default:'' }}"
-                required
-                autofocus
-              />
-            </div>
-
-            <div class="form-row">
-              <label for="id_password" class="required">{% trans "Mot de passe :" %}</label>
-              <input
-                type="password"
-                name="password"
-                id="id_password"
-                required
-              />
-            </div>
-
-            <input type="hidden" name="next" value="{{ next }}" />
-
-            <div class="submit-row">
-              <input type="submit" value="{% trans 'Se connecter' %}" />
-            </div>
-          </form>
-
-          <p style="margin-top: 1em; text-align: center">
-            <a
-              href="/auth/password_reset/?callbackUrl={{ request.path }}"
-              id="forgot-password-link"
-            >
-              {% trans "Mot de passe oublié ?" %}
-            </a>
-          </p>
-        </div>
-      </div>
-
-      <div id="footer"></div>
+{% block content %}
+    <div class="border-b border-base-200 mb-8 pb-6 dark:border-base-800">
+        {% if site_logo %}
+            {% if site_logo.light %}
+                <img
+                    src="{{ site_logo.light }}"
+                    alt="{{ site_header }}"
+                    class="h-10 mb-4 dark:hidden"
+                />
+                <img
+                    src="{{ site_logo.dark }}"
+                    alt="{{ site_header }}"
+                    class="h-10 mb-4 hidden dark:block"
+                />
+            {% else %}
+                <img
+                    src="{{ site_logo }}"
+                    alt="{{ site_header }}"
+                    class="h-10 mb-4"
+                />
+            {% endif %}
+        {% endif %}
+        <h1 class="font-semibold">
+            <span class="block text-font-important-light dark:text-font-important-dark text-sm">
+                {% trans "Bienvenue sur" %}
+            </span>
+            <span class="block font-semibold text-primary-600 tracking-tight text-xl dark:text-primary-500">
+                {{ site_header }}
+            </span>
+        </h1>
     </div>
-  </body>
-</html>
+
+    {% if error_message %}
+        <div class="flex flex-col gap-4 mb-8">
+            <div class="errornote rounded-md bg-red-50 border border-red-200 p-4 text-sm text-red-700 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300">
+                {{ error_message }}
+            </div>
+        </div>
+    {% endif %}
+
+    <form method="post" id="login-form">
+        {% csrf_token %}
+
+        <div class="flex flex-col gap-4">
+            <div>
+                <label
+                    for="id_username"
+                    class="block text-sm font-medium text-base-700 dark:text-base-300 mb-1"
+                >
+                    {% trans "E-mail" %} <span class="text-red-500">*</span>
+                </label>
+                <input
+                    type="email"
+                    name="username"
+                    id="id_username"
+                    value="{{ username|default:'' }}"
+                    required
+                    autofocus
+                    class="block w-full rounded-md border border-base-200 bg-white px-3 py-2 text-sm text-base-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:border-base-700 dark:bg-base-800 dark:text-base-100"
+                />
+            </div>
+
+            <div>
+                <label
+                    for="id_password"
+                    class="block text-sm font-medium text-base-700 dark:text-base-300 mb-1"
+                >
+                    {% trans "Mot de passe" %} <span class="text-red-500">*</span>
+                </label>
+                <input
+                    type="password"
+                    name="password"
+                    id="id_password"
+                    required
+                    class="block w-full rounded-md border border-base-200 bg-white px-3 py-2 text-sm text-base-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:border-base-700 dark:bg-base-800 dark:text-base-100"
+                />
+            </div>
+        </div>
+
+        <input type="hidden" name="next" value="{{ next }}" />
+
+        <div class="flex flex-col gap-3 mt-6">
+            {% component "unfold/components/button.html" with submit=1 variant="primary" class="w-full" %}
+                {% trans "Se connecter" %}
+                <span class="material-symbols-outlined relative right-0 transition-all group-hover:-right-1 text-sm">
+                    arrow_forward
+                </span>
+            {% endcomponent %}
+
+            {% with encoded_path=request.path|urlencode %}
+            {% component "unfold/components/button.html" with href="/auth/password_reset/?callbackUrl="|add:encoded_path variant="secondary" class="w-full" %}
+                {% trans "Mot de passe oublié ?" %}
+            {% endcomponent %}
+            {% endwith %}
+        </div>
+    </form>
+{% endblock %}

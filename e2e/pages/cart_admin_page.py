@@ -200,7 +200,7 @@ class CartAdminPage:
         page.goto(f"{self.carts_url}{cart_id}/change/")
         page.locator('[name="_notify_recipient"]').click()
         expect(page).to_have_url(re.compile(rf"/cart-admin/api/cart/{cart_id}/change/"))
-        expect(page.locator(".success")).to_be_visible(timeout=10_000)
+        expect(page.get_by_text("Notification envoyée à", exact=False)).to_be_visible(timeout=10_000)
 
     def expect_notify_button_disabled(self, page: Page, cart_id: int) -> None:
         """Assert that the notify button is present but disabled."""

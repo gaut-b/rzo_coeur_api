@@ -46,11 +46,11 @@ class ShopAdminPage:
 
     def expect_cashier_module_visible(self, page: Page) -> None:
         """Assert that the Cashier module appears in the admin nav sidebar."""
-        expect(page.get_by_role("link", name="Vendeurs")).to_be_visible()
+        expect(page.locator("[aria-label='scrollable content']").get_by_role("link", name="Vendeurs")).to_be_visible()
 
     def expect_cashier_module_hidden(self, page: Page) -> None:
         """Assert that the Cashier module does NOT appear for regular cashiers."""
-        expect(page.get_by_role("link", name="Vendeurs")).to_have_count(0)
+        expect(page.locator("[aria-label='scrollable content']").get_by_role("link", name="Vendeurs")).to_have_count(0)
 
     def create_cashier(
         self,

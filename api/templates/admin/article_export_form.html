@@ -1,45 +1,33 @@
 {% extends "admin/base_site.html" %}
-{% load i18n %}
+{% load i18n unfold %}
 
-{% block breadcrumbs %}
-<div class="breadcrumbs">
-  <a href="{% url 'shop_admin:index' %}">{% trans "Accueil" %}</a>
-  &rsaquo;
-  <a href="{% url 'shop_admin:api_article_changelist' %}">{% trans "Articles" %}</a>
-  &rsaquo;
-  {% trans "Exporter en CSV" %}
-</div>
-{% endblock %}
 
 {% block content %}
-<p>{% trans "Sélectionnez une plage de dates optionnelle pour filtrer les articles par date de création. Laissez les champs vides pour exporter tous les articles du magasin." %}</p>
+  <p class="mb-6 text-sm text-font-subtle-light dark:text-font-subtle-dark">
+    {% trans "Sélectionnez une plage de dates optionnelle pour filtrer les articles par date de création. Laissez les champs vides pour exporter tous les articles du magasin." %}
+  </p>
 
-<form method="post" action=".">
-  {% csrf_token %}
-  <fieldset class="module aligned">
-    {% if form.non_field_errors %}
-      <p class="errornote">{{ form.non_field_errors }}</p>
-    {% endif %}
-    <div class="form-row">
-      <label for="{{ form.date_from.id_for_label }}">{{ form.date_from.label }}</label>
-      {{ form.date_from }}
-      {% if form.date_from.errors %}
-        <p class="errornote">{{ form.date_from.errors }}</p>
+  <form method="post" action=".">
+    {% csrf_token %}
+    <fieldset class="border border-base-200 mb-8 rounded-default p-3 shadow-xs dark:border-base-800">
+      {% if form.non_field_errors %}
+        <div class="mb-4 rounded-default border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+          {{ form.non_field_errors }}
+        </div>
       {% endif %}
-    </div>
-    <div class="form-row">
-      <label for="{{ form.date_to.id_for_label }}">{{ form.date_to.label }}</label>
-      {{ form.date_to }}
-      {% if form.date_to.errors %}
-        <p class="errornote">{{ form.date_to.errors }}</p>
-      {% endif %}
-    </div>
-  </fieldset>
-  <div class="submit-row">
-    <input type="submit" value="{% trans "Télécharger le CSV" %}" class="default">
-    <a href="{% url 'shop_admin:api_article_changelist' %}" class="button cancel-link">
-      {% trans "Annuler" %}
-    </a>
-  </div>
-</form>
+      <div class="flex flex-col gap-3 mb-3 *:mb-0" style="max-width: 15rem">
+        {% include "unfold/helpers/field.html" with field=form.date_from %}
+        {% include "unfold/helpers/field.html" with field=form.date_to %}
+      </div>
+      {% url 'shop_admin:api_article_changelist' as cancel_url %}
+      <div class="border-t border-base-200 flex gap-3 justify-end -mx-3 pt-3 px-3 dark:border-base-800">
+        {% component "unfold/components/button.html" with href=cancel_url variant="secondary" %}
+          {% trans "Annuler" %}
+        {% endcomponent %}
+        {% component "unfold/components/button.html" with submit=1 %}
+          {% trans "Télécharger le CSV" %}
+        {% endcomponent %}
+      </div>
+    </fieldset>
+  </form>
 {% endblock %}
