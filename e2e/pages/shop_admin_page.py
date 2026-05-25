@@ -23,6 +23,7 @@ class ShopAdminPage:
         self.index_url = f"{base_url}/shop-admin/"
         self.articles_url = f"{base_url}/shop-admin/api/article/"
         self.add_cashier_url = f"{base_url}/shop-admin/api/cashier/add/"
+        self.export_csv_url = f"{base_url}/shop-admin/api/article/export-csv/"
 
     def goto_index(self, page: Page) -> None:
         """Navigate to the shop-admin index."""
@@ -94,3 +95,59 @@ class ShopAdminPage:
     def expect_no_access(self, page: Page) -> None:
         """Assert that access was denied (error message visible on login page)."""
         expect(page.locator(".errornote")).to_be_visible()
+
+    # -----------------------------------------------------------------------
+    # CSV export helpers
+    # -----------------------------------------------------------------------
+
+    def goto_export_csv(self, page: Page) -> None:
+        """Navigate directly to the CSV export form."""
+        page.goto(self.export_csv_url)
+        expect(page).to_have_url(re.compile(r"/shop-admin/api/article/export-csv/"))
+
+    def expect_export_button_visible(self, page: Page) -> None:
+        """Assert that the 'Exporter en CSV' button is shown on the article list."""
+        expect(page.get_by_role("link", name="Exporter en CSV")).to_be_visible()
+
+    def expect_export_button_hidden(self, page: Page) -> None:
+        """Assert that the 'Exporter en CSV' button is NOT shown."""
+        expect(page.get_by_role("link", name="Exporter en CSV")).to_have_count(0)
+
+    def download_csv_export(
+        self,
+        page: Page,
+        *,
+        date_from: str | None = None,
+        date_to: str | None = None,
+    ) -> str:
+        """
+        Fill the export form with the given dates and return the CSV content.
+
+        Parameters
+        ----------
+        date_from:
+            ISO date string (``YYYY-MM-DD``) for the lower bound, or None to
+            leave the field at its default value.
+        date_to:
+            ISO date string for the upper bound, or None to leave at default.
+
+        Returns the decoded text content of the downloaded CSV file.
+        """
+        self.goto_export_csv(page)
+
+        if date_from is not None:
+            page.locator("#id_date_from").fill(date_from)
+        if date_to is not None:
+            page.locator("#id_date_to").fill(date_to)
+
+        with page.expect_download() as dl_info:
+            page.locator('[type="submit"]').click()
+
+        download = dl_info.value
+        assert re.match(
+            r"export_resos_coeur-\d{4}-\d{2}-\d{2}\.csv",
+            download.suggested_filename,
+        ), f"Expected a dated .csv download, got: " f"{download.suggested_filename!r}"
+        path = download.path()
+        with open(path, encoding="utf-8-sig") as fh:
+            return fh.read()

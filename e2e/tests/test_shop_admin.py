@@ -7,7 +7,12 @@ Covers the /shop-admin/ interface:
   - A regular cashier does NOT see the Cashier management module
   - A shop manager can log in and view articles
   - A shop manager can create a new cashier
+  - CSV export: button visibility, download, date-range filtering
 """
+
+import csv
+import io
+from datetime import date
 
 import pytest
 from playwright.sync_api import Page, expect
@@ -96,3 +101,83 @@ class TestShopAdminCashierCreation:
         page_obj = ShopAdminPage(BASE_URL)
         email = page_obj.create_cashier(shop_manager_page, role="False")
         expect(shop_manager_page.locator("#result_list")).to_contain_text(email)
+
+
+@pytest.mark.usefixtures("django_server")
+class TestShopAdminCsvExport:
+    """CSV export tests for /shop-admin/api/article/export-csv/."""
+
+    def test_export_button_visible_for_shop_manager(self, shop_manager_page: Page) -> None:
+        """Shop manager sees the 'Exporter en CSV' button on the article list."""
+        page_obj = ShopAdminPage(BASE_URL)
+        page_obj.goto_articles(shop_manager_page)
+        page_obj.expect_export_button_visible(shop_manager_page)
+
+    def test_export_button_hidden_for_cashier(self, cashier_page: Page) -> None:
+        """A regular cashier does NOT see the 'Exporter en CSV' button."""
+        page_obj = ShopAdminPage(BASE_URL)
+        page_obj.goto_articles(cashier_page)
+        page_obj.expect_export_button_hidden(cashier_page)
+
+    def test_cashier_export_url_is_redirected(self, cashier_page: Page) -> None:
+        """
+        Navigating directly to the export URL as a non-manager must redirect
+        back to the article changelist (no direct URL bypass).
+        """
+        page_obj = ShopAdminPage(BASE_URL)
+        cashier_page.goto(page_obj.export_csv_url)
+        expect(cashier_page).to_have_url(f"{BASE_URL}/shop-admin/api/article/")
+
+    def test_export_form_has_prefilled_dates(self, shop_manager_page: Page) -> None:
+        """
+        The export form must be pre-filled with the first day of the current
+        month as date_from and today as date_to.
+        """
+        page_obj = ShopAdminPage(BASE_URL)
+        page_obj.goto_export_csv(shop_manager_page)
+        today = date.today()
+        first_of_month = today.replace(day=1).isoformat()
+        expect(shop_manager_page.locator("#id_date_from")).to_have_value(first_of_month)
+        expect(shop_manager_page.locator("#id_date_to")).to_have_value(today.isoformat())
+
+    def test_export_downloads_csv_file(self, shop_manager_page: Page) -> None:
+        """
+        Submitting the export form triggers a CSV file download with the
+        expected header row and at least one data row for the seeded articles.
+        """
+        page_obj = ShopAdminPage(BASE_URL)
+        # No date filter — export all articles.
+        csv_content = page_obj.download_csv_export(shop_manager_page)
+        reader = csv.reader(io.StringIO(csv_content))
+        rows = list(reader)
+        # At least a header row + the 3 seeded E2E articles.
+        assert len(rows) >= 4, f"Expected ≥4 rows, got {len(rows)}"
+        header = rows[0]
+        assert "ID" in header
+        assert "Nom" in header
+        assert "Code-barres" in header
+        assert "E-mail client" in header
+
+    def test_export_csv_contains_seeded_articles(self, shop_manager_page: Page) -> None:
+        """Downloaded CSV must contain the three seeded E2E articles by name."""
+        page_obj = ShopAdminPage(BASE_URL)
+        csv_content = page_obj.download_csv_export(shop_manager_page)
+        assert "E2E Yogurt" in csv_content
+        assert "E2E Pasta" in csv_content
+        assert "E2E Tomato Sauce" in csv_content
+
+    def test_export_future_date_range_yields_empty_body(self, shop_manager_page: Page) -> None:
+        """
+        A date range in the future (no articles exist) must still produce a
+        valid CSV with only the header row.
+        """
+        page_obj = ShopAdminPage(BASE_URL)
+        csv_content = page_obj.download_csv_export(
+            shop_manager_page,
+            date_from="2099-01-01",
+            date_to="2099-12-31",
+        )
+        reader = csv.reader(io.StringIO(csv_content))
+        rows = list(reader)
+        # Only the header row — no data.
+        assert len(rows) == 1, f"Expected 1 row (header only), got {len(rows)}"

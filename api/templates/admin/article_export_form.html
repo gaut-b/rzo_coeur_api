@@ -1,0 +1,45 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'shop_admin:index' %}">{% trans "Accueil" %}</a>
+  &rsaquo;
+  <a href="{% url 'shop_admin:api_article_changelist' %}">{% trans "Articles" %}</a>
+  &rsaquo;
+  {% trans "Exporter en CSV" %}
+</div>
+{% endblock %}
+
+{% block content %}
+<p>{% trans "Sélectionnez une plage de dates optionnelle pour filtrer les articles par date de création. Laissez les champs vides pour exporter tous les articles du magasin." %}</p>
+
+<form method="post" action=".">
+  {% csrf_token %}
+  <fieldset class="module aligned">
+    {% if form.non_field_errors %}
+      <p class="errornote">{{ form.non_field_errors }}</p>
+    {% endif %}
+    <div class="form-row">
+      <label for="{{ form.date_from.id_for_label }}">{{ form.date_from.label }}</label>
+      {{ form.date_from }}
+      {% if form.date_from.errors %}
+        <p class="errornote">{{ form.date_from.errors }}</p>
+      {% endif %}
+    </div>
+    <div class="form-row">
+      <label for="{{ form.date_to.id_for_label }}">{{ form.date_to.label }}</label>
+      {{ form.date_to }}
+      {% if form.date_to.errors %}
+        <p class="errornote">{{ form.date_to.errors }}</p>
+      {% endif %}
+    </div>
+  </fieldset>
+  <div class="submit-row">
+    <input type="submit" value="{% trans "Télécharger le CSV" %}" class="default">
+    <a href="{% url 'shop_admin:api_article_changelist' %}" class="button cancel-link">
+      {% trans "Annuler" %}
+    </a>
+  </div>
+</form>
+{% endblock %}
