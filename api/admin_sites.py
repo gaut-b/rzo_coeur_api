@@ -1,5 +1,4 @@
 from django import forms
-from django.contrib import admin
 from django.contrib.auth import authenticate
 from django.contrib.auth import login as auth_login
 from django.contrib.gis.geos import Point
@@ -10,6 +9,7 @@ from django.utils.html import format_html
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.cache import never_cache
+from unfold.sites import UnfoldAdminSite
 
 from .models import CustomUser
 
@@ -157,7 +157,7 @@ class AddressLocationAdminMixin:
     display_coordinates.short_description = _("Coordonnées GPS")
 
 
-class CustomAdminSite(admin.AdminSite):
+class CustomAdminSite(UnfoldAdminSite):
     """
     Base custom admin site with reusable login logic that doesn't require is_staff.
     Subclasses must implement check_user_permission() to define role-specific access.
@@ -182,12 +182,35 @@ class CustomAdminSite(admin.AdminSite):
         """
         return _("Vous n'avez pas la permission d'accéder à cette zone.")
 
+    def each_context(self, request):
+        """
+        Extend Unfold context while preserving the per-site site_header.
+
+        UnfoldAdminSite.each_context() injects site_header from the UNFOLD
+        settings dict; when the key is absent it injects None, which would
+        erase the class-level attribute set by each subclass.  This override
+        restores it so every admin site keeps its own heading.
+        """
+        context = super().each_context(request)
+        if context.get("site_header") is None:
+            context["site_header"] = self.site_header
+        return context
+
     @method_decorator(never_cache)
     def login(self, request, extra_context=None):
         """
         Custom login that doesn't require is_staff.
         Displays the login form and handles the login action.
+
+        Uses each_context() as the base so that Unfold theme variables
+        (colors, logo, border radius…) are always present in the template
+        context, even though the user is not yet authenticated.
         """
+        # Build Unfold base context (safe to call before authentication;
+        # has_permission() returns False for anonymous users without hitting
+        # the database).
+        base_context = self.each_context(request)
+
         if request.method == "POST":
             username = request.POST.get("username")
             password = request.POST.get("password")
@@ -218,29 +241,28 @@ class CustomAdminSite(admin.AdminSite):
                 else:
                     # User doesn't have the required role
                     context = {
+                        **base_context,
                         "title": _("Connexion — %(site)s") % {"site": self.site_title},
-                        "site_title": self.site_title,
-                        "site_header": self.site_header,
                         "error_message": self.get_permission_denied_message(),
                         "username": username,
+                        "next": request.POST.get("next", ""),
                     }
                     return render(request, self.login_template, context)
             else:
                 # Invalid credentials
                 context = {
+                    **base_context,
                     "title": _("Connexion — %(site)s") % {"site": self.site_title},
-                    "site_title": self.site_title,
-                    "site_header": self.site_header,
                     "error_message": _("Veuillez saisir une adresse e-mail et un mot de passe corrects."),
                     "username": username,
+                    "next": request.POST.get("next", ""),
                 }
                 return render(request, self.login_template, context)
 
         # GET request - show login form
         context = {
+            **base_context,
             "title": _("Connexion — %(site)s") % {"site": self.site_title},
-            "site_title": self.site_title,
-            "site_header": self.site_header,
             "site": self,
             "next": request.GET.get("next", ""),
         }

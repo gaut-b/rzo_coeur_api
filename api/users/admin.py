@@ -1,11 +1,12 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.utils.translation import gettext_lazy as _
+from unfold.admin import ModelAdmin
 
 from api.models import Client, CustomUser
 
 
-class CustomUserAdmin(UserAdmin):
+class CustomUserAdmin(ModelAdmin, UserAdmin):
     model = CustomUser
     list_display = ["email", "first_name", "last_name", "is_staff", "is_active"]
     list_filter = ["is_staff", "is_active"]
@@ -47,7 +48,7 @@ class CustomUserAdmin(UserAdmin):
     ordering = ["email"]
 
 
-class ClientAdmin(admin.ModelAdmin):
+class ClientAdmin(ModelAdmin):
     """Standard admin for Client model (main admin site / superusers)."""
 
     list_display = ["get_email", "get_first_name", "get_last_name"]
@@ -73,7 +74,7 @@ class ClientAdmin(admin.ModelAdmin):
     get_last_name.admin_order_field = "user__last_name"
 
 
-class HiddenCustomUserAdmin(admin.ModelAdmin):
+class HiddenCustomUserAdmin(ModelAdmin):
     """
     Minimal CustomUser admin registered on sub-sites solely to enable
     autocomplete_fields on models that reference CustomUser.

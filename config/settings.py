@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+from django.templatetags.static import static
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -56,6 +57,7 @@ GRAPH_MODELS = {
 # Application definition
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ.get("CSRF_TRUSTED_ORIGINS", "http://localhost").split(",")]
 INSTALLED_APPS = [
+    "unfold",
     "api.apps.ApiConfig",
     "django.contrib.admin",
     "django.contrib.auth",
@@ -74,6 +76,27 @@ INSTALLED_APPS = [
     "storages",
     "anymail",
 ]
+
+UNFOLD = {
+    "SITE_TITLE": "réSOS du coeur",
+    "SITE_LOGO": lambda request: static("logo.png"),
+    "BORDER_RADIUS": "6px",
+    "COLORS": {
+        "primary": {
+            "50": "oklch(97.0% 0.021 147.3)",
+            "100": "oklch(94.0% 0.039 147.3)",
+            "200": "oklch(88.0% 0.069 147.3)",
+            "300": "oklch(79.0% 0.095 147.3)",
+            "400": "oklch(68.0% 0.115 147.3)",
+            "500": "oklch(55.0% 0.121 147.3)",
+            "600": "oklch(47.0% 0.121 147.3)",
+            "700": "oklch(42.1% 0.121 147.3)",
+            "800": "oklch(30.0% 0.106 147.3)",
+            "900": "oklch(22.0% 0.089 147.3)",
+            "950": "oklch(15.0% 0.073 147.3)",
+        },
+    },
+}
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [

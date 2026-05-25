@@ -5,6 +5,7 @@ from django.conf import settings
 from django.contrib import admin
 from django.db import transaction
 from django.utils.translation import gettext_lazy as _
+from unfold.admin import ModelAdmin
 
 from api.admin_sites import (
     AddressLocationAdminForm,
@@ -366,7 +367,7 @@ class RecipientStaffCreationForm(UniqueEmailMixin, forms.ModelForm):
 # ---------------------------------------------------------------------------
 
 
-class SocialCenterAdmin(AddressLocationAdminMixin, admin.ModelAdmin):
+class SocialCenterAdmin(AddressLocationAdminMixin, ModelAdmin):
     """
     Custom admin for SocialCenter model with address autocomplete
     and interactive map display.
@@ -422,7 +423,7 @@ class SocialCenterAdmin(AddressLocationAdminMixin, admin.ModelAdmin):
         )
 
 
-class SocialWorkerMainAdmin(admin.ModelAdmin):
+class SocialWorkerMainAdmin(ModelAdmin):
     """Standard admin for SocialWorker model (main admin site / superusers)."""
 
     list_display = [
@@ -461,7 +462,7 @@ class SocialWorkerMainAdmin(admin.ModelAdmin):
     get_last_name.admin_order_field = "user__last_name"
 
 
-class SocialWorkerAdmin(admin.ModelAdmin):
+class SocialWorkerAdmin(ModelAdmin):
     """
     Admin for managing social workers in the social_center.
     Only accessible to social admins.
@@ -685,7 +686,7 @@ class SocialWorkerAdmin(admin.ModelAdmin):
         )
 
 
-class RecipientAdmin(admin.ModelAdmin):
+class RecipientAdmin(ModelAdmin):
     """
     Standard admin for Recipient model (main admin site / superusers).
     No role-specific restrictions — relies on Django's default permissions.
@@ -722,7 +723,7 @@ class RecipientAdmin(admin.ModelAdmin):
     get_last_name.admin_order_field = "user__last_name"
 
 
-class SocialRecipientAdmin(admin.ModelAdmin):
+class SocialRecipientAdmin(ModelAdmin):
     """
     Restricted admin for Recipient model, used in the social admin site.
     Limits visibility to recipients from the user's own social center.
@@ -940,7 +941,7 @@ class SocialRecipientAdmin(admin.ModelAdmin):
         )
 
 
-class SocialCashierAdmin(admin.ModelAdmin):
+class SocialCashierAdmin(ModelAdmin):
     """
     Admin for managing shop managers (cashiers with is_shop_manager=True)
     in the social admin site. Social admins can create and manage shop
@@ -1150,7 +1151,7 @@ class SocialCashierAdmin(admin.ModelAdmin):
         )
 
 
-class HiddenSocialCenterAdmin(admin.ModelAdmin):
+class HiddenSocialCenterAdmin(ModelAdmin):
     """
     Minimal SocialCenter admin registered on sub-sites solely to enable
     autocomplete_fields on models that reference SocialCenter.

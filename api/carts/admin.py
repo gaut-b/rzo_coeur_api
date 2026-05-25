@@ -4,6 +4,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html, mark_safe
 from django.utils.translation import gettext_lazy as _
+from unfold.admin import ModelAdmin
 
 from api.admin_sites import CustomAdminSite
 from api.enums import UserRole
@@ -12,7 +13,7 @@ from api.models import Article, Cart, Recipient, Shop
 from .forms import ArticleToCartForm, CartChangeForm, CartCreationForm
 
 
-class CartAdmin(admin.ModelAdmin):
+class CartAdmin(ModelAdmin):
     readonly_fields = ["status"]
     list_display = ["id", "shop", "recipient", "status", "collected_at"]
     list_filter = ["shop", "collected_at"]
@@ -45,7 +46,7 @@ class ArticleAvailabilityFilter(admin.SimpleListFilter):
         return queryset
 
 
-class HiddenShopAttrAdmin(admin.ModelAdmin):
+class HiddenShopAttrAdmin(ModelAdmin):
     """Hidden admin registered solely to support autocomplete on Cart forms."""
 
     search_fields = ["name"]
@@ -66,7 +67,7 @@ class HiddenShopAttrAdmin(admin.ModelAdmin):
         return False
 
 
-class RecipientAttrAdmin(admin.ModelAdmin):
+class RecipientAttrAdmin(ModelAdmin):
     list_display = ["get_email", "get_first_name", "get_last_name"]
     search_fields = ["user__email", "user__first_name", "user__last_name"]
 
@@ -114,7 +115,7 @@ class RecipientAttrAdmin(admin.ModelAdmin):
 from django_admin_action_forms import AdminActionFormsMixin, action_with_form  # noqa: E402
 
 
-class ArticleAttrAdmin(AdminActionFormsMixin, admin.ModelAdmin):
+class ArticleAttrAdmin(AdminActionFormsMixin, ModelAdmin):
     list_display = ["id", "name", "shop", "brand_label", "get_status", "get_cart_link"]
     list_filter = ["shop", ArticleAvailabilityFilter]
     search_fields = ["name", "brand_label", "barcode"]
@@ -203,7 +204,7 @@ class ArticleAttrAdmin(AdminActionFormsMixin, admin.ModelAdmin):
         return request.user.is_authenticated and (hasattr(request.user, "socialworker") or request.user.is_staff)
 
 
-class CartAttribAdmin(admin.ModelAdmin):
+class CartAttribAdmin(ModelAdmin):
     list_display = ["id", "shop", "status", "created_at", "notified_at", "collected_at"]
     autocomplete_fields = ["shop", "recipient"]
     search_fields = ["id", "shop__name"]

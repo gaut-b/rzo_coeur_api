@@ -1,39 +1,37 @@
 {% extends "admin/change_form.html" %}
 {% load i18n %}
 
-{% block submit_buttons_bottom %}
-  {{ block.super }}
-
+{% block after_field_sets %}
   {% if original %}
-    {% if original.recipient and original.status != "COLLECTED" %}
-      {# Cart assigned to a recipient and not yet collected: button is active #}
-      <div class="submit-row">
-        <input
+      <div class="border border-base-200 dark:border-base-800 rounded-default p-4 flex flex-col gap-3 sm:flex-row sm:items-center justify-between">
+      {% if original.recipient and original.status != "COLLECTED" %}
+        {# Cart assigned to a recipient and not yet collected: button is active #}
+        <button
           type="submit"
           name="_notify_recipient"
-          value="{% trans "Notifier le bénéficiaire par e-mail" %}"
-          class="default"
-        />
+          class="font-medium inline-flex group items-center gap-1 relative rounded-default justify-center whitespace-nowrap cursor-pointer px-3 py-2 border border-base-200 bg-white shadow-xs text-important dark:border-base-700 dark:bg-transparent hover:bg-base-100/80 dark:hover:bg-base-800/80 flex-1"
+        >
+          {% trans "Notifier le bénéficiaire par e-mail" %}
+        </button>
         {% if original.notified_at %}
-          <p class="help" style="display:inline; margin-left: 12px; color: #666;">
+          <p class="text-sm text-font-subtle-light dark:text-font-subtle-dark flex-1 text-right">
             {% blocktrans with date=original.notified_at|date:"d/m/Y" time=original.notified_at|time:"H:i" %}
               Dernière notification envoyée le {{ date }} à {{ time }}.
             {% endblocktrans %}
           </p>
         {% endif %}
-      </div>
-    {% else %}
-      {# No recipient or cart collected: button is disabled #}
-      <div class="submit-row">
-        <input
+      {% else %}
+        {# No recipient or cart collected: button is disabled #}
+        <button
           type="submit"
           name="_notify_recipient"
-          value="{% trans "Notifier le bénéficiaire par e-mail" %}"
-          class="default"
+          class="font-medium inline-flex group items-center gap-1 relative rounded-default justify-center whitespace-nowrap cursor-pointer px-3 py-2 border border-base-200 bg-white shadow-xs text-important dark:border-base-700 dark:bg-transparent opacity-50 cursor-not-allowed w-full sm:w-auto"
           disabled
           title="{% if original.status == 'COLLECTED' %}{% trans "Le panier a déjà été collecté." %}{% else %}{% trans "Aucun bénéficiaire assigné à ce panier." %}{% endif %}"
-        />
-      </div>
-    {% endif %}
+        >
+          {% trans "Notifier le bénéficiaire par e-mail" %}
+        </button>
+      {% endif %}
+    </div>
   {% endif %}
 {% endblock %}
