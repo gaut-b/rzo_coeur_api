@@ -2,10 +2,10 @@
 # Creates a Release Candidate (RC) tag on main.
 #
 # Steps:
-#   1. Runs semantic-release (angular preset, prerelease channel "rc"):
-#        - analyzes commits to determine version bump
-#        - creates the vX.Y.Z-rc.N tag and GitHub prerelease
-#   2. Builds Docker images and pushes to GHCR with tags:
+#   1. Runs semantic-release --dry-run to determine the next version
+#        from conventional commits (feat → minor, fix/other → patch)
+#   2. Creates and pushes the vX.Y.Z-rc.N tag
+#   3. Builds Docker images and pushes to GHCR with tags:
 #        sha-<SHA>, vX.Y.Z-rc.N, staging
 #
 
@@ -22,6 +22,7 @@ jobs:
   release-rc:
     name: Create RC tag on main
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
     concurrency:
       group: release
       cancel-in-progress: false
@@ -54,22 +55,38 @@ jobs:
           npm install --no-save \
             semantic-release \
             @semantic-release/commit-analyzer \
-            @semantic-release/release-notes-generator \
-            @semantic-release/github
+            @semantic-release/release-notes-generator
 
-      - name: Run semantic-release
+      - name: Compute next version and RC tag
         id: release
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          BEFORE=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          npx semantic-release
-          AFTER=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          if [ "$BEFORE" = "$AFTER" ]; then
-            echo "::error::No releasable commits found since last tag."
+          git fetch --tags
+
+          # Dry-run: analyze conventional commits to get next stable version
+          NEXT_VERSION=$(npx semantic-release --dry-run 2>&1 \
+            | grep -oP '(?<=The next release version is )\S+' | head -1)
+          if [ -z "$NEXT_VERSION" ]; then
+            echo "::error::No releasable commits found since last release."
             exit 1
           fi
-          echo "rc_tag=${AFTER}" >> $GITHUB_OUTPUT
+
+          # Compute RC number for that version
+          LATEST_RC=$(git tag -l "v${NEXT_VERSION}-rc.*" | sort -V | tail -1)
+          if [ -z "$LATEST_RC" ]; then
+            RC_NUMBER=1
+          else
+            RC_NUMBER=$(echo "$LATEST_RC" | grep -oP '\d+$')
+            RC_NUMBER=$((RC_NUMBER + 1))
+          fi
+
+          echo "rc_tag=v${NEXT_VERSION}-rc.${RC_NUMBER}" >> $GITHUB_OUTPUT
+
+      - name: Create and push RC tag
+        run: |
+          git tag -a ${{ steps.release.outputs.rc_tag }} -m "${{ steps.release.outputs.rc_tag }}"
+          git push origin ${{ steps.release.outputs.rc_tag }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
