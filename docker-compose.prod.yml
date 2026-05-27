@@ -1,9 +1,9 @@
 services:
   nginx:
-    image: ghcr.io/gaut-b/rzo_coeur_api/nginx:latest
+    image: ghcr.io/gaut-b/rzo_coeur_api/nginx:${IMAGE_TAG:-latest}
     ports:
       # Expose only on localhost, nginx host will proxy to this port
-      - '127.0.0.1:8080:80'
+      - '127.0.0.1:${NGINX_PORT:-8080}:80'
     volumes:
       # Config is baked into the image via nginx/Dockerfile — no bind mount needed
       - static_files:/app/src/staticfiles:ro
@@ -14,7 +14,7 @@ services:
     restart: unless-stopped
 
   backend:
-    image: ghcr.io/gaut-b/rzo_coeur_api/backend:latest
+    image: ghcr.io/gaut-b/rzo_coeur_api/backend:${IMAGE_TAG:-latest}
     env_file:
       - ./.env
     environment:
@@ -50,7 +50,7 @@ services:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
     ports:
-      - '127.0.0.1:9001:9001' # MinIO web console (proxied via host nginx at /minio/)
+      - '127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001' # MinIO web console (proxied via host nginx at /minio/)
     volumes:
       - minio-data:/data
     environment:
@@ -79,32 +79,6 @@ services:
         mc anonymous set download local/articles-photos;
         echo 'MinIO bucket ready.';
       "
-
-  docker-proxy:
-    image: tecnativa/docker-socket-proxy
-    environment:
-      # Allow only the commands needed for deployment
-      CONTAINERS: 1
-      IMAGES: 1
-      NETWORKS: 1
-      POST: 1
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    restart: unless-stopped
-
-  webhook:
-    image: ghcr.io/gaut-b/rzo_coeur_api/webhook:latest
-    ports:
-      - '127.0.0.1:9000:9000'
-    volumes:
-      - ./scripts:/opt/rzo_coeur_api/scripts:ro
-      # Required by deploy.sh to run docker compose commands
-      - ./docker-compose.prod.yml:/opt/rzo_coeur_api/docker-compose.prod.yml:ro
-      - ./.env:/opt/rzo_coeur_api/.env:ro
-    environment:
-      - DOCKER_HOST=tcp://docker-proxy:2375
-      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
-    restart: unless-stopped
 
 volumes:
   db-data:

@@ -1,23 +1,28 @@
 #!/bin/bash
 # Backup PostgreSQL database using pg_dump inside the Docker container.
+# Reads .env from the parent folder and stores backups in
+# /opt/backups/<parent-folder-name>/.
 # Creates compressed dumps with timestamp, retains only the last 7 days.
 
 set -e
 
-BACKUP_DIR="/opt/backups/postgres"
-COMPOSE_FILE="/opt/rzo_coeur_api/docker-compose.prod.yml"
-ENV_FILE="/opt/rzo_coeur_api/.env"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BASE_DIR="$(dirname "$SCRIPT_DIR")"
+COMPOSE_FILE="$BASE_DIR/docker-compose.prod.yml"
+ENV_FILE="$BASE_DIR/.env"
+
+if [ ! -f "$ENV_FILE" ]; then
+  echo "No .env file found in $BASE_DIR"
+  exit 1
+fi
+
+BACKUP_DIR="/opt/backups/$(basename "$BASE_DIR")"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 RETENTION_DAYS=7
 
 # Load environment variables from .env file
-if [ -f "$ENV_FILE" ]; then
-    # Export only SQL_DATABASE and SQL_USER to avoid overriding system variables
-    export $(grep -E '^(SQL_DATABASE|SQL_USER)=' "$ENV_FILE" | xargs)
-else
-    echo "[$(date)] ERROR: .env file not found at ${ENV_FILE}"
-    exit 1
-fi
+# Export only SQL_DATABASE and SQL_USER to avoid overriding system variables
+export $(grep -E '^(SQL_DATABASE|SQL_USER)=' "$ENV_FILE" | xargs)
 
 DB_NAME="${SQL_DATABASE:?ERROR: SQL_DATABASE is not set in .env}"
 DB_USER="${SQL_USER:?ERROR: SQL_USER is not set in .env}"
