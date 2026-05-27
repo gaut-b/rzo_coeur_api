@@ -1,31 +1,35 @@
 #!/bin/bash
-# Deploy script triggered by webhook.
-# Pulls the latest Docker image and restarts the backend service.
+# Deploy script — pulls the latest images and restarts the services.
+# Works for both prod and staging: auto-detects the compose file
+# from the folder it lives in.
 
 set -e
 
 # Use the deploy user's Docker credentials even when running as root/sudo
 export DOCKER_CONFIG=/home/deploy/.docker
 
-COMPOSE_FILE="/opt/rzo_coeur_api/docker-compose.prod.yml"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BASE_DIR="$(dirname "$SCRIPT_DIR")"
+COMPOSE_FILE="$BASE_DIR/docker-compose.prod.yml"
+
 REGISTRY="ghcr.io"
 IMAGE="ghcr.io/gaut-b/rzo_coeur_api"
 
-echo "[$(date)] Starting deployment..."
+echo "[$(date)] Starting deployment from $BASE_DIR..."
 
-cd /opt/rzo_coeur_api
+cd "$BASE_DIR"
 
 # Backup database before deploying
-/opt/rzo_coeur_api/scripts/backup_db.sh
+"$SCRIPT_DIR/backup_db.sh"
 
-# Pull the latest images from GHCR (backend + nginx + webhook)
-docker compose -f "$COMPOSE_FILE" pull backend nginx webhook
+# Pull the latest images from GHCR (backend + nginx)
+docker compose -f "$COMPOSE_FILE" pull backend nginx
 
-# Restart backend, nginx and webhook — db is untouched
+# Restart backend and nginx — db is untouched
 docker compose -f "$COMPOSE_FILE" up -d \
   --no-deps \
   --force-recreate \
-  backend nginx webhook
+  backend nginx
 
 # Apply any pending migrations
 docker compose -f "$COMPOSE_FILE" exec -T backend \
