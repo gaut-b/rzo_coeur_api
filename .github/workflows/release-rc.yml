@@ -50,30 +50,31 @@ jobs:
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
 
-      - name: Install semantic-release
-        run: |
-          npm install --no-save \
-            semantic-release \
-            @semantic-release/commit-analyzer \
-            @semantic-release/release-notes-generator
-
       - name: Compute next version and RC tag
         id: release
-        env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           git fetch --tags
 
-          # Dry-run: analyze conventional commits to get next stable version
-          NEXT_VERSION=$(npx semantic-release --dry-run 2>&1 \
-            | grep -oP '(?<=The next release version is )\S+' | head -1)
-          if [ -z "$NEXT_VERSION" ]; then
-            echo "::error::No releasable commits found since last release."
-            exit 1
-          fi
+          # Current version from latest stable tag (v0.0.0 if none)
+          LATEST_TAG=$(git tag -l "v[0-9]*.[0-9]*.[0-9]*" \
+            | grep -v '\-rc\.' | sort -V | tail -1)
+          CURRENT="${LATEST_TAG#v}"
+          CURRENT="${CURRENT:-0.0.0}"
 
-          # Compute RC number for that version
-          LATEST_RC=$(git tag -l "v${NEXT_VERSION}-rc.*" | sort -V | tail -1)
+          # Bump type from conventional commits (angular preset):
+          # feat → minor, fix/other → patch, BREAKING CHANGE/! → major
+          BUMP=$(npx --yes conventional-recommended-bump -p angular)
+          echo "Bump type: $BUMP (current: $CURRENT)"
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          case "$BUMP" in
+            major) NEW_VERSION="$((MAJOR + 1)).0.0" ;;
+            minor) NEW_VERSION="${MAJOR}.$((MINOR + 1)).0" ;;
+            *)     NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))" ;;
+          esac
+
+          # RC number for that version
+          LATEST_RC=$(git tag -l "v${NEW_VERSION}-rc.*" | sort -V | tail -1)
           if [ -z "$LATEST_RC" ]; then
             RC_NUMBER=1
           else
@@ -81,7 +82,7 @@ jobs:
             RC_NUMBER=$((RC_NUMBER + 1))
           fi
 
-          echo "rc_tag=v${NEXT_VERSION}-rc.${RC_NUMBER}" >> $GITHUB_OUTPUT
+          echo "rc_tag=v${NEW_VERSION}-rc.${RC_NUMBER}" >> $GITHUB_OUTPUT
 
       - name: Create and push RC tag
         run: |
