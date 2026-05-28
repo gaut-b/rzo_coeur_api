@@ -8,11 +8,19 @@
 #   3. Builds Docker images and pushes to GHCR with tags:
 #        sha-<SHA>, vX.Y.Z-rc.N, staging
 #
+# Trigger:
+#   Runs automatically on every push to main, but pauses at the
+#   "staging" environment gate until a reviewer approves it.
+#   Configure required reviewers at:
+#   Settings > Environments > staging > Required reviewers
+#
 
 name: Release RC
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - main
 
 env:
   REGISTRY: ghcr.io
@@ -22,7 +30,7 @@ jobs:
   release-rc:
     name: Create RC tag on main
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    environment: staging
     concurrency:
       group: release
       cancel-in-progress: false
