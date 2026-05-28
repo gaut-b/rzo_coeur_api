@@ -107,10 +107,26 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          gh release create ${{ steps.version.outputs.stable_tag }} \
-            --title "Release ${{ steps.version.outputs.stable_tag }}" \
-            --generate-notes \
-            --verify-tag
+          STABLE_TAG="${{ steps.version.outputs.stable_tag }}"
+
+          # Without --notes-start-tag, GitHub compares from the nearest git
+          # tag (the RC), which points to the same commit → zero PRs in range
+          # → empty notes. We force it to start from the previous stable tag.
+          PREV_STABLE=$(git tag -l "v[0-9]*.[0-9]*.[0-9]*" \
+            | grep -v '\-rc\.' | grep -v "^${STABLE_TAG}$" | sort -V | tail -1)
+
+          if [ -n "$PREV_STABLE" ]; then
+            gh release create "${STABLE_TAG}" \
+              --title "Release ${STABLE_TAG}" \
+              --generate-notes \
+              --notes-start-tag "${PREV_STABLE}" \
+              --verify-tag
+          else
+            gh release create "${STABLE_TAG}" \
+              --title "Release ${STABLE_TAG}" \
+              --generate-notes \
+              --verify-tag
+          fi
 
       - name: Summary
         run: |
