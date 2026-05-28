@@ -25,7 +25,10 @@ cd "$BASE_DIR"
 # Pull the latest images from GHCR (backend + nginx)
 docker compose -f "$COMPOSE_FILE" pull backend nginx
 
-# Restart backend and nginx — db is untouched
+# Ensure db and minio are running (no-op if already up)
+docker compose -f "$COMPOSE_FILE" up -d db minio
+
+# Restart backend and nginx — db/minio are untouched
 docker compose -f "$COMPOSE_FILE" up -d \
   --no-deps \
   --force-recreate \
