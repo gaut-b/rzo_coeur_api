@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = "GPL-3.0-or-later"
 dependencies = [
-    "django==5.2.7",
+    "django==5.2.11",
     "djangorestframework==3.15.2",
     "djangorestframework-simplejwt==5.5.1",
     "django-allauth==65.10.0",
@@ -23,7 +23,7 @@ dependencies = [
     "django-admin-action-forms==2.2.1",
     "boto3==1.38.0",
     "django-storages[s3]==1.14.6",
-    "pillow==11.2.1",
+    "pillow==12.2.0",
     "django-anymail[brevo]==14.0",
     "django-unfold==0.91.0",
 ]
