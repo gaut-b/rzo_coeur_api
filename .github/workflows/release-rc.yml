@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: staging
     concurrency:
-      group: release
+      group: release-rc
       cancel-in-progress: false
     permissions:
       contents: write
@@ -108,11 +108,20 @@ jobs:
           echo "rc_tag=v${NEW_VERSION}-rc.${RC_NUMBER}" >> $GITHUB_OUTPUT
 
       - name: Create and push RC tag
+        id: push_tag
         run: |
-          git tag -a ${{ steps.release.outputs.rc_tag }} -m "${{ steps.release.outputs.rc_tag }}"
-          git push origin ${{ steps.release.outputs.rc_tag }}
+          RC_TAG="${{ steps.release.outputs.rc_tag }}"
+          if git rev-parse "$RC_TAG" >/dev/null 2>&1; then
+            echo "⚠️ RC tag $RC_TAG already exists, skipping tag creation"
+            echo "tag_created=false" >> $GITHUB_OUTPUT
+          else
+            git tag -a "$RC_TAG" -m "$RC_TAG"
+            git push origin "$RC_TAG"
+            echo "tag_created=true" >> $GITHUB_OUTPUT
+          fi
 
       - name: Create GitHub Pre-release
+        if: steps.push_tag.outputs.tag_created == 'true'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
