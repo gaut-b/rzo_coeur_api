@@ -1,3 +1,4 @@
+import structlog
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
 from drf_spectacular.utils import (
@@ -13,6 +14,8 @@ from rest_framework.views import APIView
 from api.models import Shop
 
 from .serializers import ShopSerializer
+
+logger = structlog.get_logger(__name__)
 
 
 class ShopDetailView(APIView):
@@ -176,6 +179,11 @@ class ShopListView(APIView):
         shops = Shop.objects.all()
 
         if latitude and longitude:
+            logger.debug(
+                "shop_list_proximity",
+                latitude=latitude,
+                longitude=longitude,
+            )
             try:
                 lat = float(latitude)
                 lon = float(longitude)
@@ -201,6 +209,7 @@ class ShopListView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         else:
+            logger.debug("shop_list")
             shops = shops.order_by("id")
 
         paginator = PageNumberPagination()

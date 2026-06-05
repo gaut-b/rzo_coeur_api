@@ -2,11 +2,14 @@
 Custom authentication classes for the API.
 """
 
+import structlog
 from auth_kit.authentication import JWTCookieAuthentication
 from rest_framework_simplejwt.exceptions import AuthenticationFailed, InvalidToken
 from rest_framework_simplejwt.settings import api_settings
 
 from .models import CustomUser
+
+logger = structlog.get_logger(__name__)
 
 
 class SelectRelatedJWTAuthentication(JWTCookieAuthentication):
@@ -33,9 +36,11 @@ class SelectRelatedJWTAuthentication(JWTCookieAuthentication):
                 "cashier",
             ).get(**{api_settings.USER_ID_FIELD: user_id})
         except CustomUser.DoesNotExist as exc:
+            logger.warning("jwt_auth_failed", reason="user_not_found", user_id=user_id)
             raise AuthenticationFailed("User not found", code="user_not_found") from exc
 
         if not user.is_active:
+            logger.warning("jwt_auth_failed", reason="user_inactive", user_id=user_id)
             raise AuthenticationFailed("User is inactive", code="user_inactive")
 
         return user

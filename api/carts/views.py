@@ -1,3 +1,4 @@
+import structlog
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
@@ -11,6 +12,8 @@ from api.shops.permissions import IsCashier, IsShopManager
 
 from .permissions import IsRecipient
 from .serializers import CartCollectSerializer, CartSerializer
+
+logger = structlog.get_logger(__name__)
 
 
 class RecipientCartListView(APIView):
@@ -147,6 +150,12 @@ class CartCollectView(APIView):
 
         if serializer.is_valid():
             serializer.update(cart, serializer.validated_data)
+            logger.info(
+                "cart_collected",
+                cart_id=cart.pk,
+                recipient_id=recipient.pk,
+                shop_id=cart.shop_id,
+            )
             return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

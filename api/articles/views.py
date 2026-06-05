@@ -1,5 +1,6 @@
 import uuid
 
+import structlog
 from django.core.files.storage import default_storage
 from django.db import transaction
 from drf_spectacular.types import OpenApiTypes
@@ -19,6 +20,8 @@ from .serializers import (
     BulkArticleCreateSerializer,
     PhotoUploadSerializer,
 )
+
+logger = structlog.get_logger(__name__)
 
 
 class ArticleCreateView(APIView):
@@ -83,6 +86,12 @@ class ArticleCreateView(APIView):
                 created_articles = serializer.save()
             response_serializer = ArticleSerializer(created_articles, many=True)
 
+            logger.info(
+                "articles_bulk_created",
+                count=len(created_articles),
+                shop_id=request.user.cashier.shop_id,
+                client_id=serializer.validated_data["client_id"],
+            )
             return Response(
                 {
                     "message": (f"Successfully created {len(created_articles)} articles."),
@@ -177,10 +186,12 @@ class ArticleBarcodeView(APIView):
         """
         article = Article.objects.filter(barcode=barcode).first()
         if article is None:
+            logger.debug("barcode_lookup", barcode=barcode, found=False)
             return Response(
                 {"detail": f"No article found with barcode {barcode}."},
                 status=status.HTTP_404_NOT_FOUND,
             )
+        logger.debug("barcode_lookup", barcode=barcode, found=True, article_id=article.pk)
         serializer = ArticleSerializer(article)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -249,4 +260,5 @@ class ArticlePhotoUploadView(APIView):
         saved_path = default_storage.save(filename, image_file)
         url = default_storage.url(saved_path)
 
+        logger.info("article_photo_uploaded", filename=filename, url=url)
         return Response({"url": url}, status=status.HTTP_201_CREATED)

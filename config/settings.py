@@ -1,8 +1,11 @@
 import os
 from pathlib import Path
 
+import structlog
 from django.templatetags.static import static
 from dotenv import load_dotenv
+
+from config.log_sanitizer import sanitize_structlog_processor
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve(strict=True).parent.parent
@@ -153,6 +156,13 @@ AUTH_KIT = {
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
+    # Binds request_id, ip and (for session-based auth) user_id to the
+    # structlog context for the duration of every request.  Must come before
+    # any middleware that emits log entries.
+    "django_structlog.middlewares.RequestMiddleware",
+    # Logs the sanitized request body at INFO level.  Placed after
+    # django_structlog so that request_id is already in the context.
+    "api.middleware.RequestBodyLoggingMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -314,62 +324,160 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 TEST_RUNNER = "config.test_runner.TestRunner"
 
 # ---------------------------------------------------------------------------
-# Logging — structured logging to stdout so Docker captures all output.
-# The console handler covers all environments; a file handler is omitted
-# because the app runs inside Docker where stdout is the canonical log sink.
-# Only active in production; Django's default logging is used in development.
-# LOG_LEVEL can be set in the environment to override the default (INFO).
-# Invalid values are silently ignored and fall back to INFO.
+# Logging — structured JSON logging to stdout via structlog + django-structlog.
+#
+# Architecture:
+# • structlog processes all log entries through a shared processor chain.
+# • django-structlog's RequestMiddleware binds request_id, ip, and user_id
+#   to the contextvars context for the duration of every request so that
+#   every log entry emitted during that request carries those fields.
+# • The structlog ProcessorFormatter bridges stdlib logging.getLogger() calls
+#   through the same chain, ensuring consistent JSON output.
+#
+# Log level ladder:
+#   DEBUG   — fine-grained diagnostic data (dev / on-demand troubleshooting)
+#   INFO    — normal business events (request received, cart collected…)
+#   WARNING — recoverable problems, 4xx responses, invalid inputs
+#   ERROR   — unexpected failures, 5xx responses, exceptions
+#
+# Override the level at runtime with the LOG_LEVEL environment variable.
 # ---------------------------------------------------------------------------
+
+
 _VALID_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
-_LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
+_LOG_LEVEL = os.environ.get("LOG_LEVEL", "DEBUG" if DEBUG else "INFO").upper()
 if _LOG_LEVEL not in _VALID_LOG_LEVELS:
     import warnings
 
     warnings.warn(
-        f"Invalid LOG_LEVEL={_LOG_LEVEL!r}. Must be one of {_VALID_LOG_LEVELS}. Falling back to INFO.",
+        f"Invalid LOG_LEVEL={_LOG_LEVEL!r}. Must be one of {_VALID_LOG_LEVELS}."
+        " Falling back to DEBUG when DEBUG is enabled, otherwise INFO.",
         stacklevel=2,
     )
-    _LOG_LEVEL = "INFO"
+    _LOG_LEVEL = "DEBUG" if DEBUG else "INFO"
 
-if not DEBUG:
-    LOGGING = {
-        "version": 1,
-        "disable_existing_loggers": False,
-        "formatters": {
-            "verbose": {
-                "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
-                "style": "{",
-            },
+# Processors shared between the structlog chain and the stdlib bridge.
+# Order matters: each processor receives the output of the previous one.
+# Note: filter_by_level is intentionally absent from this shared list because
+# it requires a proper stdlib logger object, which is unavailable when
+# processing foreign (stdlib) log records.  Level filtering for stdlib loggers
+# is handled by the Django LOGGING ``level`` settings on each handler/logger.
+_SHARED_PROCESSORS: list[structlog.types.Processor] = [
+    # Merge context variables bound by django-structlog (request_id, user_id…)
+    structlog.contextvars.merge_contextvars,
+    structlog.stdlib.add_logger_name,
+    structlog.stdlib.add_log_level,
+    # Expand positional %-style arguments before other processors see them.
+    structlog.stdlib.PositionalArgumentsFormatter(),
+    structlog.processors.TimeStamper(fmt="iso"),
+    structlog.processors.StackInfoRenderer(),
+    # Render exception info as a structured dict inside the JSON payload.
+    structlog.processors.ExceptionRenderer(),
+    # Redact sensitive field values (passwords, tokens…) before rendering.
+    sanitize_structlog_processor,
+    structlog.processors.UnicodeDecoder(),
+]
+
+structlog.configure(
+    processors=[
+        # filter_by_level is safe here because structlog always provides a
+        # real bound logger object (never None).
+        structlog.stdlib.filter_by_level,
+    ]
+    + _SHARED_PROCESSORS
+    + [
+        # Wraps the event dict so ProcessorFormatter can render it.
+        # Must be the last processor in the structlog chain.
+        structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
+    ],
+    logger_factory=structlog.stdlib.LoggerFactory(),
+    wrapper_class=structlog.stdlib.BoundLogger,
+    cache_logger_on_first_use=True,
+)
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "json": {
+            "()": structlog.stdlib.ProcessorFormatter,
+            "processors": [
+                structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+                structlog.processors.JSONRenderer(),
+            ],
+            # Applied to records from stdlib loggers (logging.getLogger)
+            # before they reach the JSON renderer.
+            "foreign_pre_chain": _SHARED_PROCESSORS,
         },
-        "handlers": {
-            "console": {
-                "level": _LOG_LEVEL,
-                "class": "logging.StreamHandler",
-                "formatter": "verbose",
-            },
+    },
+    "handlers": {
+        "console": {
+            "level": _LOG_LEVEL,
+            "class": "logging.StreamHandler",
+            "formatter": "json",
         },
-        "loggers": {
-            "django": {
-                "handlers": ["console"],
-                "level": _LOG_LEVEL,
-                "propagate": False,
-            },
-            # Django's template engine logs a DEBUG entry for every missing
-            # variable, even those handled by |default or {% if %}. This is
-            # extremely noisy and does not indicate a real error.
-            "django.template": {
-                "handlers": ["console"],
-                "level": "WARNING",
-                "propagate": False,
-            },
-            "api": {
-                "handlers": ["console"],
-                "level": _LOG_LEVEL,
-                "propagate": False,
-            },
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": _LOG_LEVEL,
+            "propagate": False,
         },
-    }
+        # Django's template engine emits a DEBUG entry for every missing
+        # template variable.  This is extremely noisy and not actionable.
+        "django.template": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "api": {
+            # All application code uses structlog.get_logger() directly.
+            # This entry ensures any stdlib log records emitted by indirect
+            # sources within the api package (e.g. third-party mixins) are
+            # still routed through the JSON formatter.
+            "handlers": ["console"],
+            "level": _LOG_LEVEL,
+            "propagate": False,
+        },
+        "django_structlog": {
+            "handlers": ["console"],
+            "level": _LOG_LEVEL,
+            "propagate": False,
+        },
+        # Keep request lifecycle events (request_started/request_finished)
+        # so the full chain remains visible in logs.
+        "django_structlog.middlewares.request": {
+            "handlers": ["console"],
+            "level": _LOG_LEVEL,
+            "propagate": False,
+        },
+        # Prevent file watcher debug spam in development.
+        "django.utils.autoreload": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        # SQL query logs are too verbose for normal API debugging.
+        "django.db.backends": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        # request_finished from django_structlog already logs every request;
+        # keep only server-level errors to avoid duplicate access lines.
+        "django.server": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        # DRF errors are logged by api.exceptions / response_error middleware.
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+    },
+}
 
 
 # ---------------------------------------------------------------------------
