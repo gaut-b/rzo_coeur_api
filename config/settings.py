@@ -327,7 +327,7 @@ if _LOG_LEVEL not in _VALID_LOG_LEVELS:
     import warnings
 
     warnings.warn(
-        f"Invalid LOG_LEVEL={_LOG_LEVEL!r}. " f"Must be one of {_VALID_LOG_LEVELS}. Falling back to INFO.",
+        f"Invalid LOG_LEVEL={_LOG_LEVEL!r}. Must be one of {_VALID_LOG_LEVELS}. Falling back to INFO.",
         stacklevel=2,
     )
     _LOG_LEVEL = "INFO"
