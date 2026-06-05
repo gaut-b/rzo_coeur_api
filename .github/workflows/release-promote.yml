@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     concurrency:
-      group: release
+      group: release-promote
       cancel-in-progress: false
     permissions:
       contents: write
@@ -66,16 +66,20 @@ jobs:
           STABLE_TAG=$(echo "$RC_TAG" | sed 's/-rc\.[0-9]*$//')
           echo "stable_tag=${STABLE_TAG}" >> $GITHUB_OUTPUT
 
-      - name: Ensure stable tag does not already exist
+      - name: Check if stable tag already exists
+        id: tag_check
         run: |
           STABLE_TAG="${{ steps.version.outputs.stable_tag }}"
           git fetch --tags
           if git rev-parse "$STABLE_TAG" >/dev/null 2>&1; then
-            echo "❌ Stable tag $STABLE_TAG already exists"
-            exit 1
+            echo "⚠️ Stable tag $STABLE_TAG already exists, skipping tag creation"
+            echo "tag_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "tag_exists=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Create and push stable tag
+        if: steps.tag_check.outputs.tag_exists == 'false'
         run: |
           git tag -a ${{ steps.version.outputs.stable_tag }} -m "${{ steps.version.outputs.stable_tag }}"
           git push origin ${{ steps.version.outputs.stable_tag }}
@@ -106,6 +110,7 @@ jobs:
           docker push ${{ env.IMAGE_BASE }}/nginx:latest
 
       - name: Create GitHub Release
+        if: steps.tag_check.outputs.tag_exists == 'false'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
