@@ -102,6 +102,7 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "api.authentication.SelectRelatedJWTAuthentication",
     ],
+    "EXCEPTION_HANDLER": "api.exceptions.exception_handler",
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
@@ -317,7 +318,10 @@ TEST_RUNNER = "config.test_runner.TestRunner"
 # The console handler covers all environments; a file handler is omitted
 # because the app runs inside Docker where stdout is the canonical log sink.
 # Only active in production; Django's default logging is used in development.
+# LOG_LEVEL can be set in the environment to override the default (INFO).
 # ---------------------------------------------------------------------------
+_LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
+
 if not DEBUG:
     LOGGING = {
         "version": 1,
@@ -330,7 +334,7 @@ if not DEBUG:
         },
         "handlers": {
             "console": {
-                "level": "INFO",
+                "level": _LOG_LEVEL,
                 "class": "logging.StreamHandler",
                 "formatter": "verbose",
             },
@@ -338,7 +342,7 @@ if not DEBUG:
         "loggers": {
             "django": {
                 "handlers": ["console"],
-                "level": "INFO",
+                "level": _LOG_LEVEL,
                 "propagate": False,
             },
             # Django's template engine logs a DEBUG entry for every missing
@@ -351,7 +355,7 @@ if not DEBUG:
             },
             "api": {
                 "handlers": ["console"],
-                "level": "INFO",
+                "level": _LOG_LEVEL,
                 "propagate": False,
             },
         },
