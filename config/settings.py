@@ -319,8 +319,18 @@ TEST_RUNNER = "config.test_runner.TestRunner"
 # because the app runs inside Docker where stdout is the canonical log sink.
 # Only active in production; Django's default logging is used in development.
 # LOG_LEVEL can be set in the environment to override the default (INFO).
+# Invalid values are silently ignored and fall back to INFO.
 # ---------------------------------------------------------------------------
+_VALID_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
 _LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
+if _LOG_LEVEL not in _VALID_LOG_LEVELS:
+    import warnings
+
+    warnings.warn(
+        f"Invalid LOG_LEVEL={_LOG_LEVEL!r}. " f"Must be one of {_VALID_LOG_LEVELS}. Falling back to INFO.",
+        stacklevel=2,
+    )
+    _LOG_LEVEL = "INFO"
 
 if not DEBUG:
     LOGGING = {

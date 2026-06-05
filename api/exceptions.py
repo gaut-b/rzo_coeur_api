@@ -13,10 +13,11 @@ def exception_handler(exc, context):
     """
     response = drf_exception_handler(exc, context)
 
+    request = context.get("request")
+    method = getattr(request, "method", "?")
+    path = getattr(request, "path", "?")
+
     if response is not None:
-        request = context.get("request")
-        method = getattr(request, "method", "?")
-        path = getattr(request, "path", "?")
         status_code = response.status_code
 
         if status_code >= 500:
@@ -35,5 +36,12 @@ def exception_handler(exc, context):
                 status_code,
                 response.data,
             )
+    else:
+        logger.error(
+            "Unhandled exception in %s %s",
+            method,
+            path,
+            exc_info=exc,
+        )
 
     return response
