@@ -15,9 +15,9 @@ Extends Django's built-in password-reset views to:
      web-form link via ``mobile_password_reset_url_generator``.
 """
 
-import logging
 from urllib.parse import urlencode
 
+import structlog
 from allauth.account.adapter import DefaultAccountAdapter
 from allauth.account.models import EmailAddress, get_emailconfirmation_model
 from django.conf import settings
@@ -32,7 +32,7 @@ from django.views import View
 
 from .models import CustomUser
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # Roles that belong to mobile-app users (CLIENT, RECIPIENT).
 # These users reset their password through the app flow, not the admin web form.
@@ -169,7 +169,7 @@ class CustomPasswordResetConfirmView(auth_views.PasswordResetConfirmView):
                 defaults={"verified": True, "primary": True},
             )
         except Exception:
-            logger.exception("Failed to mark email as verified for user pk=%s", user.pk)
+            logger.exception("email_verification_failed", user_pk=user.pk)
         return response
 
     def get_success_url(self) -> str:

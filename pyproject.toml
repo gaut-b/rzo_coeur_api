@@ -26,6 +26,8 @@ dependencies = [
     "pillow==12.2.0",
     "django-anymail[brevo]==14.0",
     "django-unfold==0.91.0",
+    "structlog>=25.5.0",
+    "django-structlog==10.1.0",
 ]
 
 [dependency-groups]

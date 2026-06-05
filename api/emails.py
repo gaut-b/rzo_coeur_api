@@ -6,9 +6,9 @@ from admin form saves and are intentionally kept free of Django request
 dependencies where possible so that they can be tested in isolation.
 """
 
-import logging
 from urllib.parse import urlencode
 
+import structlog
 from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import EmailMessage
@@ -29,7 +29,7 @@ _SUBJECT_PREFIX: str = settings.ACCOUNT_EMAIL_SUBJECT_PREFIX
 # requests originate from localhost and would produce an inaccessible URL.
 _LOGO_URL: str = f"{settings.API_URL.rstrip('/')}/{settings.STATIC_URL.lstrip('/')}logo.png"
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 def send_account_welcome_email(
@@ -86,9 +86,9 @@ def send_account_welcome_email(
         # Do not let an email failure prevent account creation.  Log the
         # error so it can be investigated, but swallow the exception.
         logger.exception(
-            "Failed to send welcome email to %s (user pk=%s)",
-            user.email,
-            user.pk,
+            "welcome_email_failed",
+            user_email=user.email,
+            user_pk=user.pk,
         )
 
 
@@ -132,11 +132,11 @@ def send_cart_available_email(cart: Cart, request) -> None:
     subject = f"{_SUBJECT_PREFIX}{_('Un panier est disponible pour vous')}"
     html_body = render_to_string("emails/cart_available_email.html", context, request=request)
 
-    logger.info(
-        "Cart available email — to=%s subject=%r body_preview=\n%s",
-        recipient_user.email,
-        subject,
-        html_body,
+    logger.debug(
+        "cart_available_email",
+        recipient_email=recipient_user.email,
+        subject=subject,
+        body_preview=html_body,
     )
 
     try:
@@ -149,8 +149,8 @@ def send_cart_available_email(cart: Cart, request) -> None:
         email.send()
     except Exception:
         logger.exception(
-            "Failed to send cart available email to %s (cart pk=%s)",
-            recipient_user.email,
-            cart.pk,
+            "cart_available_email_failed",
+            recipient_email=recipient_user.email,
+            cart_pk=cart.pk,
         )
         raise
