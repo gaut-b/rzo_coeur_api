@@ -102,6 +102,20 @@ class TestShopAdminCashierCreation:
         email = page_obj.create_cashier(shop_manager_page, role="False")
         expect(shop_manager_page.locator("#result_list")).to_contain_text(email)
 
+    def test_staff_without_cashier_can_create_cashier_with_shop(self, staff_page: Page) -> None:
+        """
+        A staff user without cashier profile must see the shop selector
+        and can create a cashier when selecting a shop.
+        """
+        page_obj = ShopAdminPage(BASE_URL)
+        page_obj.expect_shop_field_visible_on_add_cashier(staff_page)
+        email = page_obj.create_cashier_as_staff(
+            staff_page,
+            shop_name="E2E Test Shop",
+            role="False",
+        )
+        expect(staff_page.locator("#result_list")).to_contain_text(email)
+
 
 @pytest.mark.usefixtures("django_server")
 class TestShopAdminCsvExport:

@@ -88,6 +88,43 @@ class ShopAdminPage:
         expect(page).to_have_url(re.compile(r"/shop-admin/api/cashier/"))
         return email
 
+    def expect_shop_field_visible_on_add_cashier(self, page: Page) -> None:
+        """Assert that the shop selector is visible on the add-cashier form."""
+        self.goto_add_cashier(page)
+        expect(page.locator("#id_shop")).to_be_visible()
+
+    def create_cashier_as_staff(
+        self,
+        page: Page,
+        *,
+        shop_name: str,
+        first_name: str | None = None,
+        last_name: str | None = None,
+        role: str = "False",
+    ) -> str:
+        """
+        Fill and submit the cashier creation form as a staff user.
+
+        Staff users must select a shop explicitly.
+        """
+        suffix = uuid.uuid4().hex[:8]
+        email = f"e2e-new-staff-cashier-{suffix}@test.local"
+        first_name = first_name or "Staff"
+        last_name = last_name or f"Cashier{suffix}"
+
+        self.goto_add_cashier(page)
+
+        page.locator("#id_email").fill(email)
+        page.locator("#id_first_name").fill(first_name)
+        page.locator("#id_last_name").fill(last_name)
+        page.locator("#id_role").select_option(value=role)
+        page.locator("#id_shop").select_option(label=shop_name)
+
+        page.locator('[name="_save"]').click()
+
+        expect(page).to_have_url(re.compile(r"/shop-admin/api/cashier/"))
+        return email
+
     def expect_has_access(self, page: Page) -> None:
         """Assert that the user has a valid session on shop-admin."""
         expect(page).to_have_url(re.compile(r"/shop-admin/(?!.*login)"))

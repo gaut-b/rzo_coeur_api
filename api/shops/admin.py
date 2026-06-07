@@ -308,15 +308,44 @@ class CashierCreationForm(UniqueEmailMixin, forms.ModelForm):
 
     class Meta:
         model = Cashier
-        fields = ["email", "first_name", "last_name", "role"]
+        fields = ["email", "first_name", "last_name", "role", "shop"]
 
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop("request", None)
         super().__init__(*args, **kwargs)
 
-    def save(self, commit=True):
-        if not self.request or not hasattr(self.request.user, "cashier"):
+        # Shop managers always create cashiers in their own shop.
+        if self.request and hasattr(self.request.user, "cashier"):
+            self.fields.pop("shop", None)
+            return
+
+        if "shop" in self.fields:
+            self.fields["shop"].queryset = Shop.objects.all().order_by("name")
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if not self.request:
+            raise forms.ValidationError("Unable to determine permissions for cashier creation.")
+
+        user = self.request.user
+        is_shop_manager = hasattr(user, "cashier") and user.cashier.is_shop_manager
+
+        if not user.is_staff and not is_shop_manager:
             raise forms.ValidationError("Unable to determine shop. You must be logged in as a shop manager.")
+
+        if not hasattr(user, "cashier") and not cleaned_data.get("shop"):
+            self.add_error("shop", "Veuillez sélectionner un magasin.")
+
+        return cleaned_data
+
+    def save(self, commit=True):
+        if not self.request:
+            raise forms.ValidationError("Unable to determine permissions for cashier creation.")
+
+        if hasattr(self.request.user, "cashier"):
+            shop = self.request.user.cashier.shop
+        else:
+            shop = self.cleaned_data["shop"]
 
         generated_password = secrets.token_urlsafe(20)
         user = CustomUser.objects.create_user(
@@ -328,7 +357,7 @@ class CashierCreationForm(UniqueEmailMixin, forms.ModelForm):
 
         cashier = super().save(commit=False)
         cashier.user = user
-        cashier.shop = self.request.user.cashier.shop
+        cashier.shop = shop
         cashier.is_shop_manager = self.cleaned_data["role"]
 
         if commit:
@@ -504,6 +533,26 @@ class CashierShopAdmin(ModelAdmin):
     def get_fieldsets(self, request, obj=None):
         """Use edit fieldsets when editing, add fieldsets when creating."""
         if obj is None:
+            if request.user.is_staff and not hasattr(request.user, "cashier"):
+                return (
+                    (
+                        _("Informations utilisateur"),
+                        {"fields": ("email", "first_name", "last_name")},
+                    ),
+                    (
+                        _("Rôle"),
+                        {
+                            "fields": ("role",),
+                            "description": _(
+                                "Sélectionnez si cet utilisateur doit être un caissier classique ou un responsable."
+                            ),
+                        },
+                    ),
+                    (
+                        _("Affectation magasin"),
+                        {"fields": ("shop",)},
+                    ),
+                )
             return self.add_fieldsets
         return self.edit_fieldsets
 
