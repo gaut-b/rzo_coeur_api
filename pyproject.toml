@@ -28,6 +28,7 @@ dependencies = [
     "django-unfold==0.91.0",
     "structlog>=25.5.0",
     "django-structlog==10.1.0",
+    "sentry-sdk==2.61.1",
 ]
 
 [dependency-groups]
