@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+import sentry_sdk
 import structlog
 from django.templatetags.static import static
 from dotenv import load_dotenv
@@ -13,7 +14,6 @@ BASE_DIR = Path(__file__).resolve(strict=True).parent.parent
 # Load environment variables: .env.local takes precedence over .env
 load_dotenv(BASE_DIR / ".env")
 load_dotenv(BASE_DIR / ".env.local", override=True)
-BASE_DIR = Path(__file__).resolve(strict=True).parent.parent
 
 # Geospatial libraries — only set when explicitly provided (macOS/custom installs).
 # Leave unset inside Docker so that Django auto-discovers the system libraries.
@@ -541,3 +541,24 @@ else:
     ANYMAIL = {
         "BREVO_API_KEY": os.environ.get("BREVO_API_KEY", ""),
     }
+
+# SENTRY
+if os.environ.get("ENVIRONMENT", "development").lower() == "production":
+    sentry_sdk.init(
+        environment=os.environ.get("ENVIRONMENT", "development"),
+        dsn=os.environ.get("SENTRY_DSN"),
+        # Add data like request headers and IP for users,
+        # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
+        send_default_pii=True,
+        # Enable sending logs to Sentry
+        enable_logs=True,
+        # Set traces_sample_rate to 1.0 to capture 100%
+        # of transactions for tracing.
+        traces_sample_rate=1.0,
+        # Set profile_session_sample_rate to 1.0 to profile 100%
+        # of profile sessions.
+        profile_session_sample_rate=1.0,
+        # Set profile_lifecycle to "trace" to automatically
+        # run the profiler on when there is an active transaction
+        profile_lifecycle="trace",
+    )
