@@ -630,7 +630,12 @@ class AppVerifyEmailFallbackViewTests(TestCase):
             first_name="Test",
             last_name="User",
         )
-        email_address = EmailAddress.objects.create(user=user, email=user.email, primary=True, verified=False)
+        email_address = EmailAddress.objects.create(
+            user=user,
+            email=user.email,
+            primary=True,
+            verified=False,
+        )
         model = get_emailconfirmation_model()
         confirmation = model.create(email_address)
 
