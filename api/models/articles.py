@@ -7,7 +7,7 @@ from .users import Client
 
 
 class Article(models.Model):
-    name = models.CharField(max_length=50, blank=True, default="")
+    name = models.CharField(max_length=500, blank=True, default="")
     barcode = models.BigIntegerField()
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name="articles")
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name="articles")
@@ -29,5 +29,16 @@ class Article(models.Model):
             models.Index(fields=["shop", "cart"], name="article_shop_cart_idx"),
         ]
 
+    @staticmethod
+    def truncate_name(value: str) -> str:
+        """Truncate a name value to the field's max_length (500)."""
+        max_length = 500  # mirrors Article.name max_length
+        return value[:max_length] if value else value
+
     def __str__(self) -> str:
         return self.name
+
+    def save(self, *args, **kwargs) -> None:
+        """Persist the article after trimming the name to the DB limit."""
+        self.name = self.truncate_name(self.name)
+        super().save(*args, **kwargs)

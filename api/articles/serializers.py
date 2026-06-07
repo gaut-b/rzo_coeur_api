@@ -14,7 +14,7 @@ class ArticleInputSerializer(serializers.Serializer):
         min_value=0,
         help_text="EAN-13 or similar product barcode (numeric only)",
     )
-    name = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    name = serializers.CharField(required=False, allow_blank=True)
     img_url = serializers.URLField(max_length=500, required=False, allow_blank=True)
     thumb_url = serializers.URLField(max_length=500, required=False, allow_blank=True)
     brand_label = serializers.CharField(max_length=500, required=False, allow_blank=True)
@@ -193,9 +193,10 @@ class BulkArticleCreateSerializer(serializers.Serializer):
         shop = getattr(self, "_validated_shop", None)
 
         # Prepare article objects for bulk creation
+        # bulk_create bypasses model save(), so truncation must be applied here.
         articles_to_create = [
             Article(
-                name=article_data.get("name", ""),
+                name=Article.truncate_name(article_data.get("name", "")),
                 barcode=article_data["barcode"],
                 client=client,
                 shop=shop,

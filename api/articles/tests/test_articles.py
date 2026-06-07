@@ -321,6 +321,69 @@ class ArticleCreateViewTests(APITestCase):
         self.assertEqual(article3.thumb_url, "")
         self.assertEqual(article3.brand_label, "")
 
+    def test_create_articles_name_exactly_500_chars(self):
+        """Test that a name of exactly 500 characters is stored as-is."""
+        self.api_client.force_authenticate(user=self.cashier_user)
+
+        long_name = "a" * 500
+        data = {
+            "client_id": self.test_client_user.pk,
+            "articles": [{"barcode": 3017620422003, "name": long_name}],
+        }
+
+        response = self.api_client.post(self.url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        article = Article.objects.get(barcode=3017620422003)
+        self.assertEqual(len(article.name), 500)
+        self.assertEqual(article.name, long_name)
+
+    def test_create_articles_name_over_500_chars_is_trimmed(self):
+        """Test that names longer than 500 characters are trimmed, not rejected."""
+        self.api_client.force_authenticate(user=self.cashier_user)
+
+        long_name = "b" * 550
+        data = {
+            "client_id": self.test_client_user.pk,
+            "articles": [{"barcode": 3564700013151, "name": long_name}],
+        }
+
+        response = self.api_client.post(self.url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        article = Article.objects.get(barcode=3564700013151)
+        self.assertEqual(len(article.name), 500)
+        self.assertEqual(article.name, long_name[:500])
+
+    def test_create_articles_mixed_name_lengths(self):
+        """Test bulk create with short, exact-limit, and over-limit names."""
+        self.api_client.force_authenticate(user=self.cashier_user)
+
+        short_name = "Short name"
+        exact_name = "c" * 500
+        over_name = "d" * 510
+
+        data = {
+            "client_id": self.test_client_user.pk,
+            "articles": [
+                {"barcode": 1111111111111, "name": short_name},
+                {"barcode": 2222222222222, "name": exact_name},
+                {"barcode": 3333333333333, "name": over_name},
+            ],
+        }
+
+        response = self.api_client.post(self.url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        article_short = Article.objects.get(barcode=1111111111111)
+        article_exact = Article.objects.get(barcode=2222222222222)
+        article_over = Article.objects.get(barcode=3333333333333)
+
+        self.assertEqual(article_short.name, short_name)
+        self.assertEqual(article_exact.name, exact_name)
+        self.assertEqual(article_over.name, over_name[:500])
+
 
 class ArticleGetListViewTests(APITestCase):
     """Tests for the ArticleGetListView endpoint (GET /clients/me/articles/)."""
