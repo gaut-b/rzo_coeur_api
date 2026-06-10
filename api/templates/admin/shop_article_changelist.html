@@ -1,12 +1,12 @@
 {% extends "admin/change_list.html" %}
-{% load i18n %}
+{% load i18n unfold %}
 
 {% block object-tools-items %}
   {% if request.user.cashier.is_shop_manager or request.user.is_staff %}
     <li>
-      <a href="export-csv/" class="button">
+      {% component "unfold/components/button.html" with href="export-csv/" %}
         {% trans "Exporter en CSV" %}
-      </a>
+      {% endcomponent %}
     </li>
   {% endif %}
   {{ block.super }}

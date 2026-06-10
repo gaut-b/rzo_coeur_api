@@ -58,6 +58,11 @@
     const latInput = document.getElementById('id_latitude');
     const lonInput = document.getElementById('id_longitude');
 
+    const existingContainer = document.getElementById('shop-map-container');
+    if (existingContainer) {
+      return existingContainer;
+    }
+
     // Find the right location for the map (after coordinate fields)
     const container = document.createElement('div');
     container.id = 'shop-map-container';
@@ -68,9 +73,14 @@
             </p>
         `;
 
-    // Insert after longitude input
-    if (lonInput && lonInput.parentNode && lonInput.parentNode.parentNode) {
-      lonInput.parentNode.parentNode.appendChild(container);
+    // Insert map at the end of the fieldset so it stays full-width below fields.
+    if (lonInput) {
+      const fieldset = lonInput.closest('fieldset');
+      if (fieldset) {
+        fieldset.appendChild(container);
+      } else if (lonInput.parentNode) {
+        lonInput.parentNode.appendChild(container);
+      }
     }
 
     return container;

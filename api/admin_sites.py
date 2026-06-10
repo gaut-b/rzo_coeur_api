@@ -10,6 +10,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.cache import never_cache
 from unfold.sites import UnfoldAdminSite
+from unfold.widgets import UnfoldAdminDecimalFieldWidget, UnfoldAdminTextInputWidget
 
 from .models import CustomUser
 
@@ -50,7 +51,7 @@ class AddressLocationAdminForm(forms.ModelForm):
         required=False,
         max_length=200,
         help_text="Start typing to search for an address",
-        widget=forms.TextInput(attrs={"placeholder": "Search address..."}),
+        widget=UnfoldAdminTextInputWidget(attrs={"placeholder": "Search address..."}),
     )
 
     # Virtual fields for latitude/longitude
@@ -58,13 +59,13 @@ class AddressLocationAdminForm(forms.ModelForm):
         required=False,
         max_digits=9,
         decimal_places=6,
-        widget=forms.NumberInput(attrs={"step": "0.000001"}),
+        widget=UnfoldAdminDecimalFieldWidget(attrs={"step": "0.000001"}),
     )
     longitude = forms.DecimalField(
         required=False,
         max_digits=9,
         decimal_places=6,
-        widget=forms.NumberInput(attrs={"step": "0.000001"}),
+        widget=UnfoldAdminDecimalFieldWidget(attrs={"step": "0.000001"}),
     )
 
     class Meta:
