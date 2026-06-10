@@ -6,6 +6,7 @@ from django.contrib import admin
 from django.db import transaction
 from django.utils.translation import gettext_lazy as _
 from unfold.admin import ModelAdmin
+from unfold.widgets import UnfoldAdminEmailInputWidget, UnfoldAdminTextInputWidget
 
 from api.admin_sites import (
     AddressLocationAdminForm,
@@ -83,9 +84,23 @@ class SocialCashierCreationForm(UniqueEmailMixin, forms.ModelForm):
     to the social worker's own social center.
     """
 
-    email = forms.EmailField(required=True, label="Email")
-    first_name = forms.CharField(required=True, max_length=150, label="First name")
-    last_name = forms.CharField(required=True, max_length=150, label="Last name")
+    email = forms.EmailField(
+        required=True,
+        label="Email",
+        widget=UnfoldAdminEmailInputWidget(),
+    )
+    first_name = forms.CharField(
+        required=True,
+        max_length=150,
+        label="First name",
+        widget=UnfoldAdminTextInputWidget(),
+    )
+    last_name = forms.CharField(
+        required=True,
+        max_length=150,
+        label="Last name",
+        widget=UnfoldAdminTextInputWidget(),
+    )
 
     class Meta:
         model = Cashier
@@ -163,9 +178,21 @@ class SocialWorkerCreationForm(UniqueEmailMixin, forms.ModelForm):
     own social center on save.
     """
 
-    email = forms.EmailField(required=True, help_text="Email address for the new user")
-    first_name = forms.CharField(required=True, max_length=150)
-    last_name = forms.CharField(required=True, max_length=150)
+    email = forms.EmailField(
+        required=True,
+        help_text="Email address for the new user",
+        widget=UnfoldAdminEmailInputWidget(),
+    )
+    first_name = forms.CharField(
+        required=True,
+        max_length=150,
+        widget=UnfoldAdminTextInputWidget(),
+    )
+    last_name = forms.CharField(
+        required=True,
+        max_length=150,
+        widget=UnfoldAdminTextInputWidget(),
+    )
 
     class Meta:
         model = SocialWorker
@@ -214,9 +241,21 @@ class SocialWorkerStaffCreationForm(UniqueEmailMixin, forms.ModelForm):
     Exposes social_center as a selectable field.
     """
 
-    email = forms.EmailField(required=True, help_text="Email address for the new user")
-    first_name = forms.CharField(required=True, max_length=150)
-    last_name = forms.CharField(required=True, max_length=150)
+    email = forms.EmailField(
+        required=True,
+        help_text="Email address for the new user",
+        widget=UnfoldAdminEmailInputWidget(),
+    )
+    first_name = forms.CharField(
+        required=True,
+        max_length=150,
+        widget=UnfoldAdminTextInputWidget(),
+    )
+    last_name = forms.CharField(
+        required=True,
+        max_length=150,
+        widget=UnfoldAdminTextInputWidget(),
+    )
 
     class Meta:
         model = SocialWorker
@@ -267,9 +306,21 @@ class RecipientCreationForm(UniqueEmailMixin, forms.ModelForm):
     own social center on save.
     """
 
-    email = forms.EmailField(required=True, help_text="Email address for the new user")
-    first_name = forms.CharField(required=True, max_length=150)
-    last_name = forms.CharField(required=True, max_length=150)
+    email = forms.EmailField(
+        required=True,
+        help_text="Email address for the new user",
+        widget=UnfoldAdminEmailInputWidget(),
+    )
+    first_name = forms.CharField(
+        required=True,
+        max_length=150,
+        widget=UnfoldAdminTextInputWidget(),
+    )
+    last_name = forms.CharField(
+        required=True,
+        max_length=150,
+        widget=UnfoldAdminTextInputWidget(),
+    )
 
     class Meta:
         model = Recipient
@@ -317,9 +368,21 @@ class RecipientStaffCreationForm(UniqueEmailMixin, forms.ModelForm):
     Exposes social_center as a selectable field.
     """
 
-    email = forms.EmailField(required=True, help_text="Email address for the new user")
-    first_name = forms.CharField(required=True, max_length=150)
-    last_name = forms.CharField(required=True, max_length=150)
+    email = forms.EmailField(
+        required=True,
+        help_text="Email address for the new user",
+        widget=UnfoldAdminEmailInputWidget(),
+    )
+    first_name = forms.CharField(
+        required=True,
+        max_length=150,
+        widget=UnfoldAdminTextInputWidget(),
+    )
+    last_name = forms.CharField(
+        required=True,
+        max_length=150,
+        widget=UnfoldAdminTextInputWidget(),
+    )
 
     class Meta:
         model = Recipient
