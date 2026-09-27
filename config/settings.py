@@ -141,6 +141,7 @@ SPECTACULAR_SETTINGS = {
 # Configure auth_kit to use our custom serializers
 AUTH_KIT = {
     "USER_SERIALIZER": "api.users.serializers.CustomUserSerializer",
+    "USER_VIEW": "api.users.views.CustomUserView",
     "REGISTER_SERIALIZER": "api.users.serializers.CustomRegisterSerializer",
     "USE_AUTH_COOKIE": True,
     # Override password reset URL to generate Universal Links that the mobile
